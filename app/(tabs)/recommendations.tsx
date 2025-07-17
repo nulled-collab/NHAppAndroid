@@ -5,20 +5,21 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    ListRenderItemInfo,
-    Platform,
-    Pressable,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  FlatList,
+  ListRenderItemInfo,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 import { Book, getRecommendations } from "@/api/nhentai";
 import BookCard from "@/components/BookCard";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /* ─────────────────────── тип для элемента списка ──────────────────────── */
 type RecBook = Book & { explain: string[] };
@@ -169,6 +170,7 @@ export default function RecommendationsScreen() {
 /* ─────────────────────── Debug-accordion (выдрано) ────────────────────── */
 function InfoAccordion({ debug, books }: { debug: any; books: RecBook[] }) {
   const [open, setOpen] = useState(false);
+    const insets = useSafeAreaInsets(); // ← NEW
 
   /* перевод псевдо-HTML разметки в plain-текст */
   const fmt = (s: string) =>
@@ -189,7 +191,7 @@ function InfoAccordion({ debug, books }: { debug: any; books: RecBook[] }) {
 
       {open && (
         <ScrollView
-          style={{ maxHeight: 420 }}
+          style={{ maxHeight: 420, paddingTop: insets.top + 64 }}
           nestedScrollEnabled={Platform.OS !== "web"}
         >
           {/* чипы */}

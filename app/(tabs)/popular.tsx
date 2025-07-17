@@ -5,19 +5,21 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function PopularScreen() {
-  const [books, setBooks]   = useState<Book[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
   const [favorites, setFav] = useState<Set<number>>(new Set());
-  const [loading, setL]     = useState(true);
-  const [refresh, setRef]   = useState(false);
-  const router              = useRouter();
+  const [loading, setL] = useState(true);
+  const [refresh, setRef] = useState(false);
+  const router = useRouter();
+  const insets = useSafeAreaInsets(); // ← NEW
 
-  const { includes, excludes } = useFilterTags();                  // ← NEW
+  const { includes, excludes } = useFilterTags(); // ← NEW
 
   useEffect(() => {
     AsyncStorage.getItem("bookFavorites").then(
-      (j) => j && setFav(new Set(JSON.parse(j))),
+      (j) => j && setFav(new Set(JSON.parse(j)))
     );
   }, []);
 
@@ -35,8 +37,8 @@ export default function PopularScreen() {
       contentType: "popular",
       sort: "popular",
       perPage: 40,
-      includeTags: includes,                                     // ← NEW
-      excludeTags: excludes,                                     // ← NEW
+      includeTags: includes, // ← NEW
+      excludeTags: excludes, // ← NEW
     });
     setBooks(books);
     setL(false);
@@ -44,13 +46,13 @@ export default function PopularScreen() {
 
   useEffect(() => {
     load();
-  }, [includes, excludes]);                                      // ← NEW
+  }, [includes, excludes]); // ← NEW
 
   const onRefresh = useCallback(async () => {
     setRef(true);
     await load();
     setRef(false);
-  }, [includes, excludes]);                                      // ← NEW
+  }, [includes, excludes]); // ← NEW
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
@@ -64,12 +66,17 @@ export default function PopularScreen() {
           isFavorite={favorites.has(item.id)}
           onToggleFavorite={toggleFav}
           onPress={() =>
-            router.push({ pathname: "/book/[id]", params: { id: String(item.id) } })
+            router.push({
+              pathname: "/book/[id]",
+              params: { id: String(item.id) },
+            })
           }
         />
       )}
-      refreshControl={<RefreshControl refreshing={refresh} onRefresh={onRefresh} />}
-      contentContainerStyle={{ paddingBottom: 24 }}
+      refreshControl={
+        <RefreshControl refreshing={refresh} onRefresh={onRefresh} />
+      }
+      contentContainerStyle={{ paddingBottom: 24, paddingTop: insets.top + 64 }}
     />
   );
 }

@@ -4,18 +4,20 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    BackHandler,
-    Dimensions,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View
+  ActivityIndicator,
+  Animated,
+  BackHandler,
+  Dimensions,
+  Keyboard,
+  KeyboardAvoidingView,
+  LayoutChangeEvent,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -25,7 +27,44 @@ import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 const KEY_HISTORY = "searchHistory";
 const MAX_HEIGHT = Dimensions.get("window").height * 0.6; // 60 % высоты экрана
 
-export default function SearchBar() {
+// Animated wrapper for show/hide on scroll
+export function AnimatedSearchBar({ visible = true, ...props }) {
+  const insets = useSafeAreaInsets();
+  const anim = useRef(new Animated.Value(0)).current;
+  const [height, setHeight] = useState(64 + insets.top); // дефолтно "большой", если не знаем
+
+  // Запоминаем реальную высоту wrap при рендере
+  const onLayout = (e: LayoutChangeEvent) => {
+    setHeight(e.nativeEvent.layout.height);
+  };
+
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: visible ? 0 : -height,
+      duration: 380,
+      useNativeDriver: true,
+    }).start();
+  }, [visible, height]);
+
+  return (
+    <Animated.View
+      style={{
+        transform: [{ translateY: anim }],
+        zIndex: 10,
+        position: "absolute",
+        left: 0,
+        right: 0,
+      }}
+      pointerEvents={visible ? "auto" : "none"}
+      onLayout={onLayout}
+    >
+      <SearchBarInner {...props} />
+    </Animated.View>
+  );
+}
+
+// Original SearchBar as reusable component
+export function SearchBarInner() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -37,12 +76,12 @@ export default function SearchBar() {
 
   const inputRef = useRef<TextInput>(null);
 
-  /* ─── load history once ─────────────────────────────────────────────── */
+  // Загружаем историю поиска
   useEffect(() => {
     AsyncStorage.getItem(KEY_HISTORY).then((j) => j && setHist(JSON.parse(j)));
   }, []);
 
-  /* ─── blur on keyboard hide / Android Back ──────────────────────────── */
+  // Автоматический blur при сворачивании клавиатуры/нажатии Back на Android
   useEffect(() => {
     const hideSub = Keyboard.addListener("keyboardDidHide", () => {
       inputRef.current?.isFocused() && inputRef.current.blur();
@@ -65,7 +104,7 @@ export default function SearchBar() {
     };
   }, []);
 
-  /* ─── live suggestions (debounce 500 ms, limit 6) ───────────────────── */
+  // Live-подсказки по 6 штук, задержка 500мс
   useEffect(() => {
     if (!q.trim()) {
       setSug([]);
@@ -87,7 +126,6 @@ export default function SearchBar() {
     return () => clearTimeout(t);
   }, [q]);
 
-  /* ─── helpers ───────────────────────────────────────────────────────── */
   const saveHistory = async (query: string) => {
     const next = [query, ...history.filter((h) => h !== query)].slice(0, 10);
     setHist(next);
@@ -123,16 +161,20 @@ export default function SearchBar() {
 
   const showDrop = isFocused && (chips.length > 0 || q.trim() !== "");
 
-  /* ─── UI ────────────────────────────────────────────────────────────── */
   return (
     <>
-      {/* input */}
-      <View style={[styles.wrap, { paddingTop: insets.top + 4 }]}>
-        <Feather name="search" size={18} color="#999" />
+      {/* YouTube-Style Capsule SearchBar */}
+      <View style={[styles.wrap, { marginTop: useSafeAreaInsets().top + 8 }]}>
+        <Feather
+          name="search"
+          size={18}
+          color="#9c9c9c"
+          style={{ marginLeft: 4 }}
+        />
         <TextInput
           ref={inputRef}
           style={styles.input}
-          placeholder="Search…"
+          placeholder="Search"
           placeholderTextColor="#777"
           value={q}
           onChangeText={setQ}
@@ -142,18 +184,30 @@ export default function SearchBar() {
           returnKeyType={Platform.OS === "ios" ? "search" : "done"}
           blurOnSubmit
         />
+        {q !== "" && (
+          <Pressable
+            hitSlop={10}
+            onPress={() => setQ("")}
+            style={styles.clearBtn}
+          >
+            <Feather name="x" size={18} color="#9c9c9c" />
+          </Pressable>
+        )}
       </View>
 
-      {/* dropdown */}
+      {/* Выпадающий список поиска */}
       {showDrop && (
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={insets.top + 48}
+          keyboardVerticalOffset={useSafeAreaInsets().top + 48}
         >
           <View
             style={[
               styles.dropdown,
-              { maxHeight: MAX_HEIGHT, marginBottom: insets.bottom },
+              {
+                maxHeight: MAX_HEIGHT,
+                marginBottom: useSafeAreaInsets().bottom,
+              },
             ]}
           >
             <ScrollView
@@ -254,23 +308,31 @@ export default function SearchBar() {
   );
 }
 
-/* styles */
 const styles = StyleSheet.create({
   wrap: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    backgroundColor: "#36334d",
+    marginHorizontal: 12,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    height: 40,
+    backgroundColor: "#262626",
+    borderRadius: 20,
+    position: "relative",
   },
   input: {
     flex: 1,
     color: "#fff",
-    fontSize: 16,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderColor: "#555",
+    fontSize: 15,
+    paddingVertical: 0,
+    paddingRight: 32,
+    backgroundColor: "transparent",
+  },
+  clearBtn: {
+    position: "absolute",
+    right: 12,
+    zIndex: 2,
   },
   dropdown: {
     width: "100%",
@@ -278,6 +340,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
   },
   sectionHeader: {
     flexDirection: "row",

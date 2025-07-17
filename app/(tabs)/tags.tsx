@@ -2,17 +2,18 @@ import raw from "@/api/nhentai-tags.json";
 import { useFilterTags } from "@/context/TagFilterContext";
 import React, { useMemo, useState } from "react";
 import {
-    FlatList,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /* ---------- типизация JSON ---------- */
 interface TagEntry {
-  id: string;          // в JSON id строкой — пусть так
+  id: string; // в JSON id строкой — пусть так
   type: string;
   name: string;
   count: number;
@@ -33,10 +34,17 @@ type OneTag = TagsDbShape["tags"][number];
 export default function TagsScreen() {
   const { filters, cycle, clear } = useFilterTags();
   const [search, setSearch] = useState("");
+  const insets = useSafeAreaInsets(); // ← NEW
 
   /* собираем все коллекции */
   const all: OneTag[] = useMemo(() => {
-    const pack = ["tags", "artists", "characters", "parodies", "groups"] as const;
+    const pack = [
+      "tags",
+      "artists",
+      "characters",
+      "parodies",
+      "groups",
+    ] as const;
     return pack.flatMap((k) => (tagsDb as any)[k]);
   }, []);
 
@@ -54,7 +62,14 @@ export default function TagsScreen() {
 
   /* ---------- UI ---------- */
   return (
-    <View style={{ flex: 1, padding: 12, backgroundColor: "#302d45" }}>
+    <View
+      style={{
+        flex: 1,
+        padding: 12,
+        backgroundColor: "#302d45",
+        paddingTop: insets.top + 12,
+      }}
+    >
       <TextInput
         placeholder="Search tag…"
         placeholderTextColor="#999"
@@ -65,7 +80,7 @@ export default function TagsScreen() {
 
       <FlatList
         data={filtered}
-        extraData={filters}             // <— важная строка, триггерит перерисовку
+        extraData={filters} // <— важная строка, триггерит перерисовку
         keyboardShouldPersistTaps="handled"
         keyExtractor={(t) => `${t.type}:${t.id}`}
         renderItem={({ item }) => {

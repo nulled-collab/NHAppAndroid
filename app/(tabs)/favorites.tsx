@@ -1,16 +1,17 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Pressable,
-    RefreshControl,
-    Text,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  Text,
+  View,
 } from "react-native";
 
 import { Book, getFavorites } from "@/api/nhentai";
 import BookCard from "@/components/BookCard";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type SortKey = "relevance" | "popular";
 
@@ -20,6 +21,7 @@ export default function FavoritesScreen() {
   const [sort, setSort] = useState<SortKey>("relevance");
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(false);
+  const insets = useSafeAreaInsets(); // ← NEW
 
   /* --- загружаем id избранного из storage -------------------------------- */
   useEffect(() => {
@@ -94,7 +96,10 @@ export default function FavoritesScreen() {
           refreshControl={
             <RefreshControl refreshing={refresh} onRefresh={onRefresh} />
           }
-          contentContainerStyle={{ paddingBottom: 24 }}
+          contentContainerStyle={{
+            paddingBottom: 24,
+            paddingTop: insets.top + 64,
+          }}
         />
       )}
     </>
