@@ -1,9 +1,8 @@
 import { Image as ExpoImage } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
-    Dimensions,
     NativeSyntheticEvent,
     Platform,
     Pressable,
@@ -11,6 +10,7 @@ import {
     StyleSheet,
     Text,
     View,
+    useWindowDimensions,
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import _ImageZoom from "react-native-image-pan-zoom";
@@ -19,9 +19,10 @@ import PagerView from "react-native-pager-view";
 import { BookPage, getBook, loadBookFromLocal } from "@/api/nhentai";
 import { hsbToHex } from "@/constants/Colors";
 
-const { width: W, height: H } = Dimensions.get("window");
-const bg = hsbToHex({ saturation: 76, brightness: 25 });
+/* -------------------------------------------------------------------------- */
+
 const ImageZoom = _ImageZoom as any;
+const bg = hsbToHex({ saturation: 76, brightness: 25 });
 
 export default function ReadScreen() {
   /* ─── params ─── */
@@ -34,33 +35,37 @@ export default function ReadScreen() {
   const lastVol = useRef<number | null>(null);
   const [urls, setUrls] = useState<string[]>([]);
   const [isZoomed, setZoom] = useState(false);
-  const [idx, setIdx] = useState(startIndex); // ← current page
+  const [idx, setIdx] = useState(startIndex); // current page
 
-  /* ─── load ─── */
+  /* ─── dynamic window size & orientation ─── */
+  const { width: W, height: H } = useWindowDimensions();
+  const isPortrait = H >= W;
+  const pageOrientation: "vertical" | "horizontal" = isPortrait ? "vertical" : "horizontal";
+
+  /* ─── load pages ─── */
   useEffect(() => {
     const loadPages = async () => {
       const localBook = await loadBookFromLocal(Number(id));
       if (localBook) {
         setUrls(localBook.pages.map((p: BookPage) => p.url));
-      } else {
-        try {
-          const fetchedBook = await getBook(Number(id));
-          setUrls(fetchedBook.pages.map((p: BookPage) => p.url));
-        } catch (error) {
-          console.error("API fetch failed, check offline data:", error);
-          const fallbackBook = await loadBookFromLocal(Number(id));
-          if (fallbackBook) {
-            setUrls(fallbackBook.pages.map((p: BookPage) => p.url));
-          } else {
-            router.back();
-          }
-        }
+        return;
+      }
+
+      try {
+        const fetchedBook = await getBook(Number(id));
+        setUrls(fetchedBook.pages.map((p: BookPage) => p.url));
+      } catch (error) {
+        console.error("API fetch failed, check offline data:", error);
+        const fallbackBook = await loadBookFromLocal(Number(id));
+        if (fallbackBook) setUrls(fallbackBook.pages.map((p: BookPage) => p.url));
+        else router.back();
       }
     };
+
     loadPages();
   }, [id]);
 
-  /* jump to initial */
+  /* ─── jump to initial ─── */
   useEffect(() => {
     if (urls.length && startIndex < urls.length) {
       pager.current?.setPageWithoutAnimation(startIndex);
@@ -69,18 +74,21 @@ export default function ReadScreen() {
   }, [urls, startIndex]);
 
   /* ─── helpers ─── */
-  const jump = (n: number) => {
-    const next = Math.max(0, Math.min(urls.length - 1, n));
-    pager.current?.setPageWithoutAnimation(next);
-    setIdx(next);
-  };
+  const jump = useCallback(
+    (n: number) => {
+      const next = Math.max(0, Math.min(urls.length - 1, n));
+      pager.current?.setPageWithoutAnimation(next);
+      setIdx(next);
+    },
+    [urls.length]
+  );
 
   const onSel = (e: NativeSyntheticEvent<{ position: number }>) => {
     setIdx(e.nativeEvent.position);
     setZoom(false);
   };
 
-  /* ─── volume ± ─── */
+  /* ─── volume ± (Android) ─── */
   useEffect(() => {
     if (Platform.OS !== "android") return;
     let off: undefined | (() => void);
@@ -92,7 +100,7 @@ export default function ReadScreen() {
           lastVol.current = ev.value;
           return;
         }
-        const dir = ev.value > lastVol.current ? -1 : 1;
+        const dir = ev.value > lastVol.current ? -1 : 1; // вверх громкость → назад
         lastVol.current = ev.value;
         jump(idx + dir);
       });
@@ -100,7 +108,7 @@ export default function ReadScreen() {
       console.log("[read] volume listener unavailable (Expo Go)");
     }
     return () => off?.();
-  }, [idx, isZoomed, urls]);
+  }, [idx, isZoomed, jump]);
 
   /* ─── tap-zones ─── */
   const TapZones = () =>
@@ -121,20 +129,23 @@ export default function ReadScreen() {
 
   if (!urls.length) return <ActivityIndicator style={{ flex: 1 }} />;
 
-  /* ─── UI ─── */
+  /* ---------------------------------------------------------------------- */
+
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#000" }}>
       <StatusBar hidden />
+
       <PagerView
+        key={pageOrientation} /* force re-mount when orientation flips */
         ref={pager}
         style={{ flex: 1 }}
-        orientation="vertical"
+        orientation={pageOrientation}
         initialPage={startIndex}
         onPageSelected={onSel}
         scrollEnabled={!isZoomed}
       >
         {urls.map((u, i) => (
-          <View key={i} style={{ width: W, height: H, backgroundColor: bg }}>
+          <View key={`${i}-${W}-${H}`} style={{ width: W, height: H, backgroundColor: bg }}>
             <ImageZoom
               cropWidth={W}
               cropHeight={H}
@@ -145,12 +156,10 @@ export default function ReadScreen() {
               enableDoubleClickZoom={false}
               pinchToZoom
               panToMove={isZoomed}
-              onMove={({ scale }: { scale?: number }) =>
-                setZoom(scale ? scale > 1.01 : false)
-              }
+              onMove={({ scale }: { scale?: number }) => setZoom(scale ? scale > 1.01 : false)}
             >
               <ExpoImage
-                source={{ uri: u }} // Use local URI directly if available
+                source={{ uri: u }}
                 style={{ width: W, height: H }}
                 contentFit="contain"
                 cachePolicy="disk"
@@ -161,8 +170,8 @@ export default function ReadScreen() {
         ))}
       </PagerView>
 
-      {/* ─── page counter ─── */}
-      <View style={styles.counterWrap}>
+      {/* page counter */}
+      <View style={styles.counterWrap} pointerEvents="none">
         <Text style={styles.counterTxt}>
           {idx + 1} / {urls.length}
         </Text>
@@ -182,5 +191,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
   },
-  counterTxt: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  counterTxt: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
+  },
 });

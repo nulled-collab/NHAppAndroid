@@ -21,6 +21,7 @@ export const TAG_COLORS: Record<string, string> = {
 
 export const styles = StyleSheet.create({
   card: {
+    width: "100%",
     marginHorizontal: 16,
     marginVertical: 12,
     borderRadius: 12,

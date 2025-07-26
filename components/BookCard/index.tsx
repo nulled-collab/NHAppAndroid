@@ -101,15 +101,7 @@ export default function BookCard({
     const uniq = new Map<number, Tag>();
     book.tags.forEach((t) => uniq.set(t.id, t));
     return (
-      [
-        "language",
-        "artist",
-        "character",
-        "parody",
-        "group",
-        "category",
-        "tag",
-      ]
+      ["language", "artist", "character", "parody", "group", "category", "tag"]
         .flatMap((type) => [...uniq.values()].filter((t) => t.type === type))
         // показываем только первые 4, если не раскрыто
         .slice(0, showAllTags ? undefined : 4)
@@ -120,9 +112,14 @@ export default function BookCard({
   const variants = buildImageFallbacks(book.cover);
 
   /* флаг по первому языку (если найден PNG) */
-  const flagSrc =
-    book.languages?.[0]?.name &&
-    FLAG_MAP[book.languages[0].name.toLowerCase()];
+  const flagSrc = book.languages?.[0]?.name
+    ? FLAG_MAP[
+        book.languages[0].name.toLowerCase() === "translated" &&
+        book.languages[1]?.name
+          ? book.languages[1].name.toLowerCase()
+          : book.languages[0].name.toLowerCase()
+      ]
+    : undefined;
 
   /* -----------  UI  ------------ */
   return (
@@ -139,11 +136,7 @@ export default function BookCard({
         />
 
         {flagSrc && (
-          <Image
-            source={flagSrc}
-            style={styles.flagImg}
-            resizeMode="contain"
-          />
+          <Image source={flagSrc} style={styles.flagImg} resizeMode="contain" />
         )}
 
         {isNew && <Text style={styles.newBadge}>NEW</Text>}

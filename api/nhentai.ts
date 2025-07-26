@@ -452,6 +452,7 @@ export interface RecommendParams {
   includeTags?: TagFilter[];
   excludeTags?: TagFilter[];
   filterTags?: TagFilter[];
+  randomSeed?: number;
 }
 
 const KNOWN_BUCKETS = [
@@ -474,10 +475,14 @@ const blankFreq = () => Object.create(null) as Record<string, number>;
 const bucketOf = (t: Tag["type"]): Bucket =>
   KNOWN_BUCKETS.includes(t as any) ? (t as Bucket) : "tag";
 
+export interface CandidateBook extends Book {
+  isExploration?: boolean;
+}
+
 export async function getRecommendations(
   p: RecommendParams
 ): Promise<
-  Paged<Book & { explain: string[]; score: number }> & { debug: any }
+  Paged<CandidateBook & { explain: string[]; score: number }> & { debug: any }
 > {
   const {
     ids,
@@ -486,9 +491,17 @@ export async function getRecommendations(
     perPage = 25,
     includeTags = p.filterTags ?? [],
     excludeTags = [],
+    randomSeed = Date.now(),
   } = p;
   if (!ids.length) throw new Error("Ids array required");
 
+  // Псевдослучайный генератор на основе randomSeed
+  const seededRandom = (seed: number) => {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  };
+
+  // Частотность тегов
   const freq: Record<Bucket, Record<string, number>> = {
     character: blankFreq(),
     artist: blankFreq(),
@@ -498,9 +511,8 @@ export async function getRecommendations(
     tag: blankFreq(),
   };
 
-  const likedBooks = (await Promise.all(ids.map(getBook))).filter(
-    Boolean
-  ) as Book[];
+  // Собираем лайкнутые книги
+  const likedBooks = (await Promise.all(ids.map(getBook))).filter(Boolean) as Book[];
   likedBooks.forEach((b) =>
     b.tags.forEach((t) => {
       const bkt = bucketOf(t.type);
@@ -508,25 +520,50 @@ export async function getRecommendations(
     })
   );
 
+  // Динамические веса с бонусом за редкость
+  const calcTagWeight = (bucket: Bucket, tag: string, isRare: boolean): number => {
+    const base = TAG_W[bucket] ?? 1;
+    const count = freq[bucket][tag] ?? 0;
+    const totalTags = Object.keys(freq[bucket]).length;
+    const variance = totalTags > 1 ? 1 / Math.sqrt(totalTags) : 1;
+    const rarityBonus = isRare ? 1.5 : 1; // Бонус для редких тегов
+    return base * (count > 0 ? Math.pow(count, 1.2) : 0.7) * variance * rarityBonus;
+  };
+
+  // Топ-N и редкие теги
   const topN = (m: Record<string, number>, n = 5) =>
     Object.entries(m)
       .sort(([, v1], [, v2]) => v2 - v1)
       .slice(0, n)
       .map(([k]) => k);
+  const rareN = (m: Record<string, number>, n = 5) =>
+    Object.entries(m)
+      .filter(([, v]) => v <= 2) // Теги с частотой 1 или 2
+      .slice(0, n)
+      .map(([k]) => k);
 
-  const topChars = topN(freq.character, 7);
-  const topArts = topN(freq.artist, 5);
+  const topChars = topN(freq.character, 8);
+  const topArts = topN(freq.artist, 6);
   const topTags = topN(freq.tag, 12);
+  const rareTags = rareN(freq.tag, 8);
+  const rareChars = rareN(freq.character, 5);
 
+  // Формируем запросы
   const favQueries = [
     ...topChars.map((c) => `character:"${c}"`),
+    ...topArts.map((a) => `artist:"${a}"`),
     ...topChars
       .slice(0, 3)
       .flatMap((c, i) =>
         topArts[i] ? [`character:"${c}" artist:"${topArts[i]}"`] : []
       ),
+    ...rareChars.map((c) => `character:"${c}"`),
   ];
-  const tagQueries = [topTags.join(" "), ...topTags.map((t) => `"${t}"`)];
+  const tagQueries = [
+    topTags.join(" "),
+    ...topTags.slice(0, 6).map((t) => `"${t}"`),
+    ...rareTags.map((t) => `"${t}"`),
+  ];
 
   const includePart = includeTags.length
     ? includeTags
@@ -536,35 +573,55 @@ export async function getRecommendations(
   const withFilter = (arr: string[]) =>
     includePart ? arr.map((q) => `${includePart} ${q}`) : arr;
 
-  const fetchPage = (q: string, pN: number) =>
+  // Собираем кандидатов
+  const excludeIds = new Set(sentIds);
+  const candidates = new Map<number, CandidateBook>();
+  const fetchPage = async (q: string, pN: number) =>
     searchBooks({ query: q, sort: "popular", page: pN, perPage })
       .then((r) => r.books)
       .catch(() => [] as Book[]);
 
-  const excludeIds = new Set(sentIds);
-  const candidates = new Map<number, Book>();
-  const grab = async (queries: string[]) => {
+  const grab = async (queries: string[], isExploration = false) => {
+    const uniqueQueries = [...new Set(queries)]; // Удаляем дубликаты
     await Promise.all(
-      [1, 2, 3].map((pn) => Promise.all(queries.map((q) => fetchPage(q, pn))))
+      [1, 2, 3, 4].map((pn) => Promise.all(uniqueQueries.map((q) => fetchPage(q, pn))))
     ).then((pages) =>
       pages.flat(2).forEach((b) => {
-        if (
-          !excludeIds.has(b.id) &&
-          !candidates.has(b.id) &&
-          candidates.size < perPage * 10
-        )
-          candidates.set(b.id, b);
+        if (!excludeIds.has(b.id) && !candidates.has(b.id) && candidates.size < perPage * 15) {
+          candidates.set(b.id, { ...b, isExploration });
+        }
       })
     );
   };
-  await grab(withFilter(favQueries));
-  await grab(withFilter(tagQueries));
 
+  await grab(withFilter(favQueries));
+  await grab(withFilter(tagQueries), true);
+
+  // Кластеризация для диверсификации
+  const clusterBooks = (
+    books: (CandidateBook & { score: number; explain: string[] })[]
+  ) => {
+    const clusters: Record<string, typeof books> = {};
+    books.forEach((book) => {
+      const primaryTag = book.tags.find((t) => t.type === "character" || t.type === "tag")?.name || "other";
+      clusters[primaryTag] = clusters[primaryTag] || [];
+      clusters[primaryTag].push(book);
+    });
+
+    const result: typeof books = [];
+    const maxPerCluster = 3;
+    Object.values(clusters).forEach((cluster) => {
+      shuffleArray(cluster, randomSeed); // Перемешиваем внутри кластера
+      result.push(...cluster.slice(0, maxPerCluster));
+    });
+    return result;
+  };
+
+  // Скоринг кандидатов
   const likedSet = new Set(ids);
   const required = new Set(includeTags.map((t) => `${t.type}:${t.name}`));
   const forbidden = new Set(excludeTags.map((t) => `${t.type}:${t.name}`));
-
-  const scored: (Book & { explain: string[]; score: number })[] = [
+  const scored: (CandidateBook & { explain: string[]; score: number })[] = [
     ...candidates.values(),
   ].flatMap((book) => {
     const tagKeys = new Set(book.tags.map((t) => `${t.type}:${t.name}`));
@@ -572,57 +629,75 @@ export async function getRecommendations(
     for (const f of forbidden) if (tagKeys.has(f)) return [];
     for (const r of required) if (!tagKeys.has(r)) return [];
 
-    let score = book.favorites / 15_000;
+    let score = book.favorites / 10_000; // Уменьшаем делитель для большего влияния популярности
     const explain: string[] = [];
 
     if (likedSet.has(book.id)) {
-      score *= 0.5;
-      explain.push("<i>демотирован лайком (×0.5)</i>");
+      score *= 0.4;
+      explain.push("<i>демотирован лайком (×0.4)</i>");
+    }
+
+    if (book.isExploration) {
+      score *= 0.75;
+      explain.push("<i>экспериментальная рекомендация для разнообразия (×0.75)</i>");
     }
 
     book.tags.forEach((t) => {
       const bkt = bucketOf(t.type);
       const cnt = freq[bkt][t.name] ?? 0;
-      if (!cnt) return;
-      const add = (TAG_W[bkt] ?? 1) * Math.pow(cnt, 1.3);
+      const isRare = cnt <= 2 && cnt > 0;
+      const add = calcTagWeight(bkt, t.name, isRare);
       score += add;
       const label =
         bkt === "tag" ? "Tag" : `${bkt.charAt(0).toUpperCase()}${bkt.slice(1)}`;
       explain.push(
-        `${label} <b>${
-          t.name
-        }</b> встречался в ${cnt} избранных — +${add.toFixed(2)}`
+        `${label} <b>${t.name}</b> встречался в ${
+          cnt || 1
+        } избранных${isRare ? ", редкий" : ""} — +${add.toFixed(2)}`
       );
     });
 
     return [{ ...book, score, explain }];
   });
 
-  scored.sort((a, b) => b.score - a.score);
-  for (let i = 0; i < Math.min(20, scored.length - 1); i++) {
-    const j = i + Math.floor(Math.random() * (Math.min(20, scored.length) - i));
-    [scored[i], scored[j]] = [scored[j], scored[i]];
-  }
+  // Функция шаффла с seed
+  const shuffleArray = <T>(array: T[], seed: number) => {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(seededRandom(seed + i) * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  };
+
+  // Диверсификация и кластеризация
+  const diversified = clusterBooks(scored.sort((a, b) => b.score - a.score));
+
+  // Финальный шаффл с seed
+  shuffleArray(diversified, randomSeed);
 
   const start = (page - 1) * perPage;
-  const pageItems = scored.slice(start, start + perPage);
+  const pageItems = diversified.slice(start, start + perPage);
 
   return {
     items: pageItems,
     books: pageItems,
-    totalPages: Math.max(1, Math.ceil(scored.length / perPage)),
+    totalPages: Math.max(1, Math.ceil(diversified.length / perPage)),
     currentPage: page,
-    totalItems: scored.length,
+    totalItems: diversified.length,
     perPage,
     debug: {
       freq,
       topChars,
       topArts,
       topTags,
+      rareTags,
+      rareChars,
       favQueries: withFilter(favQueries),
       tagQueries: withFilter(tagQueries),
       includeTags,
       excludeTags,
+      candidateCount: candidates.size,
+      seed: randomSeed,
     },
   };
 }
