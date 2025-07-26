@@ -1,16 +1,5 @@
-// nhentaiApi.ts – полный client‑SDK для React‑Native / Expo
-// ----------------------------------------------------------------------------
-// 🔸 Содержит аналоги всех WebSocket‑методов из серверной версии.
-// 🔸 Без Node‑only зависимостей – только axios + TypeScript.
-// 🔸 Исправлено: возвращаем и `items`, и `books`, чтобы соответствовать `Paged<T>`.
-// ----------------------------------------------------------------------------
-
 import axios from "axios";
 import { Platform } from "react-native";
-
-/* -------------------------------------------------------------------------- */
-/*                                   Types                                     */
-/* -------------------------------------------------------------------------- */
 
 export interface Tag {
   id: number;
@@ -18,6 +7,14 @@ export interface Tag {
   name: string;
   url: string;
   count: number;
+}
+
+export interface BookPage {
+  page: number;
+  url: string;
+  urlThumb: string;
+  width: number;
+  height: number;
 }
 
 export interface Book {
@@ -34,19 +31,16 @@ export interface Book {
   scanlator: string;
   tags: Tag[];
   cover: string;
+  coverW: number;
+  coverH: number;
   thumbnail: string;
-  pages: {
-    page: number;
-    url: string;
-    urlThumb: string;
-  }[];
+  pages: BookPage[];
   artists?: Tag[];
   characters?: Tag[];
   parodies?: Tag[];
   groups?: Tag[];
   categories?: Tag[];
   languages?: Tag[];
-  // произвольно оставляем raw, если нужно что-то экзотическое
   raw?: any;
 }
 
@@ -68,12 +62,7 @@ export interface Paged<T> {
   [extra: string]: any;
 }
 
-/* -------------------------------------------------------------------------- */
-/*                               Axios Instance                               */
-/* -------------------------------------------------------------------------- */
-
 const corsProxy = "https://thingproxy.freeboard.io/fetch/";
-
 const baseURL =
   Platform.OS === "web"
     ? corsProxy + "https://nhentai.net/api"
@@ -85,15 +74,8 @@ const api = axios.create({
   timeout: 10_000,
 });
 
-/* -------------------------------------------------------------------------- */
-/*                              Helper‑утилиты                                 */
-/* -------------------------------------------------------------------------- */
-
 /** Вернуть массив «coverBase + подходящие расширения» для перебора. */
-export const getCoverVariants = (
-  base: string, // https://t3.nhentai.net/galleries/123/cover
-  token: string // j, J, p, P, …
-): string[] => {
+export const getCoverVariants = (base: string, token: string): string[] => {
   switch (token) {
     case "j":
       return [`${base}.jpg`, `${base}.png`, `${base}.webp`];
@@ -157,18 +139,21 @@ export const parseBookData = (item: any): Book => {
   const coverBase = `https://t3.nhentai.net/galleries/${media}/cover`;
   const thumbBase = `https://t3.nhentai.net/galleries/${media}/thumb`;
 
-  const pages = Array.from({ length: item.num_pages }, (_, i) => {
+  const pages: BookPage[] = Array.from({ length: item.num_pages }, (_, i) => {
     const pageNum = i + 1;
-    const pageExt = extByToken(item.images.pages[i]?.t || "j");
+    const img = item.images.pages[i] || {};
+    const pageExt = extByToken(img.t || "j");
     const host = pickHost(media, pageNum);
 
     const pageBase = `https://${host}.nhentai.net/galleries/${media}/${pageNum}`;
-    const pageBaseThumb = `https://t1.nhentai.net/galleries/${media}/${i + 1}t`;
+    const pageBaseThumb = `https://t1.nhentai.net/galleries/${media}/${pageNum}t`;
 
     return {
       page: pageNum,
       url: `${pageBase}.${pageExt}`,
       urlThumb: `${pageBaseThumb}.${pageExt}`,
+      width: img.w ?? 0,
+      height: img.h ?? 0,
     };
   });
 
@@ -190,22 +175,24 @@ export const parseBookData = (item: any): Book => {
     pagesCount: item.num_pages,
     scanlator: item.scanlator || "",
     tags,
+
     cover: `${coverBase}.${coverExt}`,
+    coverW: item.images.cover?.w ?? 0,
+    coverH: item.images.cover?.h ?? 0,
+
     thumbnail: `${thumbBase}.${thumbExt}`,
     pages,
+
     artists: filterTags("artist"),
     characters: filterTags("character"),
     parodies: filterTags("parody"),
     groups: filterTags("group"),
     categories: filterTags("category"),
     languages: filterTags("language"),
+
     raw: item,
   };
 };
-
-/* -------------------------------------------------------------------------- */
-/*                                 API‑методы                                  */
-/* -------------------------------------------------------------------------- */
 
 export const getBook = async (id: number): Promise<Book> =>
   parseBookData((await api.get(`/gallery/${id}`)).data);
@@ -262,21 +249,14 @@ export const getFavorites = async (params: {
   };
 };
 
-/* -------------------------------------------------------------------------- */
-/*                                 Search                                      */
-/* -------------------------------------------------------------------------- */
-
 interface SearchParams {
   query?: string;
   sort?: string;
   page?: number;
   perPage?: number;
-
   includeTags?: TagFilter[];
   excludeTags?: TagFilter[];
-
   filterTags?: TagFilter[];
-
   contentType?: "new" | "popular" | "";
 }
 
@@ -288,75 +268,88 @@ export const searchBooks = async (
     sort = "",
     page = 1,
     perPage = 25,
-
-    /* new API + fallback */
     includeTags = params.filterTags ?? [],
     excludeTags = [],
-
     contentType = "",
   } = params;
 
-  /* +tags */
   const includePart = includeTags.length
     ? includeTags
         .map((t) => `${t.type.replace(/s$/, "")}:"${t.name}"`)
         .join(" ")
     : "";
-
-  /* -tags (nhentai search понимает минус-теги) */
   const excludePart = excludeTags.length
     ? excludeTags
         .map((t) => `-${t.type.replace(/s$/, "")}:"${t.name}"`)
         .join(" ")
     : "";
-
   const nhQuery = `${query.trim()} ${includePart} ${excludePart}`.trim() || " ";
 
-  /* сортировка (как было) */
-  const allowed = [
+  const allowedSorts = [
     "popular",
     "popular-week",
     "popular-today",
     "popular-month",
-  ] as const;
+    "date",
+  ];
   const realSort =
     contentType === "new"
       ? "date"
-      : contentType === "popular" && !allowed.includes(sort as any)
+      : contentType === "popular" && !allowedSorts.includes(sort as any)
       ? "popular"
       : sort;
 
+  const effectivePerPage = Math.min(perPage || 25, 100);
   const { data } = await api.get("/galleries/search", {
     params: {
       query: nhQuery,
       page: +page || 1,
-      per_page: +perPage || 25,
+      per_page: effectivePerPage,
       sort: realSort,
     },
   });
 
   const books = data.result.map(parseBookData) as Book[];
+  const totalPages = data.num_pages || 1;
+  const totalItems = data.total || books.length;
+
+  if (totalItems > effectivePerPage && books.length < totalItems) {
+    const remainingPages = Math.ceil(
+      (totalItems - books.length) / effectivePerPage
+    );
+    const additionalPages = await Promise.all(
+      Array.from({ length: remainingPages }, (_, i) =>
+        api.get("/galleries/search", {
+          params: {
+            query: nhQuery,
+            page: page + i + 1,
+            per_page: effectivePerPage,
+            sort: realSort,
+          },
+        })
+      )
+    );
+    additionalPages.forEach(({ data }) => {
+      books.push(...data.result.map(parseBookData));
+    });
+  }
 
   return {
     items: books,
     books,
-    totalPages: data.num_pages || 1,
+    totalPages,
     currentPage: +page || 1,
-    perPage: +perPage || 25,
-    totalItems: data.total || books.length,
+    perPage: effectivePerPage,
+    totalItems,
   };
 };
 
 export const getRandomBook = async (): Promise<Book> => {
-  const { data } = await api.get("/galleries/random" /* unofficial endpoint */);
+  const { data } = await api.get("/galleries/random");
   return parseBookData(data.result);
 };
 
-// --- Tags -------------------------------------------------------------------
-
-// При желании можно подтянуть JSON локально через import, чтобы не ходить в сеть.
 import tagsDb from "./nhentai-tags.json";
-
 export const getTags = async (): Promise<{
   tags: typeof tagsDb;
   updated: string;
@@ -364,9 +357,7 @@ export const getTags = async (): Promise<{
   return { tags: tagsDb as any, updated: (tagsDb as any).updated ?? "" };
 };
 
-// --- Related Books ----------------------------------------------------------
-
-/** Упрощённый поиск похожих (client‑side). На проде лучше дергать сервер. */
+/** Упрощённый поиск похожих (client-side). */
 export const getRelatedBooks = async (
   id: number,
   includeTags: TagFilter[] = [],
@@ -386,32 +377,16 @@ export const getRelatedBooks = async (
   return { books: books.filter((b) => b.id !== id).slice(0, 12) };
 };
 
-// --- Recommendations v2 -----------------------------------------------------
-
-interface RecommendParams {
+export interface RecommendParams {
   ids: number[];
   sentIds?: number[];
   page?: number;
   perPage?: number;
-
   includeTags?: TagFilter[];
   excludeTags?: TagFilter[];
-
   filterTags?: TagFilter[];
 }
 
-/* -------------------------------------------------------------------------- */
-/*                       ───  RECOMMENDATIONS v2  ───                          */
-/* -------------------------------------------------------------------------- */
-
-/** один фильтр-тег */
-export interface TagFilter {
-  type: Tag["type"];
-  name: string;
-}
-
-/** необходимые константы/утилиты (если выше в файле уже объявлены — убери дубль) */
-type Bucket = "artist" | "parody" | "group" | "category" | "character" | "tag";
 const KNOWN_BUCKETS = [
   "artist",
   "parody",
@@ -419,7 +394,7 @@ const KNOWN_BUCKETS = [
   "category",
   "character",
 ] as const;
-const blankFreq = () => Object.create(null) as Record<string, number>;
+type Bucket = (typeof KNOWN_BUCKETS)[number] | "tag";
 const TAG_W: Record<Bucket, number> = {
   character: 4,
   artist: 3,
@@ -428,43 +403,25 @@ const TAG_W: Record<Bucket, number> = {
   category: 1.5,
   tag: 1,
 };
+const blankFreq = () => Object.create(null) as Record<string, number>;
 const bucketOf = (t: Tag["type"]): Bucket =>
-  (KNOWN_BUCKETS as readonly string[]).includes(t as string)
-    ? (t as Bucket)
-    : "tag";
-
-interface RecommendParams {
-  ids: number[]; // лайкнутые книги (must-have)
-  sentIds?: number[]; // уже показанные (чтобы не повторять)
-  page?: number;
-  perPage?: number;
-
-  /** новые поля */
-  includeTags?: TagFilter[]; // требуем, чтобы книга их содержала
-  excludeTags?: TagFilter[]; // книга НЕ должна их содержать
-
-  /** устарело, поддерживается как alias к includeTags */
-  filterTags?: TagFilter[];
-}
+  KNOWN_BUCKETS.includes(t as any) ? (t as Bucket) : "tag";
 
 export async function getRecommendations(
   p: RecommendParams
 ): Promise<
   Paged<Book & { explain: string[]; score: number }> & { debug: any }
 > {
-  /* --- распаковка параметров ------------------------------------------ */
   const {
     ids,
     sentIds = [],
     page = 1,
     perPage = 25,
-
     includeTags = p.filterTags ?? [],
     excludeTags = [],
   } = p;
   if (!ids.length) throw new Error("Ids array required");
 
-  /* 1. частотный словарь liked-книг ------------------------------------- */
   const freq: Record<Bucket, Record<string, number>> = {
     character: blankFreq(),
     artist: blankFreq(),
@@ -484,7 +441,6 @@ export async function getRecommendations(
     })
   );
 
-  /* 2. топ-N для генерации поисковых запросов --------------------------- */
   const topN = (m: Record<string, number>, n = 5) =>
     Object.entries(m)
       .sort(([, v1], [, v2]) => v2 - v1)
@@ -505,7 +461,6 @@ export async function getRecommendations(
   ];
   const tagQueries = [topTags.join(" "), ...topTags.map((t) => `"${t}"`)];
 
-  /* 3. применяем includeTags к строке-запросу (как в searchBooks) -------- */
   const includePart = includeTags.length
     ? includeTags
         .map((t) => `${t.type.replace(/s$/, "")}:"${t.name}"`)
@@ -514,13 +469,11 @@ export async function getRecommendations(
   const withFilter = (arr: string[]) =>
     includePart ? arr.map((q) => `${includePart} ${q}`) : arr;
 
-  /* helper: вытаскиваем страницу через searchBooks */
   const fetchPage = (q: string, pN: number) =>
     searchBooks({ query: q, sort: "popular", page: pN, perPage })
       .then((r) => r.books)
       .catch(() => [] as Book[]);
 
-  /* 4. собираем пул кандидатов ----------------------------------------- */
   const excludeIds = new Set(sentIds);
   const candidates = new Map<number, Book>();
   const grab = async (queries: string[]) => {
@@ -540,7 +493,6 @@ export async function getRecommendations(
   await grab(withFilter(favQueries));
   await grab(withFilter(tagQueries));
 
-  /* 5. фильтрация + скоринг --------------------------------------------- */
   const likedSet = new Set(ids);
   const required = new Set(includeTags.map((t) => `${t.type}:${t.name}`));
   const forbidden = new Set(excludeTags.map((t) => `${t.type}:${t.name}`));
@@ -550,11 +502,9 @@ export async function getRecommendations(
   ].flatMap((book) => {
     const tagKeys = new Set(book.tags.map((t) => `${t.type}:${t.name}`));
 
-    /* hard-filters ---------------------------------------------------- */
-    for (const f of forbidden) if (tagKeys.has(f)) return []; // содержит banned-тег
-    for (const r of required) if (!tagKeys.has(r)) return []; // не содержит include-тег
+    for (const f of forbidden) if (tagKeys.has(f)) return [];
+    for (const r of required) if (!tagKeys.has(r)) return [];
 
-    /* base score + пояснения ----------------------------------------- */
     let score = book.favorites / 15_000;
     const explain: string[] = [];
 
@@ -581,7 +531,6 @@ export async function getRecommendations(
     return [{ ...book, score, explain }];
   });
 
-  /* сортируем, слегка «мешаем» топ-20, пагинируем ----------------------- */
   scored.sort((a, b) => b.score - a.score);
   for (let i = 0; i < Math.min(20, scored.length - 1); i++) {
     const j = i + Math.floor(Math.random() * (Math.min(20, scored.length) - i));

@@ -1,4 +1,13 @@
+import { hsbToHex } from "@/constants/Colors";
 import { StyleSheet } from "react-native";
+
+// Используем HSB для глобальных стилей
+const bgColor = hsbToHex({ saturation: 96, brightness: 45 });        // ≈ #2b244dff
+const shadowColor = "#000";
+const titleColor = hsbToHex({ saturation: 60, brightness: 200 });    // настраиваемый цвет
+const metaTextColor = hsbToHex({ saturation: 40, brightness: 180 }); // ≈ #9b94d1
+const tagBg = hsbToHex({ saturation: 50, brightness: 60 });          // ≈ #2b293d
+const newBadgeBg = "#ff4757"; // оставим вручную, как акцент
 
 export const TAG_COLORS: Record<string, string> = {
   language: "#FF7D7F",
@@ -7,7 +16,7 @@ export const TAG_COLORS: Record<string, string> = {
   parody:   "#BCEA83",
   group:    "#86F0C6",
   category: "#92EFFF",
-  tag:      "hsla(260, 25%, 65%, 1.00)",
+  tag:      hsbToHex({ saturation: 100, brightness: 160 }), // ≈ #2b293d
 };
 
 export const styles = StyleSheet.create({
@@ -15,10 +24,10 @@ export const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 12,
     borderRadius: 12,
-    backgroundColor: "#36334d",
+    backgroundColor: bgColor,
     overflow: "hidden",
     elevation: 4,
-    shadowColor: "#000",
+    shadowColor: shadowColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
@@ -47,7 +56,7 @@ export const styles = StyleSheet.create({
     position: "absolute",
     bottom: -8,
     left: 14,
-    backgroundColor: "#ff4757",
+    backgroundColor: newBadgeBg,
     color: "#fff",
     fontWeight: "700",
     fontSize: 11,
@@ -59,7 +68,7 @@ export const styles = StyleSheet.create({
 
   /* body */
   body: { padding: 16, gap: 10 },
-  title: { fontSize: 18, fontWeight: "600", color: "#bcb8e0" },
+  title: { fontSize: 18, fontWeight: "600", color: titleColor },
 
   metaRow: {
     flexDirection: "row",
@@ -68,16 +77,16 @@ export const styles = StyleSheet.create({
     gap: 10,
   },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  metaText: { fontSize: 12, color: "#9b94d1" },
+  metaText: { fontSize: 12, color: metaTextColor },
 
-  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6,  },
+  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   tag: {
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
     fontSize: 10,
     color: "#ececec",
-    backgroundColor: "#2b293d",
+    backgroundColor: tagBg,
   },
   tagSelected: { borderWidth: 1, borderColor: "#fff" },
 });

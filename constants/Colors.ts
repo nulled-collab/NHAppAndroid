@@ -1,26 +1,100 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+const baseHue = Math.round((75 / 360) * 65535); // ≈ 44975
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+export const hsbToHex = ({
+  saturation,
+  brightness,
+}: {
+  saturation: number;
+  brightness: number;
+}) => {
+  const h = (baseHue / 65535) * 360;
+  const s = saturation / 254;
+  const v = brightness / 254;
+  const c = v * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = v - c;
+  let r = 0,
+    g = 0,
+    b = 0;
+  if (h >= 0 && h < 60) {
+    r = c;
+    g = x;
+    b = 0;
+  } else if (h >= 60 && h < 120) {
+    r = x;
+    g = c;
+    b = 0;
+  } else if (h >= 120 && h < 180) {
+    r = 0;
+    g = c;
+    b = x;
+  } else if (h >= 180 && h < 240) {
+    r = 0;
+    g = x;
+    b = c;
+  } else if (h >= 240 && h < 300) {
+    r = x;
+    g = 0;
+    b = c;
+  } else if (h >= 300 && h < 360) {
+    r = c;
+    g = 0;
+    b = x;
+  }
+  r = Math.round((r + m) * 255);
+  g = Math.round((g + m) * 255);
+  b = Math.round((b + m) * 255);
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b)
+    .toString(16)
+    .slice(1)
+    .padStart(6, "0")}`;
+};
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: {
+      hsb: { hue: baseHue, saturation: 76, brightness: 200 },
+      hex: hsbToHex({ saturation: 76, brightness: 200 }), // ≈ #4F4A99
+    },
+    background: {
+      hsb: { hue: baseHue, saturation: 76, brightness: 25 },
+      hex: hsbToHex({ saturation: 76, brightness: 25 }), // ≈ #1C1733
+    },
+    tint: hsbToHex({ saturation: 150, brightness: 200 }), // ≈ #6B54D6
+    icon: {
+      hsb: { hue: baseHue, saturation: 50, brightness: 100 },
+      hex: hsbToHex({ saturation: 50, brightness: 100 }), // ≈ #403A80
+    },
+    tabIconDefault: {
+      hsb: { hue: baseHue, saturation: 50, brightness: 100 },
+      hex: hsbToHex({ saturation: 50, brightness: 100 }), // ≈ #403A80
+    },
+    tabIconSelected: {
+      hsb: { hue: baseHue, saturation: 150, brightness: 200 },
+      hex: hsbToHex({ saturation: 150, brightness: 200 }), // ≈ #6B54D6
+    },
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: {
+      hsb: { hue: baseHue, saturation: 50, brightness: 220 },
+      hex: hsbToHex({ saturation: 50, brightness: 220 }), // ≈ #B4A4FF
+    },
+    background: {
+      hsb: { hue: baseHue, saturation: 76, brightness: 25 },
+      hex: hsbToHex({ saturation: 76, brightness: 25 }), // ≈ #1C1733
+    },
+    tint: hsbToHex({ saturation: 150, brightness: 150 }), // ≈ #5B48B4
+    icon: {
+      hsb: { hue: baseHue, saturation: 40, brightness: 120 },
+      hex: hsbToHex({ saturation: 40, brightness: 120 }), // ≈ #4C428F
+    },
+    tabIconDefault: {
+      hsb: { hue: baseHue, saturation: 40, brightness: 120 },
+      hex: hsbToHex({ saturation: 40, brightness: 120 }), // ≈ #4C428F
+    },
+    tabIconSelected: {
+      hsb: { hue: baseHue, saturation: 150, brightness: 150 },
+      hex: hsbToHex({ saturation: 150, brightness: 150 }), // ≈ #5B48B4
+    },
   },
 };

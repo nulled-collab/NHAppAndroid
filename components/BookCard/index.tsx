@@ -8,6 +8,7 @@ import { styles, TAG_COLORS } from "./BookCard.styles";
 
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import SmartImage from "@/components/SmartImage";
+import { hsbToHex } from "@/constants/Colors";
 
 const flagEmoji = (lang: string) =>
   ({ english: "🇬🇧", chinese: "🇨🇳", japanese: "🇯🇵" }[lang.toLowerCase()] ??
@@ -100,24 +101,24 @@ export default function BookCard({
 
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>
-            <Feather name="calendar" size={12} color="#9b94d1" />
+            <Feather name="calendar" size={12} color={hsbToHex({ saturation: 40, brightness: 180 })} />
             <Text style={styles.metaText}>
               {format(new Date(book.uploaded), "d MMM yyyy", { locale: ru })}
             </Text>
           </View>
 
           <View style={styles.metaItem}>
-            <Feather name="book-open" size={12} color="#9b94d1" />
+            <Feather name="book-open" size={12} color={hsbToHex({ saturation: 40, brightness: 180 })} />
             <Text style={styles.metaText}>{book.pagesCount}</Text>
           </View>
 
           <View style={styles.metaItem}>
-            <Feather name="eye" size={12} color="#9b94d1" />
+            <Feather name="eye" size={12} color={hsbToHex({ saturation: 40, brightness: 180 })} />
             <Text style={styles.metaText}>{book.media}</Text>
           </View>
 
           <View style={styles.metaItem}>
-            <Feather name="heart" size={12} color="#9b94d1" />
+            <Feather name="heart" size={12} color={hsbToHex({ saturation: 40, brightness: 180 })} />
             <Text style={styles.metaText}>{book.favorites}</Text>
           </View>
         </View>

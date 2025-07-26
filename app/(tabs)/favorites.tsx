@@ -21,9 +21,8 @@ export default function FavoritesScreen() {
   const [sort, setSort] = useState<SortKey>("relevance");
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(false);
-  const insets = useSafeAreaInsets(); // ← NEW
+  const insets = useSafeAreaInsets();
 
-  /* --- загружаем id избранного из storage -------------------------------- */
   useEffect(() => {
     AsyncStorage.getItem("bookFavorites").then((j) => {
       const list = j ? (JSON.parse(j) as number[]) : [];
@@ -31,7 +30,6 @@ export default function FavoritesScreen() {
     });
   }, []);
 
-  /* --- запрос книг ------------------------------------------------------- */
   const load = async () => {
     if (ids.length === 0) {
       setBooks([]);
@@ -53,12 +51,10 @@ export default function FavoritesScreen() {
     setRefresh(false);
   }, [ids, sort]);
 
-  /* --- UI --------------------------------------------------------------- */
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
   return (
     <>
-      {/* сортировка */}
       <View style={{ flexDirection: "row", gap: 12, padding: 12 }}>
         {(["relevance", "popular"] as const).map((k) => (
           <Pressable
@@ -90,7 +86,7 @@ export default function FavoritesScreen() {
             <BookCard
               book={item}
               isFavorite={true}
-              onToggleFavorite={() => {}} // c этого экрана не удаляем
+              onToggleFavorite={() => {}}
             />
           )}
           refreshControl={
