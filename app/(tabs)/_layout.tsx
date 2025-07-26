@@ -2,15 +2,13 @@ import { SearchBar } from "@/components/SearchBar";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Feather } from "@expo/vector-icons";
-import { Tabs, usePathname } from "expo-router";
+import { Tabs } from "expo-router";
 import React from "react";
 import { Platform, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const pathname = usePathname();
-  const hideSearch = pathname.startsWith("/tags");
 
   return (
       <SafeAreaProvider>
@@ -20,7 +18,7 @@ export default function TabLayout() {
             backgroundColor: Colors[colorScheme ?? "light"].background.hex,
           }}
         >
-          {!hideSearch && <SearchBar />}
+          <SearchBar />
           <Tabs
             screenOptions={{
               headerShown: false,
@@ -76,11 +74,11 @@ export default function TabLayout() {
               }}
             />
             <Tabs.Screen
-              name="tags"
+              name="downloaded"
               options={{
-                title: "Tags",
+                title: "Downloaded",
                 tabBarIcon: ({ color, size }) => (
-                  <Feather name="tag" color={color} size={22} />
+                  <Feather name="download" color={color} size={22} />
                 ),
               }}
             />

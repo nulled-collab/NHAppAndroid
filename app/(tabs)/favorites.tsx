@@ -1,34 +1,66 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useCallback, useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   RefreshControl,
+  StyleSheet,
   Text,
   View,
 } from "react-native";
+import Animated, { FadeOut } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Book, getFavorites } from "@/api/nhentai";
 import BookCard from "@/components/BookCard";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-type SortKey = "relevance" | "popular";
 
 export default function FavoritesScreen() {
   const [books, setBooks] = useState<Book[]>([]);
   const [ids, setIds] = useState<number[]>([]);
-  const [sort, setSort] = useState<SortKey>("relevance");
+  const [favorites, setFavorites] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(false);
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const listRef = useRef<FlatList>(null);
 
-  useEffect(() => {
+  const loadFavorites = useCallback(() => {
     AsyncStorage.getItem("bookFavorites").then((j) => {
       const list = j ? (JSON.parse(j) as number[]) : [];
       setIds(list);
+      setFavorites(new Set(list));
     });
   }, []);
+
+  useEffect(() => {
+    loadFavorites();
+  }, [loadFavorites]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFavorites();
+    }, [loadFavorites])
+  );
+
+  const toggleFavorite = (id: number, next: boolean) => {
+    setFavorites((prev) => {
+      const newFavorites = new Set(prev);
+      if (next) {
+        newFavorites.add(id);
+        const newIds = [...newFavorites];
+        setIds(newIds);
+        AsyncStorage.setItem("bookFavorites", JSON.stringify(newIds));
+      } else {
+        newFavorites.delete(id);
+        // Update books state to remove the book without reloading
+        setBooks((prevBooks) =>
+          prevBooks.filter((book) => book.id !== id)
+        );
+      }
+      return newFavorites;
+    });
+  };
 
   const load = async () => {
     if (ids.length === 0) {
@@ -37,67 +69,91 @@ export default function FavoritesScreen() {
       return;
     }
     setLoading(true);
-    const { books } = await getFavorites({ ids, sort, perPage: 100 });
-    setBooks(books);
-    setLoading(false);
+    try {
+      const { books } = await getFavorites({ ids, perPage: 100 });
+      // Map books in the order of ids (reversed to show newest first)
+      const orderedBooks = [...ids]
+        .reverse()
+        .map((id) => books.find((book) => book.id === id))
+        .filter((book): book is Book => book !== undefined);
+      setBooks(orderedBooks);
+    } finally {
+      setLoading(false);
+    }
   };
+
   useEffect(() => {
     if (ids.length) load();
-  }, [ids, sort]);
+  }, [ids]);
 
   const onRefresh = useCallback(async () => {
     setRefresh(true);
     await load();
     setRefresh(false);
-  }, [ids, sort]);
+  }, [ids]);
 
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
+  if (loading && !refresh) {
+    return (
+      <View style={styles.overlay}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
 
   return (
-    <>
-      <View style={{ flexDirection: "row", gap: 12, padding: 12 }}>
-        {(["relevance", "popular"] as const).map((k) => (
-          <Pressable
-            key={k}
-            onPress={() => setSort(k)}
-            style={{
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 6,
-              backgroundColor: sort === k ? "#6f66ff" : "#444",
-            }}
-          >
-            <Text style={{ color: "#fff", fontSize: 12 }}>
-              {k === "relevance" ? "Recent" : "Popular"}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
+    <View style={styles.container}>
       {books.length === 0 ? (
-        <Text style={{ textAlign: "center", marginTop: 40, color: "#888" }}>
-          No favorites yet
-        </Text>
+        <Text style={styles.emptyText}>No favorites yet</Text>
       ) : (
         <FlatList
+          ref={listRef}
           data={books}
           keyExtractor={(b) => `${b.id}`}
           renderItem={({ item }) => (
-            <BookCard
-              book={item}
-              isFavorite={true}
-              onToggleFavorite={() => {}}
-            />
+            <Animated.View
+              exiting={FadeOut.duration(300)}
+              style={styles.bookCardContainer}
+            >
+              <BookCard
+                book={item}
+                isFavorite={favorites.has(item.id)}
+                onToggleFavorite={toggleFavorite}
+                onPress={() =>
+                  router.push({
+                    pathname: "/book/[id]",
+                    params: { id: String(item.id) },
+                  })
+                }
+              />
+            </Animated.View>
           )}
           refreshControl={
             <RefreshControl refreshing={refresh} onRefresh={onRefresh} />
           }
           contentContainerStyle={{
-            paddingBottom: 24,
-            paddingTop: insets.top + 64,
+            paddingBottom: 55 + insets.bottom,
           }}
         />
       )}
-    </>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#000" },
+  bookCardContainer: {
+    width: "100%",
+  },
+  emptyText: {
+    textAlign: "center",
+    marginTop: 40,
+    color: "#888",
+    fontSize: 16,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.25)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});

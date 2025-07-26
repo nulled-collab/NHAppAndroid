@@ -1,8 +1,3 @@
-/* app/read.tsx
-   – счётчик «страница / всего» внизу по центру
-   – свайп по всему экрану, двухпальцевый pinch-zoom, minScale = 1
-*/
-
 import { Image as ExpoImage } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -21,8 +16,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import _ImageZoom from "react-native-image-pan-zoom";
 import PagerView from "react-native-pager-view";
 
-import { getBook } from "@/api/nhentai";
-import { buildPageSources } from "@/components/buildPageSources";
+import { BookPage, getBook, loadBookFromLocal } from "@/api/nhentai";
 import { hsbToHex } from "@/constants/Colors";
 
 const { width: W, height: H } = Dimensions.get("window");
@@ -44,9 +38,26 @@ export default function ReadScreen() {
 
   /* ─── load ─── */
   useEffect(() => {
-    getBook(Number(id))
-      .then((b) => setUrls(b.pages.map((p) => p.url)))
-      .catch(() => router.back());
+    const loadPages = async () => {
+      const localBook = await loadBookFromLocal(Number(id));
+      if (localBook) {
+        setUrls(localBook.pages.map((p: BookPage) => p.url));
+      } else {
+        try {
+          const fetchedBook = await getBook(Number(id));
+          setUrls(fetchedBook.pages.map((p: BookPage) => p.url));
+        } catch (error) {
+          console.error("API fetch failed, check offline data:", error);
+          const fallbackBook = await loadBookFromLocal(Number(id));
+          if (fallbackBook) {
+            setUrls(fallbackBook.pages.map((p: BookPage) => p.url));
+          } else {
+            router.back();
+          }
+        }
+      }
+    };
+    loadPages();
   }, [id]);
 
   /* jump to initial */
@@ -139,7 +150,7 @@ export default function ReadScreen() {
               }
             >
               <ExpoImage
-                source={buildPageSources(u)}
+                source={{ uri: u }} // Use local URI directly if available
                 style={{ width: W, height: H }}
                 contentFit="contain"
                 cachePolicy="disk"

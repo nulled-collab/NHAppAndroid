@@ -66,6 +66,7 @@ export default function RootLayout() {
               <Stack.Screen name="book/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="read" options={{ headerShown: false }} />
               <Stack.Screen name="explore" options={{ headerShown: false }} />
+              <Stack.Screen name="tags" options={{ headerShown: false }} />
               <Stack.Screen name="+not-found" />
             </Stack>
             <StatusBar

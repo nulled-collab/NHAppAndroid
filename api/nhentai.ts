@@ -1,5 +1,6 @@
 import axios from "axios";
-import { Platform } from "react-native";
+import * as FileSystem from "expo-file-system";
+import { Image, Platform } from "react-native";
 
 export interface Tag {
   id: number;
@@ -43,6 +44,72 @@ export interface Book {
   languages?: Tag[];
   raw?: any;
 }
+
+export const loadBookFromLocal = async (id: number): Promise<Book | null> => {
+  const nhDir = `${FileSystem.documentDirectory}NHAppAndroid/`;
+  if (!(await FileSystem.getInfoAsync(nhDir)).exists) return null;
+
+  const titles = await FileSystem.readDirectoryAsync(nhDir);
+
+  for (const title of titles) {
+    const titleDir = `${nhDir}${title}/`;
+
+    // Пробуем извлечь ID из названия папки
+    const idMatch = title.match(/^(\d+)_/);
+    const titleId = idMatch ? Number(idMatch[1]) : null;
+
+    const langs = await FileSystem.readDirectoryAsync(titleDir);
+    for (const lang of langs) {
+      const langDir = `${titleDir}${lang}/`;
+      const metaUri = `${langDir}metadata.json`;
+
+      if (!(await FileSystem.getInfoAsync(metaUri)).exists) continue;
+
+      try {
+        const raw = await FileSystem.readAsStringAsync(metaUri);
+        const book: Book = JSON.parse(raw);
+
+        // Проверка ID: либо явно совпадает, либо в metadata.json
+        if (book.id !== id) continue;
+        if (titleId && titleId !== book.id) continue;
+
+        const images = (await FileSystem.readDirectoryAsync(langDir))
+          .filter((f) => f.startsWith("Image"))
+          .sort();
+
+        const pages: BookPage[] = await Promise.all(
+          images.map(
+            (img, idx) =>
+              new Promise<BookPage>((res, rej) => {
+                const uri = `${langDir}${img}`;
+                Image.getSize(
+                  uri,
+                  (w, h) =>
+                    res({
+                      url: uri,
+                      urlThumb: uri,
+                      width: w,
+                      height: h,
+                      page: idx + 1,
+                    }),
+                  rej
+                );
+              })
+          )
+        );
+
+        book.pages = pages;
+        book.cover = pages[0].url;
+        return book;
+      } catch (e) {
+        console.warn("Failed to load metadata:", e);
+        continue;
+      }
+    }
+  }
+
+  return null;
+};
 
 /**
  * Унифицированный тип пагинации.

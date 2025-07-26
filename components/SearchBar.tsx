@@ -1,9 +1,3 @@
-import { Book, searchBooks } from "@/api/nhentai";
-import SmartImage from "@/components/SmartImage";
-import { buildImageFallbacks } from "@/components/buildImageFallbacks";
-import { hsbToHex } from "@/constants/Colors";
-import { SortKey, useSort } from "@/context/SortContext";
-import { useFilterTags } from "@/context/TagFilterContext";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
@@ -25,6 +19,14 @@ import {
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Book, searchBooks } from "@/api/nhentai";
+import SmartImage from "@/components/SmartImage";
+import { buildImageFallbacks } from "@/components/buildImageFallbacks";
+import { hsbToHex } from "@/constants/Colors";
+import { SortKey, useSort } from "@/context/SortContext";
+import { useFilterTags } from "@/context/TagFilterContext";
+
+/* ------------ constants ------------ */
 const KEY_HISTORY = "searchHistory";
 const MAX_HEIGHT = Dimensions.get("window").height * 0.6;
 
@@ -33,39 +35,44 @@ const COLOR_TEXT = hsbToHex({ saturation: 100, brightness: 220 });
 const COLOR_ACCENT = hsbToHex({ saturation: 100, brightness: 200 });
 const COLOR_SUB = hsbToHex({ saturation: 100, brightness: 100 });
 
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+const SORT_OPTIONS = [
   { key: "popular", label: "Popular" },
   { key: "popular-week", label: "Hot Week" },
   { key: "popular-today", label: "Hot Today" },
   { key: "popular-month", label: "Hot Month" },
   { key: "date", label: "Newest" },
-];
+] as const;
 
+/* ------------ component ------------ */
 export function SearchBar() {
+  /* contexts */
   const { sort, setSort } = useSort();
   const { includes, excludes } = useFilterTags();
-  const incStr = JSON.stringify(includes);
-  const excStr = JSON.stringify(excludes);
 
-  const insets = useSafeAreaInsets();
+  /* navigation */
   const router = useRouter();
   const pathname = usePathname();
   const params = useLocalSearchParams<{ query?: string }>();
 
+  /* UI state */
+  const insets = useSafeAreaInsets();
   const [q, setQ] = useState(params.query ?? "");
-  const [focus, setFocus] = useState(false);
+  const [focus, setFO] = useState(false);
+  const [kbH, setKbH] = useState(0);
 
+  /* suggestions & history */
   const [history, setHist] = useState<string[]>([]);
   const [suggests, setSug] = useState<Book[]>([]);
   const [loading, setLoad] = useState(false);
 
+  /* sort dialog */
   const [showSort, setShow] = useState(false);
-  const [tempSort, setTemp] = useState<SortKey>(sort);
+  const [tempSort, setTmp] = useState<SortKey>(sort);
 
-  const [kbH, setKbH] = useState(0);
-
+  /* refs */
   const inputRef = useRef<TextInput>(null);
 
+  /* ---------- side-effects ---------- */
   useEffect(() => {
     AsyncStorage.getItem(KEY_HISTORY).then((j) => j && setHist(JSON.parse(j)));
   }, []);
@@ -77,7 +84,7 @@ export function SearchBar() {
     const hide = Keyboard.addListener("keyboardDidHide", () => {
       setKbH(0);
       inputRef.current?.blur();
-      setFocus(false);
+      setFO(false);
     });
     return () => {
       show.remove();
@@ -85,12 +92,14 @@ export function SearchBar() {
     };
   }, []);
 
+  /* suggestions debounced */
+  const incStr = JSON.stringify(includes);
+  const excStr = JSON.stringify(excludes);
   useEffect(() => {
     if (!q.trim()) {
       setSug([]);
       return;
     }
-
     setLoad(true);
     const t = setTimeout(async () => {
       try {
@@ -106,19 +115,13 @@ export function SearchBar() {
         setLoad(false);
       }
     }, 400);
-
     return () => clearTimeout(t);
   }, [q, sort, incStr, excStr]);
 
-  useEffect(() => setTemp(sort), [sort]);
+  /* sort dialog temp key follows global key */
+  useEffect(() => setTmp(sort), [sort]);
 
-  const filteredHist = history.filter((h) =>
-    q.trim() ? h.toLowerCase().includes(q.trim().toLowerCase()) : true
-  );
-
-  const showBack = pathname.startsWith("/explore");
-  const showDrop = focus && (filteredHist.length > 0 || suggests.length > 0);
-
+  /* ---------- helpers ---------- */
   const saveHist = async (text: string) => {
     const next = [text, ...history.filter((h) => h !== text)].slice(0, 10);
     setHist(next);
@@ -133,8 +136,17 @@ export function SearchBar() {
     router.push({ pathname: "/explore", params: { query } });
   };
 
+  /* derived UI flags */
+  const filteredHist = history.filter((h) =>
+    q.trim() ? h.toLowerCase().includes(q.trim().toLowerCase()) : true
+  );
+  const showBack = pathname.startsWith("/explore");
+  const showDrop = focus && (filteredHist.length > 0 || suggests.length > 0);
+
+  /* ---------- render ---------- */
   return (
     <>
+      {/* ───── search bar ───── */}
       <Animated.View
         style={[
           styles.bar,
@@ -147,6 +159,7 @@ export function SearchBar() {
           </Pressable>
         )}
 
+        {/* search icon */}
         <Feather
           name="search"
           size={18}
@@ -154,6 +167,7 @@ export function SearchBar() {
           style={{ marginHorizontal: 4 }}
         />
 
+        {/* input */}
         <TextInput
           ref={inputRef}
           style={[styles.input, { color: COLOR_TEXT }]}
@@ -162,12 +176,13 @@ export function SearchBar() {
           value={q}
           onChangeText={setQ}
           onSubmitEditing={() => submit()}
-          onFocus={() => setFocus(true)}
-          onBlur={() => setFocus(false)}
+          onFocus={() => setFO(true)}
+          onBlur={() => setFO(false)}
           returnKeyType={Platform.OS === "ios" ? "search" : "done"}
           blurOnSubmit
         />
 
+        {/* clear × */}
         {q !== "" && (
           <Pressable
             hitSlop={10}
@@ -178,14 +193,20 @@ export function SearchBar() {
           </Pressable>
         )}
 
+        {/* sort button */}
         <Pressable
           onPress={() => {
-            setTemp(sort);
+            setTmp(sort);
             setShow(true);
           }}
           style={styles.iconBtn}
         >
-          <Feather name="sliders" size={18} color={COLOR_ACCENT} />
+          <Feather name="filter" size={18} color={COLOR_ACCENT} />
+        </Pressable>
+
+        {/* open /tags (NEW КНОПКА) */}
+        <Pressable onPress={() => router.push("/tags")} style={styles.iconBtn}>
+          <Feather name="tag" size={18} color={COLOR_ACCENT} />
         </Pressable>
       </Animated.View>
 
@@ -196,7 +217,7 @@ export function SearchBar() {
               <Pressable
                 key={key}
                 style={styles.sortRow}
-                onPress={() => setTemp(key)}
+                onPress={() => setTmp(key)}
               >
                 <Text
                   style={[

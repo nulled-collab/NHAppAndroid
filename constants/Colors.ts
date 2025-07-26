@@ -1,4 +1,4 @@
-const baseHue = Math.round((75 / 360) * 65535); // ≈ 44975
+const baseHue = Math.round((175 / 360) * 65535); // ≈ 44975
 
 export const hsbToHex = ({
   saturation,
