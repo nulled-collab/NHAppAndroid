@@ -1,50 +1,73 @@
-# Welcome to your Expo app 👋
+<!-- Title & Hero image -->
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/5f013a0e-2b92-4e24-8ae6-fdd34c99c511" alt="NHAppAndroid icon" width="128" height="128"/>
+</p>
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+<h1 align="center">NHAppAndroid Beta</h1>
+<p align="center">
+  A modern, lightweight Android client for <a href="https://nhentai.net">nhentai</a> built with React Native&nbsp;(Expo).
+</p>
 
-## Get started
+--- 
 
-1. Install dependencies
+## Disclaimer
+NHAppAndroid is **unofficial** and not affiliated with nhentai.net.  
+The application displays adult content. By compiling, distributing or using this software you confirm you are of legal age in your jurisdiction and allowed to view such material.
 
-   ```bash
-   npm install
-   ```
+--- 
 
-2. Start the app
+## Screenshots
 
-   ```bash
-   npx expo start
-   ```
+> ⚠️ **Work in Progress:** UI and visual assets are subject to change. These screenshots showcase the current prototype and may not reflect the final design.
 
-In the output, you'll find options to open the app in a
+<table>
+  <tr>
+    <th>Home</th>
+    <th>Search</th>
+    <th>Book</th>
+    <th>Tags&nbsp;&amp;&nbsp;Gallery</th>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/35f874a0-3255-40de-b35e-1fea5e7fdd65" width="220"/></td>
+    <td><img src="https://github.com/user-attachments/assets/d357e04c-20ad-4c46-8e45-27c425bd8c12" width="220"/></td>
+    <td><img src="https://github.com/user-attachments/assets/0eba7e08-e098-4e7b-9b74-bb28565688f3" width="220"/></td>
+    <td><img src="https://github.com/user-attachments/assets/4a373e6b-f8d1-43c8-bcb9-a08df27657dc" width="220"/></td>
+  </tr>
+</table>
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+<table>
+  <tr>
+    <th>Reader</th>
+    <th>Recommendations</th>
+    <th>Downloads</th>
+    <th>Tag&nbsp;Filter</th>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/62d43c99-0f3a-4d9c-8e0f-30dede14363e" width="220"/></td>
+    <td><img src="https://github.com/user-attachments/assets/43d1ec44-8230-4dbb-8630-bcfff940d0c6" width="220"/></td>
+    <td><img src="https://github.com/user-attachments/assets/69fc3fc9-3a10-45ad-937a-6883eb8304cc" width="220"/></td>
+    <td><img src="https://github.com/user-attachments/assets/5b961b3e-d0cf-4df9-a728-1f1e7991dce0" width="220"/></td>
+  </tr>
+</table>
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-## Get a fresh project
-
-When you're ready, run:
+## Installation
 
 ```bash
-npm run reset-project
+# 1 Clone repo & install deps
+git clone https://github.com/Maks1mio/NHAppAndroid.git
+cd NHAppAndroid
+npm install
+
+# 2 Run on device / emulator
+npm run start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Android build
+```bash
+npm run android-build
+npm run move-apk
+```
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Contributing
+Pull requests are welcome! Please open an issue first to discuss major changes.
