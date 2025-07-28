@@ -25,13 +25,13 @@ The application displays adult content. By compiling, distributing or using this
     <th>Home</th>
     <th>Search</th>
     <th>Book</th>
-    <th>Tags&nbsp;&amp;&nbsp;Gallery</th>
+    <th>Tags & Gallery</th>
   </tr>
   <tr>
-    <td><img src="https://github.com/user-attachments/assets/35f874a0-3255-40de-b35e-1fea5e7fdd65" width="220"/></td>
-    <td><img src="https://github.com/user-attachments/assets/d357e04c-20ad-4c46-8e45-27c425bd8c12" width="220"/></td>
-    <td><img src="https://github.com/user-attachments/assets/0eba7e08-e098-4e7b-9b74-bb28565688f3" width="220"/></td>
-    <td><img src="https://github.com/user-attachments/assets/4a373e6b-f8d1-43c8-bcb9-a08df27657dc" width="220"/></td>
+    <td><img src="https://github.com/user-attachments/assets/35f874a0-3255-40de-b35e-1fea5e7fdd65" height="478"/></td>
+    <td><img src="https://github.com/user-attachments/assets/d357e04c-20ad-4c46-8e45-27c425bd8c12" height="478"/></td>
+    <td><img src="https://github.com/user-attachments/assets/0eba7e08-e098-4e7b-9b74-bb28565688f3" height="478"/></td>
+    <td><img src="https://github.com/user-attachments/assets/4a373e6b-f8d1-43c8-bcb9-a08df27657dc" height="478"/></td>
   </tr>
 </table>
 
@@ -40,13 +40,13 @@ The application displays adult content. By compiling, distributing or using this
     <th>Reader</th>
     <th>Recommendations</th>
     <th>Downloads</th>
-    <th>Tag&nbsp;Filter</th>
+    <th>Tag Filter</th>
   </tr>
   <tr>
-    <td><img src="https://github.com/user-attachments/assets/62d43c99-0f3a-4d9c-8e0f-30dede14363e" width="220"/></td>
-    <td><img src="https://github.com/user-attachments/assets/43d1ec44-8230-4dbb-8630-bcfff940d0c6" width="220"/></td>
-    <td><img src="https://github.com/user-attachments/assets/69fc3fc9-3a10-45ad-937a-6883eb8304cc" width="220"/></td>
-    <td><img src="https://github.com/user-attachments/assets/5b961b3e-d0cf-4df9-a728-1f1e7991dce0" width="220"/></td>
+    <td><img src="https://github.com/user-attachments/assets/62d43c99-0f3a-4d9c-8e0f-30dede14363e" height="478"/></td>
+    <td><img src="https://github.com/user-attachments/assets/43d1ec44-8230-4dbb-8630-bcfff940d0c6" height="478"/></td>
+    <td><img src="https://github.com/user-attachments/assets/69fc3fc9-3a10-45ad-937a-6883eb8304cc" height="478"/></td>
+    <td><img src="https://github.com/user-attachments/assets/5b961b3e-d0cf-4df9-a728-1f1e7991dce0" height="478"/></td>
   </tr>
 </table>
 
