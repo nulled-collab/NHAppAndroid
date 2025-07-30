@@ -1,25 +1,19 @@
-import { Book, BookPage } from "@/api/nhentai";
-import BookCard from "@/components/BookCard";
+// app/(tabs)/downloaded.tsx
 import * as FileSystem from "expo-file-system";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
-import {
-    ActivityIndicator,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useCallback, useState } from "react";
+import { Text } from "react-native";
+
+import { Book, BookPage } from "@/api/nhentai";
+import BookList from "@/components/BookList";
+import { useGridConfig } from "@/hooks/useGridConfig";
 
 export default function DownloadedScreen() {
   const [downloadedBooks, setDownloadedBooks] = useState<Book[]>([]);
   const [pending, setPending] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const listRef = useRef<FlatList>(null);
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const gridConfig = useGridConfig();
 
   const fetchDownloadedBooks = useCallback(async () => {
     setPending(true);
@@ -38,16 +32,14 @@ export default function DownloadedScreen() {
         const titleDir = `${nhDir}${title}/`;
         const idMatch = title.match(/^(\d+)_/);
         const titleId = idMatch ? Number(idMatch[1]) : null;
-
         const langs = await FileSystem.readDirectoryAsync(titleDir);
+
         for (const lang of langs) {
           const langDir = `${titleDir}${lang}/`;
           const metaUri = `${langDir}metadata.json`;
           if ((await FileSystem.getInfoAsync(metaUri)).exists) {
             const raw = await FileSystem.readAsStringAsync(metaUri);
             const book: Book = JSON.parse(raw);
-
-            // Опционально проверим, совпадает ли id (если он был в названии папки)
             if (titleId && book.id !== titleId) continue;
 
             const files = await FileSystem.readDirectoryAsync(langDir);
@@ -72,19 +64,26 @@ export default function DownloadedScreen() {
         }
       }
 
+      // сортировка по убыванию id
       books.sort((a, b) => b.id - a.id);
-
-      setDownloadedBooks(books);
-      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      // фильтруем дубликаты (разные языки одной книги)
+      const unique = Array.from(
+        books
+          .reduce(
+            (map, b) => (map.has(b.id) ? map : map.set(b.id, b)),
+            new Map<number, Book>()
+          )
+          .values()
+      );
+      setDownloadedBooks(unique);
     } catch (e) {
-      console.error(e);
+      console.error("Error reading downloads:", e);
       setDownloadedBooks([]);
     } finally {
       setPending(false);
     }
   }, []);
 
-  // Подгружаем при фокусе экрана
   useFocusEffect(
     useCallback(() => {
       fetchDownloadedBooks();
@@ -97,50 +96,23 @@ export default function DownloadedScreen() {
     setRefreshing(false);
   }, [fetchDownloadedBooks]);
 
-  if (pending) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator style={{ flex: 1 }} />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        ref={listRef}
-        data={downloadedBooks}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <BookCard
-            book={item}
-            isFavorite={false}
-            onToggleFavorite={undefined}
-            onPress={(id) =>
-              router.push({
-                pathname: "/book/[id]",
-                params: { id: String(id) },
-              })
-            }
-          />
-        )}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={{ paddingBottom: 55 + insets.bottom }}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No downloaded books found.</Text>
-        }
-      />
-    </View>
+    <BookList
+      data={downloadedBooks}
+      loading={pending}
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      onPress={(id) =>
+        router.push({ pathname: "/book/[id]", params: { id: String(id) } })
+      }
+      ListEmptyComponent={
+        !pending && downloadedBooks.length === 0 ? (
+          <Text style={{ textAlign: "center", marginTop: 40, color: "#888" }}>
+            Нет загруженных книг
+          </Text>
+        ) : null
+      }
+      gridConfig={{ default: gridConfig }}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  emptyText: {
-    textAlign: "center",
-    color: "#666",
-    marginTop: 20,
-  },
-});

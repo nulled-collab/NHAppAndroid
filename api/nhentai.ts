@@ -2,6 +2,18 @@ import axios from "axios";
 import * as FileSystem from "expo-file-system";
 import { Image, Platform } from "react-native";
 
+const corsProxy = "https://thingproxy.freeboard.io/fetch/";
+const baseURL =
+  Platform.OS === "web"
+    ? corsProxy + "https://nhentai.net/api"
+    : "https://nhentai.net/api";
+
+const api = axios.create({
+  baseURL,
+  headers: { "User-Agent": "nh-client" },
+  timeout: 10_000,
+});
+
 export interface Tag {
   id: number;
   type: string;
@@ -128,18 +140,6 @@ export interface Paged<T> {
   /** Любой отладочный payload */
   [extra: string]: any;
 }
-
-const corsProxy = "https://thingproxy.freeboard.io/fetch/";
-const baseURL =
-  Platform.OS === "web"
-    ? corsProxy + "https://nhentai.net/api"
-    : "https://nhentai.net/api";
-
-const api = axios.create({
-  baseURL,
-  headers: { "User-Agent": "nh-client" },
-  timeout: 10_000,
-});
 
 /** Вернуть массив «coverBase + подходящие расширения» для перебора. */
 export const getCoverVariants = (base: string, token: string): string[] => {
@@ -285,7 +285,7 @@ export const getFavorites = async (params: {
   page?: number;
   perPage?: number;
 }): Promise<Paged<Book>> => {
-  const { ids, sort = "relevance", page = 1, perPage = 25 } = params;
+  const { ids, sort = "relevance", page = 1, perPage = 24 } = params;
   if (!Array.isArray(ids) || ids.length === 0) {
     throw new Error("Ids array required");
   }
@@ -334,7 +334,7 @@ export const searchBooks = async (
     query = "",
     sort = "",
     page = 1,
-    perPage = 25,
+    perPage = 24,
     includeTags = params.filterTags ?? [],
     excludeTags = [],
     contentType = "",
@@ -366,7 +366,7 @@ export const searchBooks = async (
       ? "popular"
       : sort;
 
-  const effectivePerPage = Math.min(perPage || 25, 100);
+  const effectivePerPage = Math.min(perPage || 24, 100);
   const { data } = await api.get("/galleries/search", {
     params: {
       query: nhQuery,
@@ -488,7 +488,7 @@ export async function getRecommendations(
     ids,
     sentIds = [],
     page = 1,
-    perPage = 25,
+    perPage = 24,
     includeTags = p.filterTags ?? [],
     excludeTags = [],
     randomSeed = Date.now(),

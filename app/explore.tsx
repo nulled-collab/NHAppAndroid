@@ -1,22 +1,14 @@
-import { Book, searchBooks } from "@/api/nhentai";
-import BookCard from "@/components/BookCard";
-import PaginationBar from "@/components/PaginationBar";
-import { SearchBar } from "@/components/SearchBar";
-import { Colors } from "@/constants/Colors";
-import { useSort } from "@/context/SortContext";
-import { useFilterTags } from "@/context/TagFilterContext";
-import { useColorScheme } from "@/hooks/useColorScheme";
+import { useGridConfig } from "@/hooks/useGridConfig";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
+
+import { Book, searchBooks } from "@/api/nhentai";
+import BookList from "@/components/BookList";
+import PaginationBar from "@/components/PaginationBar";
+import { useSort } from "@/context/SortContext";
+import { useFilterTags } from "@/context/TagFilterContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ExploreScreen() {
@@ -30,123 +22,100 @@ export default function ExploreScreen() {
 
   const [books, setBooks] = useState<Book[]>([]);
   const [totalPages, setTotal] = useState(1);
-  const [page, setPage] = useState(1);
-
+  const [currentPage, setPage] = useState(1);
   const [favorites, setFav] = useState<Set<number>>(new Set());
-
-  const [pending, setPending] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [refreshing, setRef] = useState(false);
 
   const listRef = useRef<FlatList>(null);
-  const cs = useColorScheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const gridConfig = useGridConfig();
 
   useEffect(() => {
     AsyncStorage.getItem("bookFavorites").then(
-      (f) => f && setFav(new Set(JSON.parse(f)))
+      (j) => j && setFav(new Set(JSON.parse(j)))
     );
   }, []);
 
-  const toggleFav = (id: number, like: boolean) =>
-    setFav((prev) => {
-      const cp = new Set(prev);
-      like ? cp.add(id) : cp.delete(id);
-      AsyncStorage.setItem("bookFavorites", JSON.stringify([...cp]));
-      return cp;
-    });
-
-  const fetchBooks = useCallback(
-    async (p: number) => {
-      if (!query.trim()) return;
-      setPending(true);
+  const fetchPage = useCallback(
+    async (page: number) => {
+      if (!query.trim()) {
+        setBooks([]);
+        setTotal(1);
+        return;
+      }
       try {
         const res = await searchBooks({
           query: query.trim(),
           sort,
-          page: p,
-          perPage: 40,
+          page,
           includeTags: includes,
           excludeTags: excludes,
         });
         setBooks(res.books);
         setTotal(res.totalPages);
-        setPage(p);
-        listRef.current?.scrollToOffset({ offset: 0, animated: false });
-      } finally {
-        setPending(false);
+        if (listRef.current) {
+          listRef.current.scrollToOffset({ offset: 0, animated: false });
+        }
+      } catch (error) {
+        console.error("Failed to fetch books:", error);
       }
     },
     [query, sort, incStr, excStr]
   );
 
+  // реагируем на смену параметра запроса или фильтров
   useEffect(() => {
-    query.trim() ? fetchBooks(1) : (setBooks([]), setTotal(1));
-  }, [fetchBooks, query]);
+    setPage(1);
+  }, [query, sort, incStr, excStr]);
+
+  useEffect(() => {
+    fetchPage(currentPage);
+  }, [currentPage, fetchPage]);
+
+  useEffect(() => {
+    setQuery(urlQ ?? "");
+  }, [urlQ]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchBooks(page);
-    setRefreshing(false);
-  }, [page, fetchBooks]);
+    setRef(true);
+    await fetchPage(currentPage);
+    setRef(false);
+  }, [currentPage, fetchPage]);
 
-  if (pending && page === 1) return <ActivityIndicator style={{ flex: 1 }} />;
+  const toggleFav = useCallback((id: number, next: boolean) => {
+    setFav((prev) => {
+      const cp = new Set(prev);
+      if (next) cp.add(id);
+      else cp.delete(id);
+      AsyncStorage.setItem("bookFavorites", JSON.stringify([...cp]));
+      return cp;
+    });
+  }, []);
 
   return (
-    <View
-      style={{ flex: 1, backgroundColor: Colors[cs ?? "light"].background.hex }}
-    >
-      <SearchBar />
-
-      <FlatList
-        ref={listRef}
+    <View style={[styles.container]}>
+      <BookList
         data={books}
-        keyExtractor={(b) => `${b.id}`}
-        renderItem={({ item }) => (
-          <BookCard
-            book={item}
-            isFavorite={favorites.has(item.id)}
-            onToggleFavorite={toggleFav}
-            onPress={() =>
-              router.push({
-                pathname: "/book/[id]",
-                params: { id: String(item.id) },
-              })
-            }
-          />
-        )}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        loading={books.length === 0 && currentPage === 1 && !!query}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        isFavorite={(id) => favorites.has(id)}
+        onToggleFavorite={toggleFav}
+        onPress={(id) =>
+          router.push({ pathname: "/book/[id]", params: { id: String(id) } })
         }
-        contentContainerStyle={{ paddingBottom: 55 + insets.bottom }}
-        ListEmptyComponent={
-          <Text style={{ textAlign: "center", marginTop: 40, color: "#888" }}>
-            {query ? "Ничего не найдено" : "Начните вводить запрос для поиска…"}
-          </Text>
-        }
+        gridConfig={{ default: gridConfig }}
       />
-
       <PaginationBar
-        currentPage={page}
+        currentPage={currentPage}
         totalPages={totalPages}
-        onChange={(p) => fetchBooks(p)}
+        onChange={setPage}
       />
-
-      {pending && page !== 1 && (
-        <View style={styles.overlay}>
-          <ActivityIndicator size="large" color="#fff" />
-        </View>
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  container: { flex: 1 },
 });

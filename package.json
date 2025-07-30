@@ -1,7 +1,7 @@
 {
   "name": "nhappandroid",
   "main": "expo-router/entry",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "scripts": {
     "sync-version": "node scripts/sync-version.js",
     "android-studio": "npm run sync-version && npx expo prebuild && node ./scripts/prepare-android",
@@ -54,6 +54,7 @@
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
+    "react-native-drawer-layout": "^4.1.12",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-image-pan-zoom": "^2.1.12",
     "react-native-pager-view": "6.7.1",
@@ -65,7 +66,7 @@
     "react-native-system-setting": "^1.7.6",
     "react-native-tab-view": "^4.1.2",
     "react-native-web": "~0.20.0",
-    "react-native-webview": "13.13.5"
+    "react-native-webview": "^13.13.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

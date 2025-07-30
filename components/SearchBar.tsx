@@ -20,13 +20,13 @@ import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Book, searchBooks } from "@/api/nhentai";
+import { useDrawer } from "@/components/DrawerContext"; // исправь путь если другой
 import SmartImage from "@/components/SmartImage";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import { hsbToHex } from "@/constants/Colors";
 import { SortKey, useSort } from "@/context/SortContext";
 import { useFilterTags } from "@/context/TagFilterContext";
 
-/* ------------ constants ------------ */
 const KEY_HISTORY = "searchHistory";
 const MAX_HEIGHT = Dimensions.get("window").height * 0.6;
 
@@ -35,52 +35,46 @@ const COLOR_TEXT = hsbToHex({ saturation: 100, brightness: 220 });
 const COLOR_ACCENT = hsbToHex({ saturation: 100, brightness: 200 });
 const COLOR_SUB = hsbToHex({ saturation: 100, brightness: 100 });
 
-const SORT_OPTIONS = [
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "popular", label: "Popular" },
   { key: "popular-week", label: "Hot Week" },
   { key: "popular-today", label: "Hot Today" },
   { key: "popular-month", label: "Hot Month" },
   { key: "date", label: "Newest" },
-] as const;
+];
 
-/* ------------ component ------------ */
 export function SearchBar() {
-  /* contexts */
+  const { openDrawer } = useDrawer();
+
   const { sort, setSort } = useSort();
   const { includes, excludes } = useFilterTags();
 
-  /* navigation */
   const router = useRouter();
   const pathname = usePathname();
-  const params = useLocalSearchParams<{ query?: string }>();
+  const params = useLocalSearchParams<{ query?: string | string[] }>();
 
-  /* UI state */
   const insets = useSafeAreaInsets();
-  const [q, setQ] = useState(params.query ?? "");
+  const [q, setQ] = useState<string>(
+    typeof params.query === "string" ? params.query : ""
+  );
   const [focus, setFO] = useState(false);
   const [kbH, setKbH] = useState(0);
 
-  /* suggestions & history */
   const [history, setHist] = useState<string[]>([]);
   const [suggests, setSug] = useState<Book[]>([]);
   const [loading, setLoad] = useState(false);
 
-  /* sort dialog */
   const [showSort, setShow] = useState(false);
   const [tempSort, setTmp] = useState<SortKey>(sort);
 
-  /* refs */
   const inputRef = useRef<TextInput>(null);
 
-  /* ---------- side-effects ---------- */
   useEffect(() => {
     AsyncStorage.getItem(KEY_HISTORY).then((j) => j && setHist(JSON.parse(j)));
   }, []);
 
   useEffect(() => {
-    const show = Keyboard.addListener("keyboardDidShow", (e) =>
-      setKbH(e.endCoordinates.height)
-    );
+    const show = Keyboard.addListener("keyboardDidShow", (e) => setKbH(e.endCoordinates.height));
     const hide = Keyboard.addListener("keyboardDidHide", () => {
       setKbH(0);
       inputRef.current?.blur();
@@ -92,7 +86,6 @@ export function SearchBar() {
     };
   }, []);
 
-  /* suggestions debounced */
   const incStr = JSON.stringify(includes);
   const excStr = JSON.stringify(excludes);
   useEffect(() => {
@@ -118,10 +111,8 @@ export function SearchBar() {
     return () => clearTimeout(t);
   }, [q, sort, incStr, excStr]);
 
-  /* sort dialog temp key follows global key */
   useEffect(() => setTmp(sort), [sort]);
 
-  /* ---------- helpers ---------- */
   const saveHist = async (text: string) => {
     const next = [text, ...history.filter((h) => h !== text)].slice(0, 10);
     setHist(next);
@@ -136,38 +127,32 @@ export function SearchBar() {
     router.push({ pathname: "/explore", params: { query } });
   };
 
-  /* derived UI flags */
   const filteredHist = history.filter((h) =>
     q.trim() ? h.toLowerCase().includes(q.trim().toLowerCase()) : true
   );
-  const showBack = pathname.startsWith("/explore");
+  const showBack = pathname && pathname !== "/" && pathname !== "/index";
   const showDrop = focus && (filteredHist.length > 0 || suggests.length > 0);
 
-  /* ---------- render ---------- */
   return (
     <>
-      {/* ───── search bar ───── */}
       <Animated.View
         style={[
           styles.bar,
-          { marginTop: insets.top + 8, backgroundColor: COLOR_BG },
+          { backgroundColor: COLOR_BG },
         ]}
       >
-        {showBack && (
+        {showBack ? (
           <Pressable onPress={() => router.back()} style={styles.iconBtn}>
             <Feather name="arrow-left" size={18} color={COLOR_TEXT} />
           </Pressable>
+        ) : (
+          <Pressable onPress={openDrawer} style={styles.iconBtn}>
+            <Feather name="menu" size={22} color={COLOR_TEXT} />
+          </Pressable>
         )}
 
-        {/* search icon */}
-        <Feather
-          name="search"
-          size={18}
-          color={COLOR_TEXT}
-          style={{ marginHorizontal: 4 }}
-        />
+        <Feather name="search" size={18} color={COLOR_TEXT} style={{ marginHorizontal: 4 }} />
 
-        {/* input */}
         <TextInput
           ref={inputRef}
           style={[styles.input, { color: COLOR_TEXT }]}
@@ -179,32 +164,18 @@ export function SearchBar() {
           onFocus={() => setFO(true)}
           onBlur={() => setFO(false)}
           returnKeyType={Platform.OS === "ios" ? "search" : "done"}
-          blurOnSubmit
         />
 
-        {/* clear × */}
         {q !== "" && (
-          <Pressable
-            hitSlop={10}
-            onPress={() => setQ("")}
-            style={styles.iconBtn}
-          >
+          <Pressable hitSlop={10} onPress={() => setQ("")} style={styles.iconBtn}>
             <Feather name="x" size={18} color={COLOR_TEXT} />
           </Pressable>
         )}
 
-        {/* sort button */}
-        <Pressable
-          onPress={() => {
-            setTmp(sort);
-            setShow(true);
-          }}
-          style={styles.iconBtn}
-        >
+        <Pressable onPress={() => { setTmp(sort); setShow(true); }} style={styles.iconBtn}>
           <Feather name="filter" size={18} color={COLOR_ACCENT} />
         </Pressable>
 
-        {/* open /tags (NEW КНОПКА) */}
         <Pressable onPress={() => router.push("/tags")} style={styles.iconBtn}>
           <Feather name="tag" size={18} color={COLOR_ACCENT} />
         </Pressable>
@@ -214,11 +185,7 @@ export function SearchBar() {
         <View style={styles.backdrop}>
           <View style={[styles.sortModal, { backgroundColor: COLOR_BG }]}>
             {SORT_OPTIONS.map(({ key, label }) => (
-              <Pressable
-                key={key}
-                style={styles.sortRow}
-                onPress={() => setTmp(key)}
-              >
+              <Pressable key={key} style={styles.sortRow} onPress={() => setTmp(key)}>
                 <Text
                   style={[
                     styles.sortTxt,
@@ -238,9 +205,7 @@ export function SearchBar() {
 
             <View style={styles.sortButtons}>
               <Pressable style={styles.sortBtn} onPress={() => setShow(false)}>
-                <Text style={[styles.sortBtnTxt, { color: COLOR_SUB }]}>
-                  Cancel
-                </Text>
+                <Text style={[styles.sortBtnTxt, { color: COLOR_SUB }]}>Cancel</Text>
               </Pressable>
               <Pressable
                 style={styles.sortBtn}
@@ -249,9 +214,7 @@ export function SearchBar() {
                   setShow(false);
                 }}
               >
-                <Text style={[styles.sortBtnTxt, { color: COLOR_ACCENT }]}>
-                  OK
-                </Text>
+                <Text style={[styles.sortBtnTxt, { color: COLOR_ACCENT }]}>OK</Text>
               </Pressable>
             </View>
           </View>
@@ -259,45 +222,32 @@ export function SearchBar() {
       </Modal>
 
       {showDrop && (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View
             style={[
               styles.dropdown,
               {
                 marginTop: 8,
-                maxHeight: Math.min(
-                  MAX_HEIGHT,
-                  Dimensions.get("window").height - kbH - 80
-                ),
+                maxHeight: Math.min(MAX_HEIGHT, Dimensions.get("window").height - kbH - 80),
                 backgroundColor: COLOR_BG,
                 marginBottom: kbH,
               },
             ]}
           >
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               {filteredHist.length > 0 && (
                 <>
                   <View style={styles.headRow}>
-                    <Text style={[styles.headTxt, { color: COLOR_SUB }]}>
-                      HISTORY
-                    </Text>
+                    <Text style={[styles.headTxt, { color: COLOR_SUB }]}>HISTORY</Text>
                     <Pressable
                       onPress={async () => {
                         setHist([]);
                         await AsyncStorage.removeItem(KEY_HISTORY);
                       }}
                     >
-                      <Text style={[styles.headTxt, { color: COLOR_SUB }]}>
-                        clear
-                      </Text>
+                      <Text style={[styles.headTxt, { color: COLOR_SUB }]}>clear</Text>
                     </Pressable>
                   </View>
-
                   {filteredHist.map((item) => (
                     <View key={item} style={styles.row}>
                       <Pressable
@@ -307,16 +257,8 @@ export function SearchBar() {
                           submit(item);
                         }}
                       >
-                        <Feather
-                          name="clock"
-                          size={16}
-                          color={COLOR_SUB}
-                          style={{ marginRight: 8 }}
-                        />
-                        <Text
-                          style={[styles.rowTxt, { color: COLOR_TEXT }]}
-                          numberOfLines={1}
-                        >
+                        <Feather name="clock" size={16} color={COLOR_SUB} style={{ marginRight: 8 }} />
+                        <Text style={[styles.rowTxt, { color: COLOR_TEXT }]} numberOfLines={1}>
                           {item}
                         </Text>
                       </Pressable>
@@ -325,10 +267,7 @@ export function SearchBar() {
                         onPress={async () => {
                           const next = history.filter((h) => h !== item);
                           setHist(next);
-                          await AsyncStorage.setItem(
-                            KEY_HISTORY,
-                            JSON.stringify(next)
-                          );
+                          await AsyncStorage.setItem(KEY_HISTORY, JSON.stringify(next));
                         }}
                       >
                         <Feather name="x" size={16} color={COLOR_SUB} />
@@ -353,11 +292,7 @@ export function SearchBar() {
                   </Text>
 
                   {loading && (
-                    <ActivityIndicator
-                      size="small"
-                      color={COLOR_SUB}
-                      style={{ marginVertical: 12 }}
-                    />
+                    <ActivityIndicator size="small" color={COLOR_SUB} style={{ marginVertical: 12 }} />
                   )}
 
                   {!loading &&
@@ -365,49 +300,34 @@ export function SearchBar() {
                       <Pressable
                         key={b.id}
                         style={styles.row}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/book/[id]",
-                            params: { id: String(b.id) },
-                          })
-                        }
+                        onPress={() => router.push({ pathname: "/book/[id]", params: { id: String(b.id) } })}
                       >
-                        <SmartImage
-                          sources={buildImageFallbacks(b.thumbnail)}
-                          style={styles.thumb}
-                        />
+                        <SmartImage sources={buildImageFallbacks(b.thumbnail)} style={styles.thumb} />
                         <View style={{ flex: 1 }}>
-                          <Text
-                            style={[styles.rowTxt, { color: COLOR_TEXT }]}
-                            numberOfLines={1}
-                          >
+                          <Text style={[styles.rowTxt, { color: COLOR_TEXT }]} numberOfLines={1}>
                             {b.title.pretty}
                           </Text>
-                          <Text style={[styles.metaTxt, { color: COLOR_SUB }]}>
-                            {b.pagesCount} pages
-                          </Text>
+                          <Text style={[styles.metaTxt, { color: COLOR_SUB }]}>{b.pagesCount} pages</Text>
                         </View>
                       </Pressable>
                     ))}
                 </>
               )}
 
-              {filteredHist.length === 0 &&
-                suggests.length === 0 &&
-                !loading && (
-                  <Text
-                    style={[
-                      styles.headTxt,
-                      {
-                        color: COLOR_SUB,
-                        textAlign: "center",
-                        marginVertical: 12,
-                      },
-                    ]}
-                  >
-                    nothing
-                  </Text>
-                )}
+              {filteredHist.length === 0 && suggests.length === 0 && !loading && (
+                <Text
+                  style={[
+                    styles.headTxt,
+                    {
+                      color: COLOR_SUB,
+                      textAlign: "center",
+                      marginVertical: 12,
+                    },
+                  ]}
+                >
+                  nothing
+                </Text>
+              )}
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -420,14 +340,10 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 8,
-    paddingHorizontal: 8,
     height: 40,
-    borderRadius: 12,
   },
   iconBtn: { padding: 6 },
   input: { flex: 1, fontSize: 15, paddingVertical: 0 },
-
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.6)",
@@ -455,7 +371,6 @@ const styles = StyleSheet.create({
   },
   sortBtn: { paddingVertical: 8, paddingHorizontal: 16 },
   sortBtnTxt: { fontSize: 16 },
-
   dropdown: {
     marginHorizontal: 8,
     paddingHorizontal: 12,
@@ -463,14 +378,12 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     borderRadius: 18,
   },
-
   headRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 6,
   },
   headTxt: { fontSize: 11, letterSpacing: 0.5 },
-
   row: { flexDirection: "row", alignItems: "center", paddingVertical: 8 },
   rowPress: { flexDirection: "row", alignItems: "center", flex: 1 },
   rowTxt: { fontSize: 14, flex: 1 },

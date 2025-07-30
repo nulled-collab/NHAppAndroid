@@ -1,4 +1,4 @@
-const baseHue = Math.round((175 / 360) * 65535); // ≈ 44975
+const baseHue = Math.round((260 / 360) * 65535); // ≈ 44975
 
 export const hsbToHex = ({
   saturation,
@@ -53,47 +53,37 @@ export const hsbToHex = ({
 export const Colors = {
   light: {
     text: {
-      hsb: { hue: baseHue, saturation: 76, brightness: 200 },
       hex: hsbToHex({ saturation: 76, brightness: 200 }), // ≈ #4F4A99
     },
     background: {
-      hsb: { hue: baseHue, saturation: 76, brightness: 25 },
-      hex: hsbToHex({ saturation: 76, brightness: 25 }), // ≈ #1C1733
+      hex: hsbToHex({ saturation: 76, brightness: 35 }), // ≈ #1C1733
     },
     tint: hsbToHex({ saturation: 150, brightness: 200 }), // ≈ #6B54D6
     icon: {
-      hsb: { hue: baseHue, saturation: 50, brightness: 100 },
       hex: hsbToHex({ saturation: 50, brightness: 100 }), // ≈ #403A80
     },
     tabIconDefault: {
-      hsb: { hue: baseHue, saturation: 50, brightness: 100 },
       hex: hsbToHex({ saturation: 50, brightness: 100 }), // ≈ #403A80
     },
     tabIconSelected: {
-      hsb: { hue: baseHue, saturation: 150, brightness: 200 },
       hex: hsbToHex({ saturation: 150, brightness: 200 }), // ≈ #6B54D6
     },
   },
   dark: {
     text: {
-      hsb: { hue: baseHue, saturation: 50, brightness: 220 },
       hex: hsbToHex({ saturation: 50, brightness: 220 }), // ≈ #B4A4FF
     },
     background: {
-      hsb: { hue: baseHue, saturation: 76, brightness: 25 },
       hex: hsbToHex({ saturation: 76, brightness: 25 }), // ≈ #1C1733
     },
     tint: hsbToHex({ saturation: 150, brightness: 150 }), // ≈ #5B48B4
     icon: {
-      hsb: { hue: baseHue, saturation: 40, brightness: 120 },
       hex: hsbToHex({ saturation: 40, brightness: 120 }), // ≈ #4C428F
     },
     tabIconDefault: {
-      hsb: { hue: baseHue, saturation: 40, brightness: 120 },
       hex: hsbToHex({ saturation: 40, brightness: 120 }), // ≈ #4C428F
     },
     tabIconSelected: {
-      hsb: { hue: baseHue, saturation: 150, brightness: 150 },
       hex: hsbToHex({ saturation: 150, brightness: 150 }), // ≈ #5B48B4
     },
   },

@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import * as FileSystem from "expo-file-system";
 import { Image as ExpoImage } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, {
   memo,
@@ -25,7 +26,7 @@ import {
   ToastAndroid,
   View,
 } from "react-native";
-import Svg, { Circle as SvgCircle } from "react-native-svg"; // ◀─ свой индикатор
+import Svg, { Circle as SvgCircle } from "react-native-svg";
 
 import { Book, getBook, loadBookFromLocal } from "@/api/nhentai";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
@@ -385,24 +386,6 @@ export default function BookScreen() {
   /* ---------- UI ---------- */
   return (
     <View style={{ flex: 1, backgroundColor: bg }}>
-      {/* top-bar */}
-      <Animated.View
-        style={[styles.topBar, { transform: [{ translateY: headerY }] }]}
-      >
-        <Pressable onPress={() => router.back()} style={styles.hit}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </Pressable>
-        <Pressable
-          onLongPress={() => Clipboard.setStringAsync(String(book.id))}
-          style={{ flex: 1 }}
-        >
-          <Text numberOfLines={1} style={styles.barTitle}>
-            {book.title.pretty}
-          </Text>
-        </Pressable>
-      </Animated.View>
-
-      {/* gallery list */}
       <FlatList
         ref={listRef}
         data={book.pages}
@@ -414,19 +397,68 @@ export default function BookScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 36 }}
         ListHeaderComponent={
-          <View style={{ marginTop: HEADER_H }}>
-            {/* cover */}
+          <View>
             <Pressable
               onPress={() =>
                 router.push({ pathname: "/read", params: { id, page: "1" } })
               }
             >
-              <ExpoImage
-                source={buildImageFallbacks(book.cover)}
-                style={{ width: W, aspectRatio: book.coverW / book.coverH }}
-                contentFit="cover"
-                cachePolicy="disk"
-              />
+              <View
+                style={{
+                  width: W,
+                  aspectRatio: book.coverW / book.coverH,
+                  overflow: "hidden", // важно!
+                  alignSelf: "center", // центрируем (если надо)
+                  marginBottom: 8,
+                }}
+              >
+                {/* Картинка */}
+                <ExpoImage
+                  source={buildImageFallbacks(book.cover)}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                  }}
+                  contentFit="cover"
+                  cachePolicy="disk"
+                />
+
+                {/* Градиент снизу */}
+                <LinearGradient
+                  colors={[bg + "ff", bg + "c5", bg + "ff"]} // твой фон, с прозрачностью
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: "100%",
+                  }}
+                  pointerEvents="none"
+                />
+              </View>
+              <View
+                style={{
+                  position: "absolute",
+                  left: W / 2 - (W * 0.76) / 2,
+                  top: W * 0.10,
+                  width: W * 0.76,
+                  height: W + (W * 0.45) / 2,
+                  borderRadius: 36,
+                  overflow: "hidden",
+                  backgroundColor: "#111111ff",
+                  elevation: 8, // Android тень
+                  shadowColor: "#000",
+                  shadowOpacity: 0.16,
+                  shadowRadius: 8, // iOS тень
+                  shadowOffset: { width: 0, height: 4 },
+                }}
+              >
+                <ExpoImage
+                  source={buildImageFallbacks(book.cover)}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit="cover"
+                />
+              </View>
             </Pressable>
 
             {/* info + actions */}
@@ -591,7 +623,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: HEADER_H,
-    paddingTop: StatusBar.currentHeight,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: hsbToHex({ saturation: 76, brightness: 18 }),
@@ -605,7 +636,7 @@ const styles = StyleSheet.create({
   },
   barTitle: { color: "#fff", fontSize: 16, fontWeight: "600" },
 
-  innerWrap: { paddingHorizontal: 16, paddingTop: 12 },
+  innerWrap: { paddingHorizontal: 16 },
   title: { color: text, fontSize: 20, fontWeight: "700", marginBottom: 4 },
   subtitle: { color: meta, fontSize: 14 },
   subtitleJP: { color: meta, fontSize: 13, fontStyle: "italic" },

@@ -2,12 +2,11 @@
   "expo": {
     "name": "nhappandroid",
     "slug": "nhappandroid",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "nhappandroid",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -18,7 +17,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.nhapp.android",
-      "versionCode": 10008
+      "versionCode": 10009
     },
     "web": {
       "bundler": "metro",

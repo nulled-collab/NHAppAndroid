@@ -1,13 +1,12 @@
 import { hsbToHex } from "@/constants/Colors";
-import { StyleSheet } from "react-native";
+import { ImageStyle, TextStyle, ViewStyle } from "react-native";
 
-// Используем HSB для глобальных стилей
-const bgColor = hsbToHex({ saturation: 96, brightness: 45 }); // ≈ #2b244dff
+const bgColor = hsbToHex({ saturation: 96, brightness: 45 });
 const shadowColor = "#000";
-const titleColor = hsbToHex({ saturation: 60, brightness: 200 }); // настраиваемый цвет
-const metaTextColor = hsbToHex({ saturation: 40, brightness: 180 }); // ≈ #9b94d1
-const tagBg = hsbToHex({ saturation: 50, brightness: 60 }); // ≈ #2b293d
-const newBadgeBg = "#ff4757"; // оставим вручную, как акцент
+const titleColor = hsbToHex({ saturation: 60, brightness: 200 });
+const metaTextColor = hsbToHex({ saturation: 40, brightness: 180 });
+const tagBg = hsbToHex({ saturation: 50, brightness: 60 });
+const newBadgeBg = "#ff4757";
 
 export const TAG_COLORS: Record<string, string> = {
   language: "#FF7D7F",
@@ -16,85 +15,121 @@ export const TAG_COLORS: Record<string, string> = {
   parody: "#BCEA83",
   group: "#86F0C6",
   category: "#92EFFF",
-  tag: hsbToHex({ saturation: 100, brightness: 160 }), // ≈ #2b293d
+  tag: hsbToHex({ saturation: 100, brightness: 160 }),
 };
 
-export const styles = StyleSheet.create({
-  card: {
-    width: "100%",
-    marginHorizontal: 16,
-    marginVertical: 12,
-    borderRadius: 12,
-    backgroundColor: bgColor,
-    overflow: "hidden",
-    elevation: 4,
-    shadowColor: shadowColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-  },
-  flagImg: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    width: 24,
-    height: 16,
-    borderRadius: 2,
-  },
-  /* cover */
-  imageWrap: { position: "relative", width: "100%", aspectRatio: 3 / 4 },
-  cover: { width: "100%", height: "100%" },
-  langFlag: {
-    position: "absolute",
-    top: 4,
-    left: 4,
-    fontSize: 20,
-    textShadowColor: "rgba(0,0,0,0.6)",
-    textShadowRadius: 2,
-  },
-  favBtn: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    backgroundColor: "rgba(0,0,0,0.65)",
-    padding: 5,
-    borderRadius: 999,
-  },
-  newBadge: {
-    position: "absolute",
-    bottom: -8,
-    left: 14,
-    backgroundColor: newBadgeBg,
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 11,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    textTransform: "uppercase",
-  },
+export function makeCardStyles(cardWidth: number, scale: number = 1) {
+  // Мастер-параметр — scale
+  const S = scale;
 
-  /* body */
-  body: { padding: 16, gap: 10 },
-  title: { fontSize: 18, fontWeight: "600", color: titleColor },
+  const borderRadius = Math.round(cardWidth * 0.06 * S);
+  const coverHeight = Math.round(cardWidth * 1.24);
+  const flagW = Math.round(cardWidth * 0.17 * S);
+  const flagH = Math.round(cardWidth * 0.12 * S);
+  const favIcon = Math.round(cardWidth * 0.09 * S);
+  const favBtnPad = Math.max(3, Math.round(cardWidth * 0.045 * S));
+  const newFont = Math.max(10, Math.round(cardWidth * 0.09 * S));
+  const newPadX = Math.max(4, Math.round(cardWidth * 0.03 * S));
+  const newPadY = Math.max(2, Math.round(cardWidth * 0.015 * S));
+  const titleSize = Math.max(11, Math.round(cardWidth * 0.11 * S));
+  const metaFont = Math.max(9, Math.round(cardWidth * 0.09 * S));
+  const tagFont = Math.max(9, Math.round(cardWidth * 0.085 * S));
+  const tagPadX = Math.max(3, Math.round(cardWidth * 0.03 * S));
+  const tagPadY = Math.max(2, Math.round(cardWidth * 0.016 * S));
+  const tagRadius = Math.max(4, Math.round(cardWidth * 0.045 * S));
+  const bodyPad = Math.max(8, Math.round(cardWidth * 0.08 * S));
 
-  metaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 10,
-  },
-  metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  metaText: { fontSize: 12, color: metaTextColor },
-
-  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  tag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    fontSize: 10,
-    color: "#ececec",
-    backgroundColor: tagBg,
-  },
-  tagSelected: { borderWidth: 1, borderColor: "#fff" },
-});
+  return {
+    card: {
+      flex: 1,
+      width: cardWidth,
+      borderRadius,
+      backgroundColor: bgColor,
+      overflow: "hidden" as ViewStyle["overflow"],
+      elevation: 4,
+      shadowColor: shadowColor,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.14,
+      shadowRadius: borderRadius,
+    } as ViewStyle,
+    flagImg: {
+      position: "absolute" as ViewStyle["position"],
+      top: flagW * 0.15,
+      left: flagW * 0.15,
+      width: flagW,
+      height: flagH,
+      borderRadius: 2,
+    } as ImageStyle,
+    imageWrap: {
+      position: "relative" as ViewStyle["position"],
+      width: "100%",
+      height: coverHeight,
+      borderTopLeftRadius: borderRadius,
+      borderTopRightRadius: borderRadius,
+      overflow: "hidden" as ViewStyle["overflow"],
+    } as ViewStyle,
+    cover: {
+      width: "100%",
+      height: "100%",
+      borderTopLeftRadius: borderRadius,
+      borderTopRightRadius: borderRadius,
+    } as ImageStyle,
+    favBtn: {
+      position: "absolute" as ViewStyle["position"],
+      top: favBtnPad,
+      right: favBtnPad,
+      backgroundColor: "rgba(0,0,0,0.65)",
+      padding: favBtnPad,
+      borderRadius: 999,
+    } as ViewStyle,
+    newBadge: {
+      position: "absolute" as TextStyle["position"],
+      bottom: newPadY * 5,
+      left: newPadX * 3,
+      backgroundColor: newBadgeBg,
+      color: "#fff",
+      fontWeight: "700" as TextStyle["fontWeight"],
+      fontSize: newFont,
+      paddingHorizontal: newPadX,
+      paddingVertical: newPadY,
+      borderRadius: borderRadius * 0.35,
+      textTransform: "uppercase" as TextStyle["textTransform"],
+      overflow: "hidden" as TextStyle["overflow"],
+    } as TextStyle,
+    body: { padding: bodyPad } as ViewStyle,
+    title: {
+      fontSize: titleSize,
+      fontWeight: "600" as TextStyle["fontWeight"],
+      color: titleColor,
+    } as TextStyle,
+    metaRow: {
+      flexDirection: "row" as ViewStyle["flexDirection"],
+      justifyContent: "space-between" as ViewStyle["justifyContent"],
+      alignItems: "center" as ViewStyle["alignItems"],
+      marginBottom: metaFont * 0.4,
+    } as ViewStyle,
+    metaItem: {
+      flexDirection: "row" as ViewStyle["flexDirection"],
+      alignItems: "center" as ViewStyle["alignItems"],
+      marginRight: metaFont * 0.5,
+      gap: metaFont * 0.4,
+    } as ViewStyle,
+    metaText: { fontSize: metaFont, color: metaTextColor } as TextStyle,
+    tagsRow: {
+      flexDirection: "row" as ViewStyle["flexDirection"],
+      flexWrap: "wrap" as ViewStyle["flexWrap"],
+      marginTop: tagPadY,
+    } as ViewStyle,
+    tag: {
+      paddingHorizontal: tagPadX,
+      paddingVertical: tagPadY,
+      borderRadius: tagRadius,
+      fontSize: tagFont,
+      color: "#ececec",
+      backgroundColor: tagBg,
+      marginBottom: tagPadY * 1.4,
+      marginRight: tagPadX,
+    } as TextStyle,
+    tagSelected: { borderWidth: 1, borderColor: "#fff" } as TextStyle,
+  };
+}

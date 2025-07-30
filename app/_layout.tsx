@@ -1,81 +1,62 @@
-// _layout.tsx
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
-import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { View } from "react-native";
-import "react-native-reanimated";
+import React, { useState } from "react";
+import { Drawer } from "react-native-drawer-layout";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
-import { Colors } from "@/constants/Colors";
+import { DrawerContext } from "@/components/DrawerContext";
+import { SearchBar } from "@/components/SearchBar";
+import SideMenu from "@/components/SideMenu";
+import { hsbToHex } from "@/constants/Colors";
 import { SortProvider } from "@/context/SortContext";
 import { TagProvider } from "@/context/TagFilterContext";
-import { useColorScheme } from "@/hooks/useColorScheme";
-
-// Create custom themes
-const CustomLightTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: Colors.light.background.hex, // e.g., "#1C1733"
-  },
-};
-
-const CustomDarkTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: Colors.dark.background.hex, // e.g., "#1C1733"
-  },
-};
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-  });
-
-  if (!loaded) {
-    return null;
-  }
+  const bgColor = hsbToHex({ saturation: 76, brightness: 30 });
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const pathname = usePathname();
+  const hideSearchBar = pathname === "/read";
 
   return (
-    <SortProvider>
-      <TagProvider>
-        <ThemeProvider
-          value={colorScheme === "dark" ? CustomDarkTheme : CustomLightTheme}
+    <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1, backgroundColor: bgColor }}>
+        <Drawer
+          open={drawerOpen}
+          onOpen={() => setDrawerOpen(true)}
+          onClose={() => setDrawerOpen(false)}
+          drawerPosition="left"
+          drawerStyle={{ width: 260 }}
+          renderDrawerContent={() => (
+            <SideMenu closeDrawer={() => setDrawerOpen(false)} />
+          )}
         >
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: Colors[colorScheme ?? "light"].background.hex, // Root background
-            }}
-          >
-            <Stack
-              screenOptions={{
-                contentStyle: {
-                  backgroundColor:
-                    Colors[colorScheme ?? "light"].background.hex, // Match root background
-                },
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="book/[id]" options={{ headerShown: false }} />
-              <Stack.Screen name="read" options={{ headerShown: false }} />
-              <Stack.Screen name="explore" options={{ headerShown: false }} />
-              <Stack.Screen name="tags" options={{ headerShown: false }} />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-            <StatusBar
-              style="auto"
-              backgroundColor={Colors[colorScheme ?? "light"].background.hex}
-            />
-          </View>
-        </ThemeProvider>
-      </TagProvider>
-    </SortProvider>
+          <DrawerContext.Provider value={{ openDrawer: () => setDrawerOpen(true) }}>
+            <SortProvider>
+              <TagProvider>
+                {/* Поисковая строка book/[id] не показывать <SearchBar /> */}
+                {!hideSearchBar && <SearchBar />}
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: bgColor },
+                  }}
+                >
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="favorites" />
+                  <Stack.Screen name="search" />
+                  <Stack.Screen name="book/[id]" />
+                  <Stack.Screen name="read" />
+                  <Stack.Screen name="downloaded" />
+                  <Stack.Screen name="recommendations" />
+                  <Stack.Screen name="tags" />
+                  <Stack.Screen name="+not-found" />
+                </Stack>
+                <StatusBar style="auto" backgroundColor={bgColor} />
+              </TagProvider>
+            </SortProvider>
+          </DrawerContext.Provider>
+        </Drawer>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }

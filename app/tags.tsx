@@ -13,13 +13,13 @@ const COLS = 4;
 const GAP = 8;
 const CARD_W = (Dimensions.get("window").width - GAP * (COLS + 1)) / COLS;
 
-const BG       = hsbToHex({ saturation: 76, brightness: 18 });
-const TXT      = hsbToHex({ saturation: 20, brightness: 240 });
-const SUB      = hsbToHex({ saturation: 0,  brightness: 120 });
-const INC_BG   = hsbToHex({ saturation: 60, brightness: 34 });
-const INC_TXT  = hsbToHex({ saturation: 60, brightness: 200 });
-const EXC_BG   = hsbToHex({ saturation: 0,  brightness: 34 });
-const EXC_TXT  = hsbToHex({ saturation: 0,  brightness: 220 });
+const BG = hsbToHex({ saturation: 76, brightness: 18 });
+const TXT = hsbToHex({ saturation: 20, brightness: 240 });
+const SUB = hsbToHex({ saturation: 0, brightness: 120 });
+const INC_BG = hsbToHex({ saturation: 60, brightness: 34 });
+const INC_TXT = hsbToHex({ saturation: 60, brightness: 200 });
+const EXC_BG = hsbToHex({ saturation: 0, brightness: 34 });
+const EXC_TXT = hsbToHex({ saturation: 0, brightness: 220 });
 
 type RouteKey = "applied" | "tags" | "artists" | "characters" | "parodies" | "groups";
 interface TabRoute { key: RouteKey; title: string }
@@ -33,12 +33,14 @@ interface TagsDb {
 }
 
 const db = raw as TagsDb;
-const DATASETS = {
-  tags: db.tags,
-  artists: db.artists,
-  characters: db.characters,
-  parodies: db.parodies,
-  groups: db.groups,
+
+// Pre-sort datasets to avoid sorting on every render
+const PRE_SORTED_DATASETS = {
+  tags: [...db.tags].sort((a, b) => b.count - a.count),
+  artists: [...db.artists].sort((a, b) => b.count - a.count),
+  characters: [...db.characters].sort((a, b) => b.count - a.count),
+  parodies: [...db.parodies].sort((a, b) => b.count - a.count),
+  groups: [...db.groups].sort((a, b) => b.count - a.count),
 };
 
 const clrCache = new Map<string, string>();
@@ -55,9 +57,7 @@ const TagCard = memo<CardProps>(
       onPress={onToggle}
       style={[
         styles.card,
-        { backgroundColor: bgFor(tag.name) },
-        mode === "include" && { backgroundColor: INC_BG },
-        mode === "exclude" && { backgroundColor: EXC_BG },
+        { backgroundColor: mode === "include" ? INC_BG : mode === "exclude" ? EXC_BG : bgFor(tag.name) },
       ]}
     >
       <View style={styles.icon}>
@@ -67,21 +67,11 @@ const TagCard = memo<CardProps>(
       </View>
       <Text
         numberOfLines={2}
-        style={[
-          styles.cardTxt,
-          mode === "include" && { color: INC_TXT },
-          mode === "exclude" && { color: EXC_TXT },
-        ]}
+        style={[styles.cardTxt, { color: mode === "include" ? INC_TXT : mode === "exclude" ? EXC_TXT : TXT }]}
       >
         {tag.name}
       </Text>
-      <Text
-        style={[
-          styles.countTxt,
-          mode === "include" && { color: INC_TXT },
-          mode === "exclude" && { color: EXC_TXT },
-        ]}
-      >
+      <Text style={[styles.countTxt, { color: mode === "include" ? INC_TXT : mode === "exclude" ? EXC_TXT : TXT }]}>
         {tag.count}
       </Text>
     </Pressable>
@@ -114,34 +104,42 @@ const makeGrid = (
 
 /* ── Main screen ──────────────────────── */
 export default function TagsScreen() {
-  const { filters, cycle, clear } = useFilterTags();
+  const { filters, cycle, clear, filtersReady } = useFilterTags();
   const [search, setSearch] = useState("");
   const [index, setIndex] = useState(0);
   const insets = useSafeAreaInsets();
 
   useFocusEffect(useCallback(() => setSearch(""), []));
 
-  /* fast lookup for modes */
+  /* Fast lookup for modes */
   const filterMap = useMemo(() => {
     const m = new Map<string, "include" | "exclude">();
     filters.forEach(f => m.set(f.name, f.mode));
     return m;
   }, [filters]);
+
   const getMode = useCallback((name: string) => filterMap.get(name), [filterMap]);
 
-  /* lookup for counts (по имени) */
+  /* Lookup for counts (по имени) */
   const countMap = useMemo(() => {
     const m = new Map<string, number>();
-    Object.values(DATASETS).forEach(arr => arr.forEach(t => m.set(t.name, t.count)));
+    Object.values(PRE_SORTED_DATASETS).forEach(arr => arr.forEach(t => m.set(t.name, t.count)));
     return m;
   }, []);
 
-  /* filtered & sorted lists */
+  /* Filtered lists (avoid redundant sorting) */
   const filteredLists = useMemo(() => {
+    if (!filtersReady) return {
+      applied: [],
+      tags: [],
+      artists: [],
+      characters: [],
+      parodies: [],
+      groups: [],
+    };
+
     const needle = search.trim().toLowerCase();
-    const match   = (t: TagEntry) => !needle || t.name.toLowerCase().includes(needle);
-    const byCount = (a: TagEntry, b: TagEntry) => b.count - a.count;
-    const slice   = (arr: TagEntry[]) => [...(needle ? arr.filter(match) : arr)].sort(byCount);
+    const match = (t: TagEntry) => !needle || t.name.toLowerCase().includes(needle);
 
     return {
       applied: filters
@@ -152,40 +150,41 @@ export default function TagsScreen() {
           count: countMap.get(f.name) ?? 0,
           url: "",
         }))
-        .sort(byCount),
-      tags:        slice(DATASETS.tags),
-      artists:     slice(DATASETS.artists),
-      characters:  slice(DATASETS.characters),
-      parodies:    slice(DATASETS.parodies),
-      groups:      slice(DATASETS.groups),
+        .sort((a, b) => b.count - a.count),
+      tags: needle ? PRE_SORTED_DATASETS.tags.filter(match) : PRE_SORTED_DATASETS.tags,
+      artists: needle ? PRE_SORTED_DATASETS.artists.filter(match) : PRE_SORTED_DATASETS.artists,
+      characters: needle ? PRE_SORTED_DATASETS.characters.filter(match) : PRE_SORTED_DATASETS.characters,
+      parodies: needle ? PRE_SORTED_DATASETS.parodies.filter(match) : PRE_SORTED_DATASETS.parodies,
+      groups: needle ? PRE_SORTED_DATASETS.groups.filter(match) : PRE_SORTED_DATASETS.groups,
     };
-  }, [filters, search, countMap]);
+  }, [filters, search, countMap, filtersReady]);
 
   const toggle = useCallback((tag: TagEntry) => cycle(tag), [cycle]);
 
   const renderScene = useCallback(
     ({ route }: { route: TabRoute }) => {
+      if (!filtersReady) return null; // Prevent rendering until filters are ready
       switch (route.key) {
-        case "applied":     return makeGrid(filteredLists.applied,    getMode, toggle);
-        case "tags":        return makeGrid(filteredLists.tags,       getMode, toggle);
-        case "artists":     return makeGrid(filteredLists.artists,    getMode, toggle);
-        case "characters":  return makeGrid(filteredLists.characters, getMode, toggle);
-        case "parodies":    return makeGrid(filteredLists.parodies,   getMode, toggle);
-        case "groups":      return makeGrid(filteredLists.groups,     getMode, toggle);
-        default:            return null;
+        case "applied": return makeGrid(filteredLists.applied, getMode, toggle);
+        case "tags": return makeGrid(filteredLists.tags, getMode, toggle);
+        case "artists": return makeGrid(filteredLists.artists, getMode, toggle);
+        case "characters": return makeGrid(filteredLists.characters, getMode, toggle);
+        case "parodies": return makeGrid(filteredLists.parodies, getMode, toggle);
+        case "groups": return makeGrid(filteredLists.groups, getMode, toggle);
+        default: return null;
       }
     },
-    [filteredLists, getMode, toggle]
+    [filteredLists, getMode, toggle, filtersReady]
   );
 
   const routes = useMemo<TabRoute[]>(
     () => [
       { key: "applied", title: "ВЫБРАННЫЕ" },
-      { key: "tags",    title: "ТЕГИ" },
+      { key: "tags", title: "ТЕГИ" },
       { key: "artists", title: "ХУДОЖНИКИ" },
       { key: "characters", title: "ПЕРСОНАЖИ" },
       { key: "parodies", title: "ПАРОДИИ" },
-      { key: "groups",  title: "ГРУППЫ" },
+      { key: "groups", title: "ГРУППЫ" },
     ],
     []
   );
@@ -227,7 +226,6 @@ export default function TagsScreen() {
 /* ── styles ───────────────────────────── */
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: BG },
-
   search: {
     margin: GAP,
     borderRadius: 10,
@@ -237,7 +235,6 @@ const styles = StyleSheet.create({
     color: TXT,
     fontSize: 14,
   },
-
   card: {
     width: CARD_W,
     height: CARD_W,
@@ -247,10 +244,9 @@ const styles = StyleSheet.create({
     padding: 8,
     margin: GAP / 2,
   },
-  cardTxt:   { color: TXT, fontSize: 12, fontWeight: "600" },
-  countTxt:  { color: TXT, fontSize: 11, opacity: 0.8 },
-  icon:      { position: "absolute", top: 6, left: 6 },
-
+  cardTxt: { color: TXT, fontSize: 12, fontWeight: "600" },
+  countTxt: { color: TXT, fontSize: 11, opacity: 0.8 },
+  icon: { position: "absolute", top: 6, left: 6 },
   clearBtn: {
     position: "absolute",
     right: 16,

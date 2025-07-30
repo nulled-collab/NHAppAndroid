@@ -44,7 +44,6 @@ export function useUpdateCheck() {
   /* --- запускаем при маунте --- */
   useEffect(() => { checkUpdate(); }, [checkUpdate]);
 
-  /* ---------- helper для ≤ API 25 ---------- */
   const launchInstaller = async (file: string) => {
     const uri = await FileSystem.getContentUriAsync(file);
     await IntentLauncher.startActivityAsync("android.intent.action.VIEW", {

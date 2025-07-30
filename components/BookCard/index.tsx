@@ -4,21 +4,14 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useFocusEffect } from "expo-router";
 import React, { useMemo, useState } from "react";
-import {
-  Image,
-  Pressable,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 
 import { Book, Tag } from "@/api/nhentai";
 import SmartImage from "@/components/SmartImage";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import { hsbToHex } from "@/constants/Colors";
-import { styles, TAG_COLORS } from "./BookCard.styles";
+import { makeCardStyles, TAG_COLORS } from "./BookCard.styles";
 
-/* PNG-флаги (положите файлы в assets/images/flags) */
 const CN_FLAG = require("@/assets/images/flags/CN.png");
 const GB_FLAG = require("@/assets/images/flags/GB.png");
 const JP_FLAG = require("@/assets/images/flags/JP.png");
@@ -33,50 +26,42 @@ const FAV_KEY = "bookFavorites";
 
 interface Props {
   book: Book;
-  /** первоначальное значение от родителя, чтобы не ждать чтения из storage */
+  cardWidth?: number;
+  isSingleCol?: boolean;
+  contentScale?: number;
   isFavorite?: boolean;
   selectedTags?: Tag[];
-  /**
-   * Родитель, если хочет, может отслеживать изменения.
-   * Но для самой карточки этот проп не обязателен.
-   */
   onToggleFavorite?: (id: number, next: boolean) => void;
   onPress?: (id: number) => void;
+  score?: number; // <--- добавлено!
 }
 
 export default function BookCard({
   book,
+  cardWidth = 160,
+  isSingleCol = false,
+  contentScale = 1,
   isFavorite = false,
   selectedTags = [],
   onToggleFavorite,
   onPress,
+  score,
 }: Props) {
-  /** размеры карточки адаптируем к ширине экрана */
-  const { width } = useWindowDimensions();
-  const coverW = Math.min(width - 32, 340);
-
-  /** локальный лайк — сразу реагирует на изменения */
   const [liked, setLiked] = useState<boolean>(isFavorite);
-
-  /** разворачивать/сворачивать теги */
   const [showAllTags, setShowAllTags] = useState(false);
+  const styles = makeCardStyles(cardWidth, contentScale);
 
-  /** «NEW» — если аплоад в последние 24 ч */
   const isNew = new Date(book.uploaded) > new Date(Date.now() - 86_400_000);
 
-  /* -----------  фокус экрана → перечитать избранное  ------------ */
-  useFocusEffect(
-    React.useCallback(() => {
-      AsyncStorage.getItem(FAV_KEY)
-        .then((j) => {
-          const arr: number[] = j ? JSON.parse(j) : [];
-          setLiked(arr.includes(book.id));
-        })
-        .catch(() => {});
-    }, [book.id])
-  );
+  useFocusEffect(() => {
+    AsyncStorage.getItem(FAV_KEY)
+      .then((j) => {
+        const arr: number[] = j ? JSON.parse(j) : [];
+        setLiked(arr.includes(book.id));
+      })
+      .catch((e) => console.error("Error reading favorites:", e));
+  });
 
-  /* -----------  переключатель лайка  ------------ */
   const handleToggleLike = async () => {
     try {
       const raw = await AsyncStorage.getItem(FAV_KEY);
@@ -91,27 +76,29 @@ export default function BookCard({
       await AsyncStorage.setItem(FAV_KEY, JSON.stringify(nextArr));
 
       onToggleFavorite?.(book.id, nextLiked);
-    } catch {
-      /* silent */
+    } catch (e) {
+      console.error("Error toggling favorite:", e);
     }
   };
 
-  /* -----------  теги в нужном порядке  ------------ */
+  const maxTags = (() => {
+    if (cardWidth < 110) return 1;
+    if (cardWidth < 250) return 2;
+    if (cardWidth < 400) return 3;
+    return 4;
+  })();
+
   const orderedTags = useMemo(() => {
     const uniq = new Map<number, Tag>();
     book.tags.forEach((t) => uniq.set(t.id, t));
-    return (
-      ["language", "artist", "character", "parody", "group", "category", "tag"]
-        .flatMap((type) => [...uniq.values()].filter((t) => t.type === type))
-        // показываем только первые 4, если не раскрыто
-        .slice(0, showAllTags ? undefined : 4)
-    );
-  }, [book.tags, showAllTags]);
+    return ["artist", "character", "parody", "group", "category", "tag"]
+      .flatMap((type) => [...uniq.values()].filter((t) => t.type === type))
+      .slice(0, showAllTags ? book.tags.length : maxTags);
+  }, [book.tags, showAllTags, cardWidth]);
 
   const totalTags = book.tags.length;
   const variants = buildImageFallbacks(book.cover);
 
-  /* флаг по первому языку (если найден PNG) */
   const flagSrc = book.languages?.[0]?.name
     ? FLAG_MAP[
         book.languages[0].name.toLowerCase() === "translated" &&
@@ -121,85 +108,87 @@ export default function BookCard({
       ]
     : undefined;
 
-  /* -----------  UI  ------------ */
   return (
-    <Pressable
-      style={[styles.card, { width: coverW }]}
-      onPress={() => onPress?.(book.id)}
-    >
-      {/* ---------- обложка ---------- */}
-      <View style={styles.imageWrap}>
+    <Pressable style={styles.card} onPress={() => onPress?.(book.id)}>
+      <View
+        style={[
+          styles.imageWrap,
+          isSingleCol && { aspectRatio: 0.7, height: undefined },
+        ]}
+      >
         <SmartImage
           sources={variants}
           resizeMode="cover"
-          style={[styles.cover, { width: coverW, height: (coverW * 4) / 3 }]}
+          style={[
+            styles.cover,
+            isSingleCol && { aspectRatio: 0.7, height: undefined },
+          ]}
         />
-
         {flagSrc && (
           <Image source={flagSrc} style={styles.flagImg} resizeMode="contain" />
         )}
-
         {isNew && <Text style={styles.newBadge}>NEW</Text>}
-
+        {score !== undefined && (
+          <View
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              backgroundColor: "#444",
+              borderRadius: 8,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              zIndex: 10,
+            }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
+              {score}%
+            </Text>
+          </View>
+        )}
         {onToggleFavorite && (
           <Pressable style={styles.favBtn} onPress={handleToggleLike}>
             <Feather
               name="heart"
-              size={18}
               color={liked ? "#ff4040" : "#fff"}
               style={{ opacity: liked ? 1 : 0.5 }}
+              size={undefined}
             />
           </Pressable>
         )}
       </View>
-
-      {/* ---------- подпись + мета ---------- */}
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>
           {book.title.pretty}
         </Text>
-
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>
             <Feather
               name="calendar"
-              size={12}
+              size={styles.metaText.fontSize ?? 12}
               color={hsbToHex({ saturation: 40, brightness: 180 })}
             />
             <Text style={styles.metaText}>
               {format(new Date(book.uploaded), "d MMM yyyy", { locale: ru })}
             </Text>
           </View>
-
           <View style={styles.metaItem}>
             <Feather
               name="book-open"
-              size={12}
+              size={styles.metaText.fontSize ?? 12}
               color={hsbToHex({ saturation: 40, brightness: 180 })}
             />
             <Text style={styles.metaText}>{book.pagesCount}</Text>
           </View>
-
-          <View style={styles.metaItem}>
-            <Feather
-              name="eye"
-              size={12}
-              color={hsbToHex({ saturation: 40, brightness: 180 })}
-            />
-            <Text style={styles.metaText}>{book.media}</Text>
-          </View>
-
           <View style={styles.metaItem}>
             <Feather
               name="heart"
-              size={12}
+              size={styles.metaText.fontSize ?? 12}
               color={hsbToHex({ saturation: 40, brightness: 180 })}
             />
             <Text style={styles.metaText}>{book.favorites}</Text>
           </View>
         </View>
-
-        {/* ---------- теги ---------- */}
         <View style={styles.tagsRow}>
           {orderedTags.map((tag) => (
             <Text
@@ -214,7 +203,6 @@ export default function BookCard({
               {tag.name}
             </Text>
           ))}
-
           {!showAllTags && totalTags > 4 && (
             <Pressable onPress={() => setShowAllTags(true)}>
               <Text style={[styles.tag, { backgroundColor: "transparent" }]}>
