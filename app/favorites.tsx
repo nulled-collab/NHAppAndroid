@@ -36,7 +36,7 @@ export default function FavoritesScreen() {
   );
 
   const loadBooks = useCallback(
-    async (pageNum: number, perPage: number = 10) => {
+    async (pageNum: number, perPage: number = 200) => {
       if (ids.length === 0) {
         setBooks([]);
         setTotalPages(1);

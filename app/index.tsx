@@ -22,24 +22,50 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
 
 /* palette */
-const accent   = hsbToHex({ saturation: 94, brightness: 50 });
+const accent = hsbToHex({ saturation: 94, brightness: 50 });
 const bannerBg = hsbToHex({ saturation: 94, brightness: 250 });
 
 /* progress ring */
 const Ring = ({
-  progress, size = 17, stroke = 3,
-}: { progress: number; size?: number; stroke?: number }) => {
+  progress,
+  size = 17,
+  stroke = 3,
+}: {
+  progress: number;
+  size?: number;
+  stroke?: number;
+}) => {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
-    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ marginRight: 16 }}>
-      <Circle cx={size/2} cy={size/2} r={r}
-        stroke={accent} strokeOpacity={0.25} strokeWidth={stroke} fill="none" />
-      <Circle cx={size/2} cy={size/2} r={r}
-        stroke={accent} strokeWidth={stroke}
-        strokeDasharray={`${c}`} strokeDashoffset={c * (1 - progress)}
-        strokeLinecap="round" fill="none" rotation={-90}
-        origin={`${size/2},${size/2}`} />
+    <Svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      style={{ marginRight: 16 }}
+    >
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        stroke={accent}
+        strokeOpacity={0.25}
+        strokeWidth={stroke}
+        fill="none"
+      />
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        stroke={accent}
+        strokeWidth={stroke}
+        strokeDasharray={`${c}`}
+        strokeDashoffset={c * (1 - progress)}
+        strokeLinecap="round"
+        fill="none"
+        rotation={-90}
+        origin={`${size / 2},${size / 2}`}
+      />
     </Svg>
   );
 };
@@ -50,24 +76,25 @@ export default function HomeScreen() {
   const incStr = JSON.stringify(includes);
   const excStr = JSON.stringify(excludes);
 
-  const [books, setBooks]      = useState<Book[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
   const [totalPages, setTotal] = useState(1);
   const [currentPage, setPage] = useState(1);
-  const [favorites, setFav]    = useState<Set<number>>(new Set());
-  const [refreshing, setRef]   = useState(false);
+  const [favorites, setFav] = useState<Set<number>>(new Set());
+  const [refreshing, setRef] = useState(false);
 
-  const listRef    = useRef<FlatList>(null);
-  const router     = useRouter();
+  const listRef = useRef<FlatList>(null);
+  const router = useRouter();
   const gridConfig = useGridConfig();
-  const insets     = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
 
-  const { update, progress, downloadAndInstall, checkUpdate } = useUpdateCheck();
+  const { update, progress, downloadAndInstall, checkUpdate } =
+    useUpdateCheck();
 
   // load favorites on focus
   useFocusEffect(
     useCallback(() => {
-      AsyncStorage.getItem("bookFavorites").then(j =>
-        j && setFav(new Set(JSON.parse(j)))
+      AsyncStorage.getItem("bookFavorites").then(
+        (j) => j && setFav(new Set(JSON.parse(j)))
       );
     }, [])
   );
@@ -96,8 +123,10 @@ export default function HomeScreen() {
 
   // initial & filters
   useEffect(() => {
-    if (filtersReady) fetchPage(1);
-  }, [filtersReady]);
+    if (filtersReady) {
+      fetchPage(1); // загрузка первой страницы под новые фильтры
+    }
+  }, [filtersReady, fetchPage]);
 
   useEffect(() => {
     if (filtersReady) setPage(1);
@@ -113,7 +142,7 @@ export default function HomeScreen() {
 
   // toggle favorite
   const toggleFav = useCallback((id: number, next: boolean) => {
-    setFav(prev => {
+    setFav((prev) => {
       const cp = new Set(prev);
       next ? cp.add(id) : cp.delete(id);
       AsyncStorage.setItem("bookFavorites", JSON.stringify([...cp]));
@@ -139,11 +168,7 @@ export default function HomeScreen() {
                 <Text style={styles.updateTxt}>
                   Скачать обновление {update.versionName}
                 </Text>
-                <Feather
-                  name="download"
-                  size={17}
-                  color="#000"
-                />
+                <Feather name="download" size={17} color="#000" />
               </>
             ) : (
               <>
@@ -162,9 +187,9 @@ export default function HomeScreen() {
         loading={books.length === 0 && currentPage === 1}
         refreshing={refreshing}
         onRefresh={onRefresh}
-        isFavorite={id => favorites.has(id)}
+        isFavorite={(id) => favorites.has(id)}
         onToggleFavorite={toggleFav}
-        onPress={id =>
+        onPress={(id) =>
           router.push({ pathname: "/book/[id]", params: { id: String(id) } })
         }
         gridConfig={{ default: gridConfig }}
