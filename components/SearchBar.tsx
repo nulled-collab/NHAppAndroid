@@ -1,14 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  BackHandler,
   Dimensions,
   Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,23 +15,18 @@ import {
   View,
 } from "react-native";
 import Animated from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Book, searchBooks } from "@/api/nhentai";
-import { useDrawer } from "@/components/DrawerContext"; // исправь путь если другой
+import { useDrawer } from "@/components/DrawerContext";
+import { useOverlayPortal } from "@/components/OverlayPortal";
 import SmartImage from "@/components/SmartImage";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
-import { hsbToHex } from "@/constants/Colors";
 import { SortKey, useSort } from "@/context/SortContext";
 import { useFilterTags } from "@/context/TagFilterContext";
+import { useTheme } from "@/lib/ThemeContext";
 
 const KEY_HISTORY = "searchHistory";
-const MAX_HEIGHT = Dimensions.get("window").height * 0.6;
-
-const COLOR_BG = hsbToHex({ saturation: 80, brightness: 60 });
-const COLOR_TEXT = hsbToHex({ saturation: 100, brightness: 220 });
-const COLOR_ACCENT = hsbToHex({ saturation: 100, brightness: 200 });
-const COLOR_SUB = hsbToHex({ saturation: 100, brightness: 100 });
+const BAR_HEIGHT = 52;
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "popular", label: "Popular" },
@@ -44,42 +37,57 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 ];
 
 export function SearchBar() {
+  const { colors } = useTheme();
   const { openDrawer } = useDrawer();
-
   const { sort, setSort } = useSort();
   const { includes, excludes } = useFilterTags();
+  const portal = useOverlayPortal();
 
   const router = useRouter();
   const pathname = usePathname();
   const params = useLocalSearchParams<{ query?: string | string[] }>();
 
-  const insets = useSafeAreaInsets();
-  const [q, setQ] = useState<string>(
+  const [q, setQ] = useState(
     typeof params.query === "string" ? params.query : ""
   );
-  const [focus, setFO] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [kbH, setKbH] = useState(0);
-
   const [history, setHist] = useState<string[]>([]);
   const [suggests, setSug] = useState<Book[]>([]);
   const [loading, setLoad] = useState(false);
 
-  const [showSort, setShow] = useState(false);
   const [tempSort, setTmp] = useState<SortKey>(sort);
+  const [sortOpen, setSortOpen] = useState(false);
 
+  const barRef = useRef<View>(null);
   const inputRef = useRef<TextInput>(null);
+  const [barBottomY, setBarBottomY] = useState(0);
+
+  const isPhone = (() => {
+    const { width, height } = Dimensions.get("window");
+    return Math.min(width, height) < 600;
+  })();
 
   useEffect(() => {
     AsyncStorage.getItem(KEY_HISTORY).then((j) => j && setHist(JSON.parse(j)));
   }, []);
 
+  const measureBar = () => {
+    barRef.current?.measureInWindow((_x, y, _w, h) =>
+      setBarBottomY(Math.round(y + h))
+    );
+  };
   useEffect(() => {
-    const show = Keyboard.addListener("keyboardDidShow", (e) => setKbH(e.endCoordinates.height));
-    const hide = Keyboard.addListener("keyboardDidHide", () => {
-      setKbH(0);
-      inputRef.current?.blur();
-      setFO(false);
-    });
+    measureBar();
+    const sub = Dimensions.addEventListener("change", measureBar);
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", (e) =>
+      setKbH(e.endCoordinates.height)
+    );
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKbH(0));
     return () => {
       show.remove();
       hide.remove();
@@ -107,7 +115,7 @@ export function SearchBar() {
       } finally {
         setLoad(false);
       }
-    }, 400);
+    }, 250);
     return () => clearTimeout(t);
   }, [q, sort, incStr, excStr]);
 
@@ -118,275 +126,522 @@ export function SearchBar() {
     setHist(next);
     await AsyncStorage.setItem(KEY_HISTORY, JSON.stringify(next));
   };
-
   const submit = async (text = q) => {
     const query = text.trim();
     if (!query) return;
     await saveHist(query);
     Keyboard.dismiss();
+    hideDropdown();
     router.push({ pathname: "/explore", params: { query } });
   };
 
-  const filteredHist = history.filter((h) =>
-    q.trim() ? h.toLowerCase().includes(q.trim().toLowerCase()) : true
+  const trimmed = q.trim();
+  const filteredHistory = useMemo(
+    () =>
+      trimmed
+        ? history.filter((h) => h.toLowerCase().includes(trimmed.toLowerCase()))
+        : history,
+    [history, trimmed]
   );
+  const showHistory = filteredHistory.length > 0;
+  const showResults = trimmed.length > 0 && (loading || suggests.length > 0);
+  const shouldShowPanel = showHistory || showResults;
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (sortOpen) {
+        closeSort();
+        return true;
+      }
+      if (focused) {
+        hideDropdown();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [focused, sortOpen]);
+
+  const BG = colors.searchBg;
+  const TXT = colors.searchTxt;
+  const SUB = colors.sub;
+  const ACCENT = colors.accent;
+
+  const TOP_GAP = isPhone ? 42 : 36;
+  const top = Math.max(BAR_HEIGHT + TOP_GAP, barBottomY + TOP_GAP);
+  const bottom = Math.max(8, kbH + 8);
+
+  const renderDropdown = () => (
+    <Pressable
+      style={StyleSheet.absoluteFill}
+      onPress={hideDropdown}
+      pointerEvents="auto"
+    >
+      <Pressable
+        onPress={() => {}}
+        style={[
+          styles.dropdown,
+          styles.rounded,
+          {
+            backgroundColor: BG,
+            borderColor: colors.page,
+            top,
+            left: 8,
+            right: 8,
+            bottom,
+          },
+        ]}
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.dropdownContent}
+        >
+          {showHistory && (
+            <>
+              <View style={styles.headRow}>
+                <Text style={[styles.headTxt, { color: SUB }]}>HISTORY</Text>
+                <Pressable
+                  style={[styles.pillBtn, styles.rounded]}
+                  android_ripple={{ color: ACCENT + "22", borderless: false }}
+                  onPress={async () => {
+                    setHist([]);
+                    await AsyncStorage.removeItem(KEY_HISTORY);
+                  }}
+                >
+                  <Text style={[styles.pillBtnTxt, { color: SUB }]}>clear</Text>
+                </Pressable>
+              </View>
+
+              {filteredHistory.map((item) => (
+                <View key={item} style={styles.row}>
+                  <Pressable
+                    style={[styles.rowPress, styles.rounded]}
+                    android_ripple={{ color: ACCENT + "22", borderless: false }}
+                    onPress={() => {
+                      setQ(item);
+                      submit(item);
+                    }}
+                  >
+                    <Feather
+                      name="clock"
+                      size={16}
+                      color={SUB}
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text
+                      style={[styles.rowTxt, { color: TXT }]}
+                      numberOfLines={1}
+                    >
+                      {item}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    hitSlop={10}
+                    style={[styles.iconBtnSmall, styles.rounded]}
+                    android_ripple={{ color: ACCENT + "22", borderless: false }}
+                    onPress={async () => {
+                      const next = history.filter((h) => h !== item);
+                      setHist(next);
+                      await AsyncStorage.setItem(
+                        KEY_HISTORY,
+                        JSON.stringify(next)
+                      );
+                    }}
+                  >
+                    <Feather name="x" size={16} color={SUB} />
+                  </Pressable>
+                </View>
+              ))}
+            </>
+          )}
+
+          {trimmed.length > 0 && (
+            <>
+              <Text
+                style={[
+                  styles.headTxt,
+                  { color: SUB, marginTop: showHistory ? 14 : 2 },
+                ]}
+              >
+                RESULTS
+              </Text>
+
+              {loading && (
+                <ActivityIndicator
+                  size="small"
+                  color={SUB}
+                  style={{ marginVertical: 12 }}
+                />
+              )}
+
+              {!loading &&
+                suggests.map((b) => (
+                  <Pressable
+                    key={b.id}
+                    style={[styles.row, styles.rounded]}
+                    android_ripple={{ color: ACCENT + "22", borderless: false }}
+                    onPress={() => {
+                      hideDropdown();
+                      router.push({
+                        pathname: "/book/[id]",
+                        params: { id: String(b.id) },
+                      });
+                    }}
+                  >
+                    <SmartImage
+                      sources={buildImageFallbacks(b.thumbnail)}
+                      style={styles.thumb}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[styles.rowTxt, { color: TXT }]}
+                        numberOfLines={1}
+                      >
+                        {b.title.pretty}
+                      </Text>
+                      <Text style={[styles.metaTxt, { color: SUB }]}>
+                        {b.pagesCount} pages
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+            </>
+          )}
+        </ScrollView>
+      </Pressable>
+    </Pressable>
+  );
+
+  const showDropdown = () => {
+    portal.show(renderDropdown());
+  };
+
+  const hideDropdown = () => {
+    setFocused(false);
+    portal.hide();
+    inputRef.current?.blur();
+    Keyboard.dismiss();
+  };
+
+  const renderSortSheet = () => (
+    <View style={styles.sheetBackdrop} pointerEvents="auto">
+      <Pressable style={StyleSheet.absoluteFill} onPress={closeSort} />
+      <View
+        style={[
+          styles.sheet,
+          { backgroundColor: colors.searchBg, borderColor: colors.page },
+        ]}
+      >
+        <View style={styles.sheetHeader}>
+          <Text style={[styles.sheetTitle, { color: colors.searchTxt }]}>
+            Sort by
+          </Text>
+          <Pressable
+            onPress={closeSort}
+            style={[styles.iconBtnSmall, styles.rounded]}
+            android_ripple={{ color: colors.accent + "22", borderless: false }}
+          >
+            <Feather name="x" size={18} color={colors.sub} />
+          </Pressable>
+        </View>
+
+        <ScrollView
+          style={styles.sheetScroll}
+          contentContainerStyle={{ paddingVertical: 4 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {SORT_OPTIONS.map(({ key, label }) => (
+            <Pressable
+              key={key}
+              style={[styles.sortRow, styles.rounded]}
+              onPress={() => setTmp(key)}
+              android_ripple={{
+                color: colors.accent + "22",
+                borderless: false,
+              }}
+            >
+              <Text
+                style={[
+                  styles.sortTxt,
+                  {
+                    color: key === tempSort ? colors.accent : colors.searchTxt,
+                    fontWeight: key === tempSort ? "700" : "500",
+                  },
+                ]}
+              >
+                {label}
+              </Text>
+              {key === tempSort && (
+                <Feather name="check" size={16} color={colors.accent} />
+              )}
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        <View style={styles.sheetFooter}>
+          <Pressable
+            style={[
+              styles.footerBtn,
+              styles.rounded,
+              { backgroundColor: colors.accent },
+            ]}
+            android_ripple={{ color: "#ffffff22", borderless: false }}
+            onPress={() => {
+              setSort(tempSort);
+              closeSort();
+            }}
+          >
+            <Text style={[styles.footerBtnTxt, { color: colors.bg }]}>OK</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+
+  const openSort = () => {
+    hideDropdown();
+    setTmp(sort);
+    setSortOpen(true);
+  };
+
+  const closeSort = () => {
+    setSortOpen(false);
+    portal.hide();
+  };
+
+  useEffect(() => {
+    if (sortOpen) {
+      portal.show(renderSortSheet());
+    }
+  }, [
+    sortOpen,
+    tempSort,
+    colors.searchBg,
+    colors.page,
+    colors.searchTxt,
+    colors.accent,
+    colors.sub,
+  ]);
+
+  useEffect(() => {
+    if (focused && shouldShowPanel) {
+      measureBar();
+      showDropdown();
+    } else if (!sortOpen) {
+      portal.hide();
+    }
+  }, [
+    focused,
+    shouldShowPanel,
+    kbH,
+    filteredHistory,
+    suggests,
+    q,
+    loading,
+    top,
+    bottom,
+    sortOpen,
+  ]);
+
   const showBack = pathname && pathname !== "/" && pathname !== "/index";
-  const showDrop = focus && (filteredHist.length > 0 || suggests.length > 0);
 
   return (
     <>
       <Animated.View
+        ref={barRef as any}
+        onLayout={measureBar}
         style={[
           styles.bar,
-          { backgroundColor: COLOR_BG },
+          {
+            backgroundColor: colors.searchBg,
+            height: BAR_HEIGHT,
+            borderBottomColor: colors.page,
+          },
         ]}
       >
         {showBack ? (
-          <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-            <Feather name="arrow-left" size={18} color={COLOR_TEXT} />
+          <Pressable
+            onPress={() => router.back()}
+            style={[styles.iconBtn, styles.rounded]}
+            android_ripple={{ color: colors.accent + "33", borderless: false }}
+          >
+            <Feather name="arrow-left" size={20} color={colors.searchTxt} />
           </Pressable>
         ) : (
-          <Pressable onPress={openDrawer} style={styles.iconBtn}>
-            <Feather name="menu" size={22} color={COLOR_TEXT} />
+          <Pressable
+            onPress={() => {
+              hideDropdown();
+              openDrawer();
+            }}
+            style={[styles.iconBtn, styles.rounded]}
+            android_ripple={{ color: colors.accent + "33", borderless: false }}
+          >
+            <Feather name="menu" size={22} color={colors.searchTxt} />
           </Pressable>
         )}
 
-        <Feather name="search" size={18} color={COLOR_TEXT} style={{ marginHorizontal: 4 }} />
+        <View
+          style={[
+            styles.inputWrap,
+            styles.rounded,
+            { backgroundColor: colors.page, borderColor: colors.page },
+          ]}
+        >
+          <Feather
+            name="search"
+            size={18}
+            color={colors.sub}
+            style={{ marginHorizontal: 6 }}
+          />
+          <TextInput
+            ref={inputRef}
+            style={[styles.input, { color: colors.searchTxt }]}
+            placeholder="Search…"
+            placeholderTextColor={colors.sub}
+            value={q}
+            onChangeText={setQ}
+            onFocus={() => setFocused(true)}
+            onSubmitEditing={() => submit()}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {q !== "" && (
+            <Pressable
+              hitSlop={10}
+              onPress={() => setQ("")}
+              style={[styles.iconBtnSmall, styles.rounded]}
+              android_ripple={{
+                color: colors.accent + "22",
+                borderless: false,
+              }}
+            >
+              <Feather name="x" size={16} color={colors.sub} />
+            </Pressable>
+          )}
+        </View>
 
-        <TextInput
-          ref={inputRef}
-          style={[styles.input, { color: COLOR_TEXT }]}
-          placeholder="Search"
-          placeholderTextColor={COLOR_SUB}
-          value={q}
-          onChangeText={setQ}
-          onSubmitEditing={() => submit()}
-          onFocus={() => setFO(true)}
-          onBlur={() => setFO(false)}
-          returnKeyType={Platform.OS === "ios" ? "search" : "done"}
-        />
-
-        {q !== "" && (
-          <Pressable hitSlop={10} onPress={() => setQ("")} style={styles.iconBtn}>
-            <Feather name="x" size={18} color={COLOR_TEXT} />
-          </Pressable>
-        )}
-
-        <Pressable onPress={() => { setTmp(sort); setShow(true); }} style={styles.iconBtn}>
-          <Feather name="filter" size={18} color={COLOR_ACCENT} />
+        <Pressable
+          onPress={openSort}
+          style={[styles.iconBtn, styles.rounded]}
+          android_ripple={{ color: colors.accent + "33", borderless: false }}
+        >
+          <Feather name="filter" size={18} color={colors.accent} />
         </Pressable>
-
-        <Pressable onPress={() => router.push("/tags")} style={styles.iconBtn}>
-          <Feather name="tag" size={18} color={COLOR_ACCENT} />
+        <Pressable
+          onPress={() => {
+            hideDropdown();
+            router.push("/tags");
+          }}
+          style={[styles.iconBtn, styles.rounded]}
+          android_ripple={{ color: colors.accent + "33", borderless: false }}
+        >
+          <Feather name="tag" size={18} color={colors.accent} />
         </Pressable>
       </Animated.View>
-
-      <Modal visible={showSort} transparent animationType="fade">
-        <View style={styles.backdrop}>
-          <View style={[styles.sortModal, { backgroundColor: COLOR_BG }]}>
-            {SORT_OPTIONS.map(({ key, label }) => (
-              <Pressable key={key} style={styles.sortRow} onPress={() => setTmp(key)}>
-                <Text
-                  style={[
-                    styles.sortTxt,
-                    {
-                      color: key === tempSort ? COLOR_ACCENT : COLOR_TEXT,
-                      fontWeight: key === tempSort ? "700" : "400",
-                    },
-                  ]}
-                >
-                  {label}
-                </Text>
-                {key === tempSort && (
-                  <Feather name="check" size={16} color={COLOR_ACCENT} />
-                )}
-              </Pressable>
-            ))}
-
-            <View style={styles.sortButtons}>
-              <Pressable style={styles.sortBtn} onPress={() => setShow(false)}>
-                <Text style={[styles.sortBtnTxt, { color: COLOR_SUB }]}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={styles.sortBtn}
-                onPress={() => {
-                  setSort(tempSort);
-                  setShow(false);
-                }}
-              >
-                <Text style={[styles.sortBtnTxt, { color: COLOR_ACCENT }]}>OK</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {showDrop && (
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View
-            style={[
-              styles.dropdown,
-              {
-                marginTop: 8,
-                maxHeight: Math.min(MAX_HEIGHT, Dimensions.get("window").height - kbH - 80),
-                backgroundColor: COLOR_BG,
-                marginBottom: kbH,
-              },
-            ]}
-          >
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              {filteredHist.length > 0 && (
-                <>
-                  <View style={styles.headRow}>
-                    <Text style={[styles.headTxt, { color: COLOR_SUB }]}>HISTORY</Text>
-                    <Pressable
-                      onPress={async () => {
-                        setHist([]);
-                        await AsyncStorage.removeItem(KEY_HISTORY);
-                      }}
-                    >
-                      <Text style={[styles.headTxt, { color: COLOR_SUB }]}>clear</Text>
-                    </Pressable>
-                  </View>
-                  {filteredHist.map((item) => (
-                    <View key={item} style={styles.row}>
-                      <Pressable
-                        style={styles.rowPress}
-                        onPress={() => {
-                          setQ(item);
-                          submit(item);
-                        }}
-                      >
-                        <Feather name="clock" size={16} color={COLOR_SUB} style={{ marginRight: 8 }} />
-                        <Text style={[styles.rowTxt, { color: COLOR_TEXT }]} numberOfLines={1}>
-                          {item}
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        hitSlop={10}
-                        onPress={async () => {
-                          const next = history.filter((h) => h !== item);
-                          setHist(next);
-                          await AsyncStorage.setItem(KEY_HISTORY, JSON.stringify(next));
-                        }}
-                      >
-                        <Feather name="x" size={16} color={COLOR_SUB} />
-                      </Pressable>
-                    </View>
-                  ))}
-                </>
-              )}
-
-              {suggests.length > 0 && (
-                <>
-                  <Text
-                    style={[
-                      styles.headTxt,
-                      {
-                        color: COLOR_SUB,
-                        marginTop: filteredHist.length ? 14 : 0,
-                      },
-                    ]}
-                  >
-                    RESULTS
-                  </Text>
-
-                  {loading && (
-                    <ActivityIndicator size="small" color={COLOR_SUB} style={{ marginVertical: 12 }} />
-                  )}
-
-                  {!loading &&
-                    suggests.map((b) => (
-                      <Pressable
-                        key={b.id}
-                        style={styles.row}
-                        onPress={() => router.push({ pathname: "/book/[id]", params: { id: String(b.id) } })}
-                      >
-                        <SmartImage sources={buildImageFallbacks(b.thumbnail)} style={styles.thumb} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.rowTxt, { color: COLOR_TEXT }]} numberOfLines={1}>
-                            {b.title.pretty}
-                          </Text>
-                          <Text style={[styles.metaTxt, { color: COLOR_SUB }]}>{b.pagesCount} pages</Text>
-                        </View>
-                      </Pressable>
-                    ))}
-                </>
-              )}
-
-              {filteredHist.length === 0 && suggests.length === 0 && !loading && (
-                <Text
-                  style={[
-                    styles.headTxt,
-                    {
-                      color: COLOR_SUB,
-                      textAlign: "center",
-                      marginVertical: 12,
-                    },
-                  ]}
-                >
-                  nothing
-                </Text>
-              )}
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      )}
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  rounded: { borderRadius: 12, overflow: "hidden" },
   bar: {
     flexDirection: "row",
     alignItems: "center",
-    height: 40,
+    paddingHorizontal: 8,
+    elevation: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    zIndex: 20,
   },
-  iconBtn: { padding: 6 },
-  input: { flex: 1, fontSize: 15, paddingVertical: 0 },
-  backdrop: {
+  iconBtn: { padding: 8 },
+  iconBtnSmall: { padding: 6 },
+  inputWrap: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "center",
+    height: 38,
+    flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 6,
+    marginHorizontal: 6,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  sortModal: {
-    width: "70%",
-    borderRadius: 10,
-    paddingVertical: 12,
+  input: { flex: 1, fontSize: 15, paddingVertical: 0 },
+  dropdown: {
+    position: "absolute",
+    borderWidth: StyleSheet.hairlineWidth,
+    elevation: 10,
   },
+  dropdownContent: {
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 16,
+  },
+  headRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  headTxt: { fontSize: 11, letterSpacing: 0.5, fontWeight: "700" },
+  pillBtn: { paddingHorizontal: 10, paddingVertical: 6 },
+  pillBtnTxt: { fontSize: 11, fontWeight: "700" },
+  row: { flexDirection: "row", alignItems: "center", paddingVertical: 6 },
+  rowPress: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+  },
+  rowTxt: { fontSize: 14, flex: 1 },
+  metaTxt: { fontSize: 12 },
+  thumb: { width: 50, height: 70, borderRadius: 8, marginRight: 10 },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    zIndex: 60,
+    elevation: 12,
+  },
+  sheet: {
+    width: "100%",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingTop: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    elevation: 10,
+    maxHeight: 560,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingBottom: 6,
+  },
+  sheetTitle: { fontSize: 16, fontWeight: "700", flex: 1 },
+  sheetScroll: { paddingHorizontal: 8 },
   sortRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
+    marginVertical: 2,
   },
   sortTxt: { fontSize: 15 },
-  sortButtons: {
+  sheetFooter: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 18,
-    paddingHorizontal: 16,
-  },
-  sortBtn: { paddingVertical: 8, paddingHorizontal: 16 },
-  sortBtnTxt: { fontSize: 16 },
-  dropdown: {
-    marginHorizontal: 8,
+    justifyContent: "flex-end",
+    gap: 8,
     paddingHorizontal: 12,
     paddingTop: 8,
-    paddingBottom: 8,
-    borderRadius: 18,
+    paddingBottom: 12,
   },
-  headRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 6,
+  footerBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    minWidth: 104,
+    alignItems: "center",
   },
-  headTxt: { fontSize: 11, letterSpacing: 0.5 },
-  row: { flexDirection: "row", alignItems: "center", paddingVertical: 8 },
-  rowPress: { flexDirection: "row", alignItems: "center", flex: 1 },
-  rowTxt: { fontSize: 14, flex: 1 },
-  metaTxt: { fontSize: 12 },
-  thumb: { width: 50, height: 70, borderRadius: 4, marginRight: 8 },
+  footerBtnTxt: { fontSize: 15, fontWeight: "800", letterSpacing: 0.3 },
 });

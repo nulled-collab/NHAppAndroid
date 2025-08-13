@@ -1,5 +1,4 @@
 import { Book } from "@/api/nhentai";
-import { hsbToHex } from "@/constants/Colors";
 import React, { ReactElement, ReactNode, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
@@ -11,9 +10,9 @@ import {
   useWindowDimensions,
 } from "react-native";
 import Animated, { FadeOut } from "react-native-reanimated";
-import BookCard from "./BookCard";
 
-const bgColor = hsbToHex({ saturation: 76, brightness: 30 });
+import { useTheme } from "@/lib/ThemeContext";
+import BookCard from "./BookCard";
 
 export interface GridConfig {
   numColumns: number;
@@ -42,7 +41,8 @@ export interface BookListProps<T extends Book = Book> {
     tabletLandscape?: GridConfig;
     default?: GridConfig;
   };
-  getScore?: (book: T) => number | undefined; // <--- вот оно!
+  horizontal?: boolean;
+  getScore?: (book: T) => number | undefined;
   columnWrapperStyle?: any;
   children?: ReactNode;
 }
@@ -61,57 +61,78 @@ export default function BookList<T extends Book = Book>({
   onPress,
   renderItem,
   gridConfig,
+  horizontal = false,
   getScore,
   columnWrapperStyle,
   children,
 }: BookListProps<T>) {
+  const { colors } = useTheme();
   const listRef = useRef<FlatList<T>>(null);
   const { width, height } = useWindowDimensions();
 
-  const { cols, cardWidth, columnGap, paddingHorizontal } = useMemo(() => {
+  const base = useMemo<GridConfig>(() => {
     const isPortrait = height > width;
     const isTablet = width > 600;
 
-    const base: GridConfig = isTablet
+    return isTablet
       ? gridConfig?.tabletLandscape ??
-        gridConfig?.tabletPortrait ??
-        gridConfig?.default ?? { numColumns: 4 }
+          gridConfig?.tabletPortrait ??
+          gridConfig?.default ?? { numColumns: 4 }
       : !isPortrait
       ? gridConfig?.phoneLandscape ?? gridConfig?.default ?? { numColumns: 3 }
       : gridConfig?.phonePortrait ?? gridConfig?.default ?? { numColumns: 2 };
+  }, [width, height, gridConfig]);
 
-    const cols = base.numColumns;
-    const paddingHorizontal = base.paddingHorizontal ?? 0;
-    const columnGap = base.columnGap ?? 0;
-    const minWidth = base.minColumnWidth ?? 120;
+  const { cols, cardWidth, columnGap, paddingHorizontal } = useMemo(() => {
+    const padH = base.paddingHorizontal ?? 0;
+    const gap = base.columnGap ?? 0;
+    const minW = base.minColumnWidth ?? 120;
+    const avail = width - padH;
 
-    const avail = width - paddingHorizontal;
+    if (horizontal) {
+      const targetCols = Math.max(1, base.numColumns);
+      let w = (avail - gap * (targetCols - 1)) / targetCols;
+      w = Math.max(minW, w);
+      return {
+        cols: 1,
+        cardWidth: w,
+        columnGap: gap,
+        paddingHorizontal: padH,
+      };
+    }
+
     const maxCols = Math.max(
       1,
-      Math.min(cols, Math.floor((avail + columnGap) / (minWidth + columnGap)))
+      Math.min(base.numColumns, Math.floor((avail + gap) / (minW + gap)))
     );
-    const cardWidth = (avail - columnGap * (maxCols - 1)) / maxCols;
+    const cardW = (avail - gap * (maxCols - 1)) / maxCols;
 
-    return { cols: maxCols, cardWidth, columnGap, paddingHorizontal };
-  }, [width, height, gridConfig]);
+    return {
+      cols: maxCols,
+      cardWidth: cardW,
+      columnGap: gap,
+      paddingHorizontal: padH,
+    };
+  }, [width, base, horizontal]);
 
   const uniqueData = useMemo(() => {
     const seen = new Set<number>();
     return data.filter((b) => (seen.has(b.id) ? false : seen.add(b.id)));
   }, [data]);
 
-  const isSingleCol = cols === 1;
+  const isSingleCol = !horizontal && cols === 1;
   const contentScale = isSingleCol ? 0.45 : 0.65;
 
   const defaultRender: ListRenderItem<T> = ({ item, index }) => {
-    const isLastInRow = (index + 1) % cols === 0;
+    const isLastInRow = !horizontal && (index + 1) % cols === 0;
+
     return (
       <Animated.View
         exiting={FadeOut.duration(300)}
         style={{
           width: cardWidth,
-          marginRight: isLastInRow ? 0 : columnGap,
-          marginBottom: columnGap,
+          marginRight: horizontal ? columnGap : isLastInRow ? 0 : columnGap,
+          marginBottom: horizontal ? 0 : columnGap,
           ...(isSingleCol && { alignSelf: "center" }),
         }}
       >
@@ -123,7 +144,7 @@ export default function BookList<T extends Book = Book>({
           isFavorite={isFavorite?.(item.id) ?? false}
           onToggleFavorite={onToggleFavorite}
           onPress={() => onPress?.(item.id)}
-          score={getScore?.(item)} // <--- вот!
+          score={getScore?.(item)}
         />
       </Animated.View>
     );
@@ -137,14 +158,18 @@ export default function BookList<T extends Book = Book>({
     </View>
   );
 
+  const listKey = horizontal ? "row" : `cols-${cols}`;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.page }]}>
       {uniqueData.length === 0 && !loading ? (
         (ListEmptyComponent as ReactElement) ?? <Empty />
       ) : (
         <FlatList
           ref={listRef}
-          key={`cols-${cols}`}
+          key={listKey}
+          horizontal={horizontal}
+          showsHorizontalScrollIndicator={false}
           data={uniqueData}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem ?? defaultRender}
@@ -165,9 +190,9 @@ export default function BookList<T extends Book = Book>({
             )
           }
           ListHeaderComponent={ListHeaderComponent}
-          numColumns={cols}
+          numColumns={horizontal ? undefined : cols}
           columnWrapperStyle={
-            cols > 1
+            !horizontal && cols > 1
               ? [{ justifyContent: "center" }, columnWrapperStyle]
               : undefined
           }
@@ -179,7 +204,7 @@ export default function BookList<T extends Book = Book>({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: bgColor },
+  container: { flex: 1 },
   empty: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyText: { color: "#888", fontSize: 16 },
   loader: { marginVertical: 16 },

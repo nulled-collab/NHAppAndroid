@@ -2,20 +2,22 @@ import { CandidateBook, getRecommendations } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
+import { useTheme } from "@/lib/ThemeContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 type RecBook = CandidateBook & { explain: string[]; score: number };
 
 export default function RecommendationsScreen() {
+  const { colors } = useTheme();
   const { includes, excludes } = useFilterTags();
   const router = useRouter();
 
   const [books, setBooks] = useState<RecBook[]>([]);
   const [favIds, setFavIds] = useState<number[]>([]);
-  const [favorites, setFavorites] = useState<Set<number>>(new Set());
+  const [favorites, setFav] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
@@ -28,7 +30,7 @@ export default function RecommendationsScreen() {
     AsyncStorage.getItem("bookFavorites").then((j) => {
       const arr = j ? (JSON.parse(j) as number[]) : [];
       setFavIds(arr);
-      setFavorites(new Set(arr));
+      setFav(new Set(arr));
     });
   }, []);
 
@@ -54,7 +56,6 @@ export default function RecommendationsScreen() {
         page: 1,
         perPage,
       });
-
       setBooks(recs);
       setHasMore(recs.length === perPage);
     } catch (e) {
@@ -78,7 +79,6 @@ export default function RecommendationsScreen() {
         page: nextPage,
         perPage,
       });
-
       setBooks((prev) => [...prev, ...recs]);
       setPage(nextPage);
       setHasMore(recs.length === perPage);
@@ -96,11 +96,29 @@ export default function RecommendationsScreen() {
     setRefreshing(false);
   }, [fetchRecs]);
 
+  /* toggle favorite */
+  const toggleFav = useCallback((id: number, next: boolean) => {
+    setFav((prev) => {
+      const cp = new Set(prev);
+      next ? cp.add(id) : cp.delete(id);
+      AsyncStorage.setItem("bookFavorites", JSON.stringify([...cp]));
+      return cp;
+    });
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem("bookFavorites").then(
+        (j) => j && setFav(new Set(JSON.parse(j)))
+      );
+    }, [])
+  );
+
   const maxScore =
     books.length > 0 ? Math.max(...books.map((b) => b.score)) : 1;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {loading && books.length === 0 ? (
         <ActivityIndicator style={{ flex: 1 }} />
       ) : (
@@ -109,6 +127,7 @@ export default function RecommendationsScreen() {
           loading={loading}
           refreshing={refreshing}
           onRefresh={onRefresh}
+          onToggleFavorite={toggleFav}
           onEndReached={hasMore ? loadMoreRecommendations : undefined}
           getScore={(b) =>
             typeof b.score === "number"
@@ -123,7 +142,9 @@ export default function RecommendationsScreen() {
           }
           ListEmptyComponent={
             !loading && books.length === 0 ? (
-              <Text style={styles.emptyText}>Нет рекомендаций</Text>
+              <Text style={[styles.emptyText, { color: colors.sub }]}>
+                Нет рекомендаций
+              </Text>
             ) : null
           }
           gridConfig={{ default: gridConfig }}
@@ -135,5 +156,5 @@ export default function RecommendationsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  emptyText: { textAlign: "center", marginTop: 40, color: "#888" },
+  emptyText: { textAlign: "center", marginTop: 40 },
 });

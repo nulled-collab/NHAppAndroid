@@ -1,16 +1,66 @@
-import { GridConfig } from "@/components/BookList";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Плотная сетка по умолчанию (всё регулируется columnGap/paddingHorizontal)
-export const gridConfigMap: {
-  phonePortrait: GridConfig;
-  phoneLandscape: GridConfig;
-  tabletPortrait: GridConfig;
-  tabletLandscape: GridConfig;
-  default: GridConfig;
-} = {
+export type GridProfile = "phonePortrait" | "phoneLandscape" | "tabletPortrait" | "tabletLandscape";
+
+export type GridConfig = {
+  numColumns: number;
+  paddingHorizontal: number;
+  columnGap: number;
+};
+
+export type GridConfigMap = Record<GridProfile, GridConfig>;
+
+const STORAGE_KEY = "grid_config_map_v1";
+
+export const defaultGridConfigMap: GridConfigMap = {
   phonePortrait:   { numColumns: 2, paddingHorizontal: 10, columnGap: 5 },
   phoneLandscape:  { numColumns: 4, paddingHorizontal: 10, columnGap: 5 },
-  tabletPortrait:  { numColumns: 4, paddingHorizontal: 10, columnGap: 5 },
-  tabletLandscape: { numColumns: 4, paddingHorizontal: 10, columnGap: 5 },
-  default:         { numColumns: 3, paddingHorizontal: 10, columnGap: 5 },
+  tabletPortrait:  { numColumns: 3, paddingHorizontal: 10, columnGap: 5 },
+  tabletLandscape: { numColumns: 5, paddingHorizontal: 10, columnGap: 5 },
 };
+
+let currentMap: GridConfigMap = { ...defaultGridConfigMap };
+
+type Listener = (map: GridConfigMap) => void;
+const listeners = new Set<Listener>();
+
+function notify() {
+  for (const l of listeners) l(currentMap);
+}
+
+export function getCurrentGridConfigMapSync(): GridConfigMap {
+  return currentMap;
+}
+
+export async function getGridConfigMap(): Promise<GridConfigMap> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<GridConfigMap>;
+      currentMap = { ...defaultGridConfigMap, ...parsed };
+    }
+  } catch {}
+  return currentMap;
+}
+
+export async function setGridConfigMap(partial: Partial<GridConfigMap>): Promise<void> {
+  currentMap = { ...currentMap, ...partial };
+  try {
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(currentMap));
+  } catch {}
+  notify();
+}
+
+export async function resetGridConfigMap(): Promise<void> {
+  currentMap = { ...defaultGridConfigMap };
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+  } catch {}
+  notify();
+}
+
+export function subscribeGridConfig(cb: Listener): () => void {
+  listeners.add(cb);
+  cb(currentMap);
+  return () => listeners.delete(cb);
+}

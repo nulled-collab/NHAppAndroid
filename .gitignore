@@ -4,6 +4,12 @@
 node_modules/*
 !node_modules/nhentai-api/
 
+api/*
+!api/nhentai-tags.json
+!api/nhentai.ts
+!api/RuTags.json
+!api/EnTags.json
+
 # Expo
 .expo/
 dist/

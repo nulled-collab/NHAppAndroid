@@ -1,13 +1,15 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { Book, getFavorites } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import { useGridConfig } from "@/hooks/useGridConfig";
+import { useTheme } from "@/lib/ThemeContext";
 
 export default function FavoritesScreen() {
+  const { colors } = useTheme();
   const [books, setBooks] = useState<Book[]>([]);
   const [ids, setIds] = useState<number[]>([]);
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
@@ -25,15 +27,8 @@ export default function FavoritesScreen() {
     });
   }, []);
 
-  useEffect(() => {
-    loadFavoriteIds();
-  }, [loadFavoriteIds]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadFavoriteIds();
-    }, [loadFavoriteIds])
-  );
+  useEffect(loadFavoriteIds, [loadFavoriteIds]);
+  useFocusEffect(loadFavoriteIds);
 
   const loadBooks = useCallback(
     async (pageNum: number, perPage: number = 200) => {
@@ -102,24 +97,31 @@ export default function FavoritesScreen() {
   }, []);
 
   return (
-    <BookList
-      data={books}
-      loading={ids.length > 0 && books.length === 0}
-      refreshing={refreshing}
-      onRefresh={onRefresh}
-      isFavorite={(id) => favorites.has(id)}
-      onToggleFavorite={toggleFavorite}
-      onPress={(id) =>
-        router.push({ pathname: "/book/[id]", params: { id: String(id) } })
-      }
-      ListEmptyComponent={
-        ids.length === 0 ? (
-          <Text style={{ textAlign: "center", marginTop: 40, color: "#888" }}>
-            Ещё нет избранного
-          </Text>
-        ) : null
-      }
-      gridConfig={{ default: gridConfig }}
-    />
+    <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+      <BookList
+        data={books}
+        loading={ids.length > 0 && books.length === 0}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        onEndReached={handleLoadMore}
+        isFavorite={(id) => favorites.has(id)}
+        onToggleFavorite={toggleFavorite}
+        onPress={(id) =>
+          router.push({ pathname: "/book/[id]", params: { id: String(id) } })
+        }
+        ListEmptyComponent={
+          ids.length === 0 ? (
+            <Text
+              style={{ textAlign: "center", marginTop: 40, color: colors.sub }}
+            >
+              Ещё нет избранного
+            </Text>
+          ) : null
+        }
+        gridConfig={{ default: gridConfig }}
+      />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({ flex: { flex: 1 } });

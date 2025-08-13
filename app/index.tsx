@@ -1,12 +1,11 @@
-// app/(tabs)/index.tsx
 import { Book, searchBooks } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import PaginationBar from "@/components/PaginationBar";
-import { hsbToHex } from "@/constants/Colors";
 import { useSort } from "@/context/SortContext";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useUpdateCheck } from "@/hooks/useUpdateCheck";
+import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -18,59 +17,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle } from "react-native-svg";
-
-/* palette */
-const accent = hsbToHex({ saturation: 94, brightness: 50 });
-const bannerBg = hsbToHex({ saturation: 94, brightness: 250 });
-
-/* progress ring */
-const Ring = ({
-  progress,
-  size = 17,
-  stroke = 3,
-}: {
-  progress: number;
-  size?: number;
-  stroke?: number;
-}) => {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      style={{ marginRight: 16 }}
-    >
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        stroke={accent}
-        strokeOpacity={0.25}
-        strokeWidth={stroke}
-        fill="none"
-      />
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        stroke={accent}
-        strokeWidth={stroke}
-        strokeDasharray={`${c}`}
-        strokeDashoffset={c * (1 - progress)}
-        strokeLinecap="round"
-        fill="none"
-        rotation={-90}
-        origin={`${size / 2},${size / 2}`}
-      />
-    </Svg>
-  );
-};
 
 export default function HomeScreen() {
+  const { colors } = useTheme();
   const { sort } = useSort();
   const { includes, excludes, filtersReady } = useFilterTags();
   const incStr = JSON.stringify(includes);
@@ -85,12 +34,56 @@ export default function HomeScreen() {
   const listRef = useRef<FlatList>(null);
   const router = useRouter();
   const gridConfig = useGridConfig();
-  const insets = useSafeAreaInsets();
 
   const { update, progress, downloadAndInstall, checkUpdate } =
     useUpdateCheck();
 
-  // load favorites on focus
+  const accent = colors.accent;
+  const bannerBg = colors.accent + "40";
+
+  const Ring = ({
+    progress,
+    size = 17,
+    stroke = 3,
+  }: {
+    progress: number;
+    size?: number;
+    stroke?: number;
+  }) => {
+    const r = (size - stroke) / 2;
+    const c = 2 * Math.PI * r;
+    return (
+      <Svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        style={{ marginRight: 16 }}
+      >
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={accent}
+          strokeOpacity={0.25}
+          strokeWidth={stroke}
+          fill="none"
+        />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={accent}
+          strokeWidth={stroke}
+          strokeDasharray={`${c}`}
+          strokeDashoffset={c * (1 - progress)}
+          strokeLinecap="round"
+          fill="none"
+          rotation={-90}
+          origin={`${size / 2},${size / 2}`}
+        />
+      </Svg>
+    );
+  };
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.getItem("bookFavorites").then(
@@ -99,7 +92,6 @@ export default function HomeScreen() {
     }, [])
   );
 
-  // fetch page
   const fetchPage = useCallback(
     async (pageNum: number) => {
       try {
@@ -121,18 +113,14 @@ export default function HomeScreen() {
     [sort, incStr, excStr]
   );
 
-  // initial & filters
   useEffect(() => {
-    if (filtersReady) {
-      fetchPage(1); // загрузка первой страницы под новые фильтры
-    }
+    if (filtersReady) fetchPage(1);
   }, [filtersReady, fetchPage]);
 
   useEffect(() => {
     if (filtersReady) setPage(1);
   }, [sort, incStr, excStr, filtersReady]);
 
-  // pull to refresh
   const onRefresh = useCallback(async () => {
     setRef(true);
     await fetchPage(currentPage);
@@ -140,7 +128,6 @@ export default function HomeScreen() {
     setRef(false);
   }, [currentPage, fetchPage, checkUpdate]);
 
-  // toggle favorite
   const toggleFav = useCallback((id: number, next: boolean) => {
     setFav((prev) => {
       const cp = new Set(prev);
@@ -151,7 +138,7 @@ export default function HomeScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {update && (
         <View style={{ backgroundColor: bannerBg }}>
           <TouchableOpacity
@@ -165,14 +152,14 @@ export default function HomeScreen() {
           >
             {progress === null ? (
               <>
-                <Text style={styles.updateTxt}>
+                <Text style={[styles.updateTxt, { color: colors.txt }]}>
                   Скачать обновление {update.versionName}
                 </Text>
-                <Feather name="download" size={17} color="#000" />
+                <Feather name="download" size={17} color={colors.txt} />
               </>
             ) : (
               <>
-                <Text style={styles.updateTxt}>
+                <Text style={[styles.updateTxt, { color: colors.txt }]}>
                   Скачивается {update.versionName}
                 </Text>
                 <Ring progress={progress} />
@@ -204,6 +191,8 @@ export default function HomeScreen() {
   );
 }
 
+import Svg, { Circle } from "react-native-svg";
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
@@ -214,12 +203,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 15,
   },
-  updateBannerDisabled: {
-    opacity: 0.8,
-  },
-  updateTxt: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#000",
-  },
+  updateBannerDisabled: { opacity: 0.8 },
+  updateTxt: { fontSize: 15, fontWeight: "500" },
 });

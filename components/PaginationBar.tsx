@@ -1,8 +1,15 @@
-import { hsbToHex } from "@/constants/Colors";
+import { useTheme } from "@/lib/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import React, { useState } from "react";
-import { Animated, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Animated,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 interface Props {
   currentPage: number;
@@ -10,19 +17,12 @@ interface Props {
   onChange: (page: number) => void;
 }
 
-const COLORS = {
-  bg: hsbToHex({ saturation: 80, brightness: 60 }),
-  text: hsbToHex({ saturation: 100, brightness: 200 }),
-  accent: hsbToHex({ saturation: 100, brightness: 200 }),
-  disabled: hsbToHex({ saturation: 100, brightness: 100 }),
-  progress: hsbToHex({ saturation: 90, brightness: 180 }),
-};
-
 export default function PaginationBar({
   currentPage,
   totalPages,
   onChange,
 }: Props) {
+  const { colors } = useTheme();
   const [visible, setVisible] = useState(false);
   const [sliderPage, setSliderPage] = useState(currentPage);
   const scaleAnim = useState(new Animated.Value(1))[0];
@@ -45,7 +45,7 @@ export default function PaginationBar({
 
   return (
     <>
-      <View style={styles.bar}>
+      <View style={[styles.bar, { backgroundColor: colors.menuBg }]}>
         <TouchableOpacity
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
@@ -56,7 +56,7 @@ export default function PaginationBar({
           <Ionicons
             name="chevron-back"
             size={24}
-            color={currentPage === 1 ? COLORS.disabled : COLORS.text}
+            color={currentPage === 1 ? colors.sub : colors.menuTxt}
           />
         </TouchableOpacity>
 
@@ -69,8 +69,13 @@ export default function PaginationBar({
           }}
           style={styles.indicatorContainer}
         >
-          <Animated.View style={[styles.indicatorWrapper, { transform: [{ scale: scaleAnim }] }]}>
-            <Text style={[styles.indicator, { color: COLORS.text }]}>
+          <Animated.View
+            style={[
+              styles.indicatorWrapper,
+              { transform: [{ scale: scaleAnim }] },
+            ]}
+          >
+            <Text style={[styles.indicator, { color: colors.menuTxt }]}>
               {currentPage}/{totalPages}
             </Text>
           </Animated.View>
@@ -86,7 +91,7 @@ export default function PaginationBar({
           <Ionicons
             name="chevron-forward"
             size={24}
-            color={currentPage === totalPages ? COLORS.disabled : COLORS.text}
+            color={currentPage === totalPages ? colors.sub : colors.menuTxt}
           />
         </TouchableOpacity>
       </View>
@@ -98,8 +103,8 @@ export default function PaginationBar({
         onRequestClose={() => setVisible(false)}
       >
         <View style={styles.backdrop}>
-          <View style={[styles.modal, { backgroundColor: COLORS.bg }]}>
-            <Text style={[styles.title, { color: COLORS.text }]}>
+          <View style={[styles.modal, { backgroundColor: colors.page }]}>
+            <Text style={[styles.title, { color: colors.txt }]}>
               Выбор страницы
             </Text>
             <Slider
@@ -109,18 +114,18 @@ export default function PaginationBar({
               step={1}
               value={sliderPage}
               onValueChange={setSliderPage}
-              minimumTrackTintColor={COLORS.accent}
-              maximumTrackTintColor={COLORS.disabled}
-              thumbTintColor={COLORS.accent}
+              minimumTrackTintColor={colors.accent}
+              maximumTrackTintColor={colors.sub}
+              thumbTintColor={colors.accent}
             />
             <View style={styles.pager}>
               <TouchableOpacity
                 onPress={() => setSliderPage((p) => Math.max(1, p - 1))}
                 style={styles.modalButton}
               >
-                <Ionicons name="chevron-back" size={28} color={COLORS.text} />
+                <Ionicons name="chevron-back" size={28} color={colors.txt} />
               </TouchableOpacity>
-              <Text style={[styles.pageText, { color: COLORS.text }]}>
+              <Text style={[styles.pageText, { color: colors.txt }]}>
                 {sliderPage}/{totalPages}
               </Text>
               <TouchableOpacity
@@ -129,7 +134,7 @@ export default function PaginationBar({
                 }
                 style={styles.modalButton}
               >
-                <Ionicons name="chevron-forward" size={28} color={COLORS.text} />
+                <Ionicons name="chevron-forward" size={28} color={colors.txt} />
               </TouchableOpacity>
             </View>
             <View style={styles.buttons}>
@@ -137,7 +142,7 @@ export default function PaginationBar({
                 onPress={() => setVisible(false)}
                 style={styles.actionButton}
               >
-                <Text style={[styles.btnCancel, { color: COLORS.disabled }]}>
+                <Text style={[styles.btnCancel, { color: colors.sub }]}>
                   Отмена
                 </Text>
               </TouchableOpacity>
@@ -146,9 +151,12 @@ export default function PaginationBar({
                   setVisible(false);
                   sliderPage !== currentPage && onChange(sliderPage);
                 }}
-                style={[styles.actionButton, { backgroundColor: COLORS.accent }]}
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: colors.accent },
+                ]}
               >
-                <Text style={[styles.btnOk, { color: COLORS.bg }]}>OK</Text>
+                <Text style={[styles.btnOk, { color: colors.bg }]}>OK</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -163,9 +171,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 0,
     paddingHorizontal: 16,
-    backgroundColor: COLORS.bg,
     elevation: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -183,18 +189,6 @@ const styles = StyleSheet.create({
   indicatorWrapper: {
     alignItems: "center",
     justifyContent: "center",
-  },
-  progressCircle: {
-    width: 100,
-    height: 4,
-    backgroundColor: COLORS.disabled,
-    borderRadius: 2,
-    overflow: "hidden",
-    marginBottom: 4,
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 2,
   },
   indicator: {
     fontSize: 16,

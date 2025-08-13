@@ -1,36 +1,26 @@
-import { hsbToHex } from "@/constants/Colors";
+import { ThemeColors } from "@/lib/ThemeContext";
 import { ImageStyle, TextStyle, ViewStyle } from "react-native";
 
-const bgColor = hsbToHex({ saturation: 96, brightness: 45 });
-const shadowColor = "#000";
-const titleColor = hsbToHex({ saturation: 60, brightness: 200 });
-const metaTextColor = hsbToHex({ saturation: 40, brightness: 180 });
-const tagBg = hsbToHex({ saturation: 50, brightness: 60 });
-const newBadgeBg = "#ff4757";
-
-export const TAG_COLORS: Record<string, string> = {
-  language: "#FF7D7F",
-  artist: "#FB8DF4",
-  character: "#F3E17F",
-  parody: "#BCEA83",
-  group: "#86F0C6",
-  category: "#92EFFF",
-  tag: hsbToHex({ saturation: 100, brightness: 160 }),
-};
-
-export function makeCardStyles(cardWidth: number, scale: number = 1) {
-  // Мастер-параметр — scale
+export function makeCardStyles(
+  colors: ThemeColors,
+  cardWidth: number,
+  scale = 1
+) {
   const S = scale;
 
   const borderRadius = Math.round(cardWidth * 0.06 * S);
   const coverHeight = Math.round(cardWidth * 1.24);
   const flagW = Math.round(cardWidth * 0.17 * S);
   const flagH = Math.round(cardWidth * 0.12 * S);
-  const favIcon = Math.round(cardWidth * 0.09 * S);
+
   const favBtnPad = Math.max(3, Math.round(cardWidth * 0.045 * S));
+  const favGapY = Math.max(2, Math.round(cardWidth * 0.02 * S));
+  const favFont = Math.max(10, Math.round(cardWidth * 0.09 * S));
+
   const newFont = Math.max(10, Math.round(cardWidth * 0.09 * S));
   const newPadX = Math.max(4, Math.round(cardWidth * 0.03 * S));
   const newPadY = Math.max(2, Math.round(cardWidth * 0.015 * S));
+
   const titleSize = Math.max(11, Math.round(cardWidth * 0.11 * S));
   const metaFont = Math.max(9, Math.round(cardWidth * 0.09 * S));
   const tagFont = Math.max(9, Math.round(cardWidth * 0.085 * S));
@@ -44,92 +34,143 @@ export function makeCardStyles(cardWidth: number, scale: number = 1) {
       flex: 1,
       width: cardWidth,
       borderRadius,
-      backgroundColor: bgColor,
-      overflow: "hidden" as ViewStyle["overflow"],
+      backgroundColor: colors.bg,
+      overflow: "hidden",
       elevation: 4,
-      shadowColor: shadowColor,
+      shadowColor: colors.shadow,
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.14,
       shadowRadius: borderRadius,
     } as ViewStyle,
+
     flagImg: {
-      position: "absolute" as ViewStyle["position"],
+      position: "absolute",
       top: flagW * 0.15,
       left: flagW * 0.15,
       width: flagW,
       height: flagH,
       borderRadius: 2,
     } as ImageStyle,
+
     imageWrap: {
-      position: "relative" as ViewStyle["position"],
+      position: "relative",
       width: "100%",
       height: coverHeight,
       borderTopLeftRadius: borderRadius,
       borderTopRightRadius: borderRadius,
-      overflow: "hidden" as ViewStyle["overflow"],
+      overflow: "hidden",
     } as ViewStyle,
+
     cover: {
       width: "100%",
       height: "100%",
       borderTopLeftRadius: borderRadius,
       borderTopRightRadius: borderRadius,
     } as ImageStyle,
-    favBtn: {
-      position: "absolute" as ViewStyle["position"],
+
+    favWrap: {
+      position: "absolute",
       top: favBtnPad,
       right: favBtnPad,
+      alignItems: "center",
+    } as ViewStyle,
+
+    favBtn: {
       backgroundColor: "rgba(0,0,0,0.65)",
       padding: favBtnPad,
       borderRadius: 999,
     } as ViewStyle,
+
+    favCount: {
+      marginTop: favGapY,
+      paddingHorizontal: favBtnPad,
+      paddingVertical: Math.max(2, Math.round(favBtnPad * 0.6)),
+      fontSize: favFont,
+      fontWeight: "700",
+      color: "#fff",
+      backgroundColor: "rgba(0,0,0,0.55)",
+      borderRadius: 999,
+      overflow: "hidden",
+    } as TextStyle,
+
     newBadge: {
-      position: "absolute" as TextStyle["position"],
+      position: "absolute",
       bottom: newPadY * 5,
       left: newPadX * 3,
-      backgroundColor: newBadgeBg,
+      backgroundColor: colors.newBadgeBg,
       color: "#fff",
-      fontWeight: "700" as TextStyle["fontWeight"],
+      fontWeight: "700",
       fontSize: newFont,
       paddingHorizontal: newPadX,
       paddingVertical: newPadY,
       borderRadius: borderRadius * 0.35,
-      textTransform: "uppercase" as TextStyle["textTransform"],
-      overflow: "hidden" as TextStyle["overflow"],
+      textTransform: "uppercase",
+      overflow: "hidden",
     } as TextStyle,
+
+    scoreBadge: {
+      position: "absolute",
+      left: favBtnPad,
+      bottom: favBtnPad,
+      backgroundColor: "#444",
+      borderRadius: 8,
+      paddingHorizontal: favBtnPad,
+      paddingVertical: Math.max(2, Math.round(favBtnPad * 0.6)),
+    } as ViewStyle,
+
+    scoreText: {
+      color: "#fff",
+      fontWeight: "700",
+      fontSize: Math.max(12, Math.round(tagFont * 1.05)),
+    } as TextStyle,
+
     body: { padding: bodyPad } as ViewStyle,
+
     title: {
       fontSize: titleSize,
-      fontWeight: "600" as TextStyle["fontWeight"],
-      color: titleColor,
+      fontWeight: "600",
+      color: colors.title,
     } as TextStyle,
+
     metaRow: {
-      flexDirection: "row" as ViewStyle["flexDirection"],
-      justifyContent: "space-between" as ViewStyle["justifyContent"],
-      alignItems: "center" as ViewStyle["alignItems"],
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       marginBottom: metaFont * 0.4,
     } as ViewStyle,
+
     metaItem: {
-      flexDirection: "row" as ViewStyle["flexDirection"],
-      alignItems: "center" as ViewStyle["alignItems"],
+      flexDirection: "row",
+      alignItems: "center",
       marginRight: metaFont * 0.5,
       gap: metaFont * 0.4,
     } as ViewStyle,
-    metaText: { fontSize: metaFont, color: metaTextColor } as TextStyle,
+
+    metaText: {
+      fontSize: metaFont,
+      color: colors.metaText,
+    } as TextStyle,
+
     tagsRow: {
-      flexDirection: "row" as ViewStyle["flexDirection"],
-      flexWrap: "wrap" as ViewStyle["flexWrap"],
+      flexDirection: "row",
+      flexWrap: "wrap",
       marginTop: tagPadY,
     } as ViewStyle,
+
     tag: {
       paddingHorizontal: tagPadX,
       paddingVertical: tagPadY,
       borderRadius: tagRadius,
       fontSize: tagFont,
       color: "#ececec",
-      backgroundColor: tagBg,
+      backgroundColor: colors.tagBg,
       marginBottom: tagPadY * 1.4,
       marginRight: tagPadX,
     } as TextStyle,
-    tagSelected: { borderWidth: 1, borderColor: "#fff" } as TextStyle,
+
+    tagSelected: {
+      borderWidth: 1,
+      borderColor: "#fff",
+    } as TextStyle,
   };
 }

@@ -57,6 +57,99 @@ export interface Book {
   raw?: any;
 }
 
+export interface ApiUser {
+  id: number;
+  username: string;
+  slug: string;
+  avatar_url: string;
+  is_superuser: boolean;
+  is_staff: boolean;
+}
+
+export interface GalleryComment {
+  id: number;
+  gallery_id: number;
+  poster: ApiUser;
+  post_date: string;
+  body: string;
+  avatar: string;
+}
+
+const AVATAR_BASE = "https://i.nhentai.net/";
+
+const absolutizeAvatar = (u?: string): string => {
+  if (!u) return "";
+  if (/^https?:\/\//i.test(u)) return u;
+  return AVATAR_BASE + u.replace(/^\/+/, "");
+};
+
+const mapComment = (c: any): GalleryComment => ({
+  id: c.id,
+  gallery_id: c.gallery_id,
+  poster: c.poster,
+  post_date: new Date((c.post_date ?? 0) * 1000).toISOString(),
+  body: String(c.body ?? ""),
+  avatar: absolutizeAvatar(c.poster?.avatar_url),
+});
+
+export const getComments = async (id: number): Promise<GalleryComment[]> => {
+  if (!id) throw new Error("getComments: invalid gallery id");
+  const { data } = await api.get(`/gallery/${id}/comments`);
+  const arr = Array.isArray(data) ? data : [];
+  return arr.map(mapComment);
+};
+
+export const getRelatedByApi = async (id: number): Promise<Book[]> => {
+  if (!id) throw new Error("getRelatedByApi: invalid gallery id");
+  const { data } = await api.get(`/gallery/${id}/related`);
+  const arr = Array.isArray(data?.result) ? data.result : [];
+  return arr.map(parseBookData);
+};
+
+export const getRelatedBooks = async (
+  id: number,
+  includeTags: TagFilter[] = [],
+  excludeTags: TagFilter[] = []
+): Promise<{ books: Book[] }> => {
+  const passFilters = (b: Book) => {
+    const tagKeys = new Set(b.tags.map((t) => `${t.type}:${t.name}`));
+    for (const t of excludeTags) {
+      if (tagKeys.has(`${t.type}:${t.name}`)) return false;
+    }
+    for (const t of includeTags) {
+      if (!tagKeys.has(`${t.type}:${t.name}`)) return false;
+    }
+    return true;
+  };
+
+  try {
+    const viaApi = (await getRelatedByApi(id)).filter((b) => b.id !== id);
+    const filtered = viaApi.filter(passFilters);
+    if (filtered.length) {
+      return { books: filtered.slice(0, 12) };
+    }
+  } catch {}
+
+  try {
+    const book = await getBook(id);
+    const first = book.tags[0]?.name ?? "";
+    if (!first) return { books: [] };
+
+    const { books } = await searchBooks({
+      query: first,
+      sort: "popular",
+      includeTags,
+      excludeTags,
+    });
+
+    return {
+      books: books.filter((b) => b.id !== id && passFilters(b)).slice(0, 12),
+    };
+  } catch {
+    return { books: [] };
+  }
+};
+
 export const loadBookFromLocal = async (id: number): Promise<Book | null> => {
   const nhDir = `${FileSystem.documentDirectory}NHAppAndroid/`;
   if (!(await FileSystem.getInfoAsync(nhDir)).exists) return null;
@@ -66,7 +159,6 @@ export const loadBookFromLocal = async (id: number): Promise<Book | null> => {
   for (const title of titles) {
     const titleDir = `${nhDir}${title}/`;
 
-    // Пробуем извлечь ID из названия папки
     const idMatch = title.match(/^(\d+)_/);
     const titleId = idMatch ? Number(idMatch[1]) : null;
 
@@ -81,7 +173,6 @@ export const loadBookFromLocal = async (id: number): Promise<Book | null> => {
         const raw = await FileSystem.readAsStringAsync(metaUri);
         const book: Book = JSON.parse(raw);
 
-        // Проверка ID: либо явно совпадает, либо в metadata.json
         if (book.id !== id) continue;
         if (titleId && titleId !== book.id) continue;
 
@@ -123,25 +214,16 @@ export const loadBookFromLocal = async (id: number): Promise<Book | null> => {
   return null;
 };
 
-/**
- * Унифицированный тип пагинации.
- * Содержит и `items` (для совместимости со старыми дженериками), и `books`.
- */
 export interface Paged<T> {
-  /** Основной массив данных (старое имя) */
   items: T[];
-  /** Синоним для удобства, т.к. мы работаем с книгами. */
   books: T[];
   totalPages: number;
   currentPage: number;
   totalItems: number;
-  /** По желанию можно прокинуть perPage */
   perPage?: number;
-  /** Любой отладочный payload */
   [extra: string]: any;
 }
 
-/** Вернуть массив «coverBase + подходящие расширения» для перебора. */
 export const getCoverVariants = (base: string, token: string): string[] => {
   switch (token) {
     case "j":
@@ -228,7 +310,7 @@ export const parseBookData = (item: any): Book => {
   const filterTags = (type: string) => tags.filter((t) => t.type === type);
 
   return {
-    id: item.id,
+    id: Number(item.id),
     title: {
       english: item.title.english,
       japanese: item.title.japanese,
@@ -278,7 +360,6 @@ export const getBookPages = async (
   };
 };
 
-/** Получить список избранных с пагинацией и сортировкой. */
 export const getFavorites = async (params: {
   ids: number[];
   sort?: "relevance" | "popular";
@@ -424,26 +505,6 @@ export const getTags = async (): Promise<{
   return { tags: tagsDb as any, updated: (tagsDb as any).updated ?? "" };
 };
 
-/** Упрощённый поиск похожих (client-side). */
-export const getRelatedBooks = async (
-  id: number,
-  includeTags: TagFilter[] = [],
-  excludeTags: TagFilter[] = []
-): Promise<{ books: Book[] }> => {
-  const book = await getBook(id);
-  const first = book.tags[0]?.name ?? "";
-  if (!first) return { books: [] };
-
-  const { books } = await searchBooks({
-    query: first,
-    sort: "popular",
-    includeTags,
-    excludeTags,
-  });
-
-  return { books: books.filter((b) => b.id !== id).slice(0, 12) };
-};
-
 export interface RecommendParams {
   ids: number[];
   sentIds?: number[];
@@ -495,13 +556,11 @@ export async function getRecommendations(
   } = p;
   if (!ids.length) throw new Error("Ids array required");
 
-  // Псевдослучайный генератор на основе randomSeed
   const seededRandom = (seed: number) => {
     const x = Math.sin(seed) * 10000;
     return x - Math.floor(x);
   };
 
-  // Частотность тегов
   const freq: Record<Bucket, Record<string, number>> = {
     character: blankFreq(),
     artist: blankFreq(),
@@ -511,8 +570,9 @@ export async function getRecommendations(
     tag: blankFreq(),
   };
 
-  // Собираем лайкнутые книги
-  const likedBooks = (await Promise.all(ids.map(getBook))).filter(Boolean) as Book[];
+  const likedBooks = (await Promise.all(ids.map(getBook))).filter(
+    Boolean
+  ) as Book[];
   likedBooks.forEach((b) =>
     b.tags.forEach((t) => {
       const bkt = bucketOf(t.type);
@@ -520,17 +580,21 @@ export async function getRecommendations(
     })
   );
 
-  // Динамические веса с бонусом за редкость
-  const calcTagWeight = (bucket: Bucket, tag: string, isRare: boolean): number => {
+  const calcTagWeight = (
+    bucket: Bucket,
+    tag: string,
+    isRare: boolean
+  ): number => {
     const base = TAG_W[bucket] ?? 1;
     const count = freq[bucket][tag] ?? 0;
     const totalTags = Object.keys(freq[bucket]).length;
     const variance = totalTags > 1 ? 1 / Math.sqrt(totalTags) : 1;
-    const rarityBonus = isRare ? 1.5 : 1; // Бонус для редких тегов
-    return base * (count > 0 ? Math.pow(count, 1.2) : 0.7) * variance * rarityBonus;
+    const rarityBonus = isRare ? 1.5 : 1;
+    return (
+      base * (count > 0 ? Math.pow(count, 1.2) : 0.7) * variance * rarityBonus
+    );
   };
 
-  // Топ-N и редкие теги
   const topN = (m: Record<string, number>, n = 5) =>
     Object.entries(m)
       .sort(([, v1], [, v2]) => v2 - v1)
@@ -538,7 +602,7 @@ export async function getRecommendations(
       .map(([k]) => k);
   const rareN = (m: Record<string, number>, n = 5) =>
     Object.entries(m)
-      .filter(([, v]) => v <= 2) // Теги с частотой 1 или 2
+      .filter(([, v]) => v <= 2)
       .slice(0, n)
       .map(([k]) => k);
 
@@ -548,7 +612,6 @@ export async function getRecommendations(
   const rareTags = rareN(freq.tag, 8);
   const rareChars = rareN(freq.character, 5);
 
-  // Формируем запросы
   const favQueries = [
     ...topChars.map((c) => `character:"${c}"`),
     ...topArts.map((a) => `artist:"${a}"`),
@@ -573,7 +636,6 @@ export async function getRecommendations(
   const withFilter = (arr: string[]) =>
     includePart ? arr.map((q) => `${includePart} ${q}`) : arr;
 
-  // Собираем кандидатов
   const excludeIds = new Set(sentIds);
   const candidates = new Map<number, CandidateBook>();
   const fetchPage = async (q: string, pN: number) =>
@@ -582,12 +644,18 @@ export async function getRecommendations(
       .catch(() => [] as Book[]);
 
   const grab = async (queries: string[], isExploration = false) => {
-    const uniqueQueries = [...new Set(queries)]; // Удаляем дубликаты
+    const uniqueQueries = [...new Set(queries)];
     await Promise.all(
-      [1, 2, 3, 4].map((pn) => Promise.all(uniqueQueries.map((q) => fetchPage(q, pn))))
+      [1, 2, 3, 4].map((pn) =>
+        Promise.all(uniqueQueries.map((q) => fetchPage(q, pn)))
+      )
     ).then((pages) =>
       pages.flat(2).forEach((b) => {
-        if (!excludeIds.has(b.id) && !candidates.has(b.id) && candidates.size < perPage * 15) {
+        if (
+          !excludeIds.has(b.id) &&
+          !candidates.has(b.id) &&
+          candidates.size < perPage * 15
+        ) {
           candidates.set(b.id, { ...b, isExploration });
         }
       })
@@ -597,13 +665,14 @@ export async function getRecommendations(
   await grab(withFilter(favQueries));
   await grab(withFilter(tagQueries), true);
 
-  // Кластеризация для диверсификации
   const clusterBooks = (
     books: (CandidateBook & { score: number; explain: string[] })[]
   ) => {
     const clusters: Record<string, typeof books> = {};
     books.forEach((book) => {
-      const primaryTag = book.tags.find((t) => t.type === "character" || t.type === "tag")?.name || "other";
+      const primaryTag =
+        book.tags.find((t) => t.type === "character" || t.type === "tag")
+          ?.name || "other";
       clusters[primaryTag] = clusters[primaryTag] || [];
       clusters[primaryTag].push(book);
     });
@@ -611,13 +680,12 @@ export async function getRecommendations(
     const result: typeof books = [];
     const maxPerCluster = 3;
     Object.values(clusters).forEach((cluster) => {
-      shuffleArray(cluster, randomSeed); // Перемешиваем внутри кластера
+      shuffleArray(cluster, randomSeed);
       result.push(...cluster.slice(0, maxPerCluster));
     });
     return result;
   };
 
-  // Скоринг кандидатов
   const likedSet = new Set(ids);
   const required = new Set(includeTags.map((t) => `${t.type}:${t.name}`));
   const forbidden = new Set(excludeTags.map((t) => `${t.type}:${t.name}`));
@@ -629,7 +697,7 @@ export async function getRecommendations(
     for (const f of forbidden) if (tagKeys.has(f)) return [];
     for (const r of required) if (!tagKeys.has(r)) return [];
 
-    let score = book.favorites / 10_000; // Уменьшаем делитель для большего влияния популярности
+    let score = book.favorites / 10_000;
     const explain: string[] = [];
 
     if (likedSet.has(book.id)) {
@@ -639,7 +707,9 @@ export async function getRecommendations(
 
     if (book.isExploration) {
       score *= 0.75;
-      explain.push("<i>экспериментальная рекомендация для разнообразия (×0.75)</i>");
+      explain.push(
+        "<i>экспериментальная рекомендация для разнообразия (×0.75)</i>"
+      );
     }
 
     book.tags.forEach((t) => {
@@ -651,16 +721,15 @@ export async function getRecommendations(
       const label =
         bkt === "tag" ? "Tag" : `${bkt.charAt(0).toUpperCase()}${bkt.slice(1)}`;
       explain.push(
-        `${label} <b>${t.name}</b> встречался в ${
-          cnt || 1
-        } избранных${isRare ? ", редкий" : ""} — +${add.toFixed(2)}`
+        `${label} <b>${t.name}</b> встречался в ${cnt || 1} избранных${
+          isRare ? ", редкий" : ""
+        } — +${add.toFixed(2)}`
       );
     });
 
     return [{ ...book, score, explain }];
   });
 
-  // Функция шаффла с seed
   const shuffleArray = <T>(array: T[], seed: number) => {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(seededRandom(seed + i) * (i + 1));
@@ -669,10 +738,8 @@ export async function getRecommendations(
     return array;
   };
 
-  // Диверсификация и кластеризация
   const diversified = clusterBooks(scored.sort((a, b) => b.score - a.score));
 
-  // Финальный шаффл с seed
   shuffleArray(diversified, randomSeed);
 
   const start = (page - 1) * perPage;

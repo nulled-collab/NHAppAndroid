@@ -61,17 +61,27 @@ export default function ExploreScreen() {
         console.error("Failed to fetch books:", error);
       }
     },
-    [query, sort, incStr, excStr]
+    [query, sort, incStr, excStr, includes, excludes]
   );
 
-  // реагируем на смену параметра запроса или фильтров
+  useEffect(() => {
+    if (!query.trim()) {
+      setBooks([]);
+      setTotal(1);
+      return;
+    }
+    fetchPage(currentPage);
+  }, [currentPage, query, sort, incStr, excStr, fetchPage]);
+
   useEffect(() => {
     setPage(1);
   }, [query, sort, incStr, excStr]);
 
   useEffect(() => {
-    fetchPage(currentPage);
-  }, [currentPage, fetchPage]);
+    if (currentPage !== 1) {
+      fetchPage(currentPage);
+    }
+  }, [currentPage]);
 
   useEffect(() => {
     setQuery(urlQ ?? "");
