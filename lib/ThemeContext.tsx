@@ -35,6 +35,11 @@ export interface ThemeColors {
   searchTxt: string;
   menuBg: string;
   menuTxt: string;
+
+  related: string;
+
+  surfaceElevated: string;
+  iconOnSurface: string;
 }
 
 interface ThemeContextValue {
@@ -66,29 +71,34 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
   const colors = useMemo<ThemeColors>(
     () => ({
-      bg:       hsbToHex({ saturation: 6,  brightness: 36 }),
-      page:     hsbToHex({ saturation: 6,  brightness: 28 }),
-      shadow:   "#000",
-      accent:   hsbToHex({ saturation: 78, brightness: 210 }),
+      bg: hsbToHex({ saturation: 6, brightness: 36 }),
+      page: hsbToHex({ saturation: 6, brightness: 28 }),
+      shadow: "#000",
+      accent: hsbToHex({ saturation: 78, brightness: 210 }),
 
-      txt:      hsbToHex({ saturation: 6,  brightness: 235 }),
-      sub:      hsbToHex({ saturation: 0,  brightness: 150 }),
-      title:    hsbToHex({ saturation: 16, brightness: 225 }),
-      metaText: hsbToHex({ saturation: 8,  brightness: 200 }),
+      txt: hsbToHex({ saturation: 6, brightness: 235 }),
+      sub: hsbToHex({ saturation: 0, brightness: 150 }),
+      title: hsbToHex({ saturation: 16, brightness: 225 }),
+      metaText: hsbToHex({ saturation: 8, brightness: 200 }),
 
-      tagBg:    hsbToHex({ saturation: 10, brightness: 48 }),
-      tagText:  hsbToHex({ saturation: 8,  brightness: 225 }),
+      tagBg: hsbToHex({ saturation: 10, brightness: 48 }),
+      tagText: hsbToHex({ saturation: 8, brightness: 225 }),
       newBadgeBg: "#ff4757",
 
-      incBg:    hsbToHex({ saturation: 52, brightness: 54 }),
-      incTxt:   hsbToHex({ saturation: 20, brightness: 225 }),
-      excBg:    hsbToHex({ saturation: 0,  brightness: 42 }),
-      excTxt:   hsbToHex({ saturation: 0,  brightness: 210 }),
+      incBg: hsbToHex({ saturation: 52, brightness: 54 }),
+      incTxt: hsbToHex({ saturation: 20, brightness: 225 }),
+      excBg: hsbToHex({ saturation: 0, brightness: 42 }),
+      excTxt: hsbToHex({ saturation: 0, brightness: 210 }),
 
-      searchBg: hsbToHex({ saturation: 6,  brightness: 34 }),
-      searchTxt:hsbToHex({ saturation: 6,  brightness: 235 }),
-      menuBg:   hsbToHex({ saturation: 6,  brightness: 32 }),
-      menuTxt:  hsbToHex({ saturation: 6,  brightness: 235 }),
+      searchBg: hsbToHex({ saturation: 6, brightness: 34 }),
+      searchTxt: hsbToHex({ saturation: 6, brightness: 235 }),
+      menuBg: hsbToHex({ saturation: 6, brightness: 32 }),
+      menuTxt: hsbToHex({ saturation: 6, brightness: 235 }),
+
+      related: hsbToHex({ saturation: 6, brightness: 28 }),
+
+      surfaceElevated: hsbToHex({ saturation: 6, brightness: 34 }),
+      iconOnSurface: hsbToHex({ saturation: 8, brightness: 210 }),
     }),
     [hue]
   );

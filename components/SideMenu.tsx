@@ -1,8 +1,16 @@
+import { getRandomBook } from "@/api/nhentai";
 import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
 import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 type MenuRoute =
   | "/downloaded"
@@ -29,6 +37,21 @@ export default function SideMenu({
   const { colors } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
+  const [randomLoading, setRandomLoading] = React.useState(false);
+
+  const goRandom = async () => {
+    if (randomLoading) return;
+    try {
+      setRandomLoading(true);
+      const b = await getRandomBook();
+      closeDrawer();
+      router.push({ pathname: "/book/[id]", params: { id: String(b.id) } });
+    } catch (e) {
+      console.warn("Random book failed", e);
+    } finally {
+      setRandomLoading(false);
+    }
+  };
 
   return (
     <View style={[styles.menuContainer, { backgroundColor: colors.menuBg }]}>
@@ -36,7 +59,11 @@ export default function SideMenu({
         <View
           style={[
             styles.logoWrap,
-            { backgroundColor: colors.accent + "22", borderRadius: 12, overflow: "hidden" },
+            {
+              backgroundColor: colors.accent + "22",
+              borderRadius: 12,
+              overflow: "hidden",
+            },
           ]}
         >
           <Image
@@ -54,6 +81,32 @@ export default function SideMenu({
           </Text>
         </View>
       </View>
+
+      <View style={[styles.divider, { borderBottomColor: colors.page }]} />
+
+      <Pressable
+        onPress={goRandom}
+        disabled={randomLoading}
+        style={[
+          styles.luckyBtn,
+          {
+            backgroundColor: colors.accent,
+            shadowColor: "#000",
+          },
+        ]}
+        android_ripple={{ color: "#ffffff22", borderless: false }}
+      >
+        {randomLoading ? (
+          <ActivityIndicator size="small" color={colors.bg} />
+        ) : (
+          <>
+            <Feather name="shuffle" size={18} color={colors.bg} />
+            <Text style={[styles.luckyTxt, { color: colors.bg }]}>
+              Мне повезёт
+            </Text>
+          </>
+        )}
+      </Pressable>
 
       <View style={[styles.divider, { borderBottomColor: colors.page }]} />
 
@@ -110,6 +163,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     marginVertical: 8,
   },
+
+  luckyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  luckyTxt: {
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+
   menuItem: {
     flexDirection: "row",
     alignItems: "center",

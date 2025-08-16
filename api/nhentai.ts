@@ -492,9 +492,48 @@ export const searchBooks = async (
   };
 };
 
+const siteBase =
+  Platform.OS === "web"
+    ? corsProxy + "https://nhentai.net"
+    : "https://nhentai.net";
+
+async function getRandomId(): Promise<number> {
+  try {
+    const res = await axios.get(siteBase + "/random", {
+      transformResponse: (r) => r,
+      validateStatus: (s) => s >= 200 && s < 400,
+    });
+
+    const loc =
+      (res.headers && (res.headers.location as string)) ||
+      (res.request && res.request.responseURL) ||
+      "";
+
+    const finalUrl = String(
+      loc || (res as any).request?.responseURL || ""
+    ).trim();
+    if (!finalUrl) throw new Error("Random: no redirect URL");
+
+    const m = finalUrl.match(/\/g\/(\d+)\//);
+    if (m?.[1]) return Number(m[1]);
+
+    const html = typeof res.data === "string" ? res.data : "";
+    const mc =
+      html.match(/rel=["']canonical["'][^>]*href=["'][^"']*\/g\/(\d+)\//i) ||
+      html.match(/property=["']og:url["'][^>]*content=["'][^"']*\/g\/(\d+)\//i);
+    if (mc?.[1]) return Number(mc[1]);
+
+    throw new Error("Random: failed to extract gallery id");
+  } catch (e) {
+    throw new Error(
+      `getRandomId failed: ${(e as Error)?.message || String(e)}`
+    );
+  }
+}
+
 export const getRandomBook = async (): Promise<Book> => {
-  const { data } = await api.get("/galleries/random");
-  return parseBookData(data.result);
+  const id = await getRandomId();
+  return getBook(id);
 };
 
 import tagsDb from "./nhentai-tags.json";
