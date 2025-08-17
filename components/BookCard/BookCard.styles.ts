@@ -46,10 +46,6 @@ export function makeCardStyles(
       backgroundColor: colors.bg,
       overflow: "hidden",
       elevation: 4,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.14,
-      shadowRadius: borderRadius * 0.6,
     } as ViewStyle,
 
     // ===== улучшенный контейнер для горизонтального «лист-тайла» =====
@@ -59,11 +55,7 @@ export function makeCardStyles(
       borderRadius,
       backgroundColor: colors.bg,
       overflow: "hidden",
-      elevation: 2,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: borderRadius * 0.4,
+      elevation: 0,
     } as ViewStyle,
 
     // ===== обложка =====
