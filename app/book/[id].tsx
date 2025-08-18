@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
+  Pressable,
   StyleSheet,
   View,
 } from "react-native";
@@ -31,7 +32,8 @@ export default function BookScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const baseGrid = useGridConfig();
-  const { filters } = useFilterTags();
+
+  const { filters, cycle } = useFilterTags();
 
   const { win, wide, innerPadding } = useWindowLayout();
   const { book, setBook, local, setLocal } = useBookData(idNum);
@@ -45,17 +47,15 @@ export default function BookScreen() {
     cmtLoading,
   } = useRelatedComments(book);
   const { favorites, toggleFav, liked, toggleLike } = useFavorites(idNum);
-  const { dl, pr, handleDownloadOrDelete } = useDownload(
+  const { dl, pr, handleDownloadOrDelete, cancel } = useDownload(
     book,
     local,
     setLocal,
     setBook
   );
 
-  // Колонки и FlatList
   const { cols, cycleCols, listRef, setScrollY } = useColumns(wide);
 
-  // FAB-поведение
   const {
     fabScale,
     onScroll: onScrollFab,
@@ -63,17 +63,18 @@ export default function BookScreen() {
     listRef: fabListRef,
   } = useFab();
 
-  // Ширина контейнера для вычислений layout
   const [listW, setListW] = useState(win.w);
 
-  // Определение режима фильтра по тегу
   const modeOf = useCallback(
-    (t: { type: string; name: string }) =>
-      filters.find((f) => f.type === t.type && f.name === t.name)?.mode,
+    (t: { type: string; name: string }): "include" | "exclude" | undefined => {
+      const m = filters.find(
+        (f) => f.type === t.type && f.name === t.name
+      )?.mode;
+      return m === "include" || m === "exclude" ? m : undefined;
+    },
     [filters]
   );
 
-  // Заголовок (Hero)
   const headerEl = useMemo(() => {
     if (!book) return null;
     return (
@@ -96,6 +97,8 @@ export default function BookScreen() {
         }
         win={win}
         innerPadding={innerPadding}
+        cycle={cycle}
+        cancel={cancel}
       />
     );
   }, [
@@ -112,9 +115,9 @@ export default function BookScreen() {
     handleDownloadOrDelete,
     modeOf,
     router,
+    cycle,
   ]);
 
-  // Футер (Related + Comments)
   const footerEl = useMemo(() => {
     return (
       <Footer
@@ -145,14 +148,11 @@ export default function BookScreen() {
     innerPadding,
   ]);
 
-  const horizPad = Math.max(0, innerPadding - GAP / 2); // компенсируем половинку gap у крайних колонок
+  const horizPad = Math.max(0, innerPadding - GAP / 2);
 
   const renderItem = useCallback(
-    ({ item, index }: { item: Book["pages"][number]; index: number }) => {
-      // внутренняя ширина с учётом скорректированных паддингов
+    ({ item }: { item: Book["pages"][number]; index: number }) => {
       const innerW = (listW || win.w) - 2 * horizPad;
-
-      // вычитаем суммарные зазоры между колонками
       const itemW = Math.floor((innerW - (cols - 1) * GAP) / cols);
 
       const onPress = () =>
@@ -173,19 +173,6 @@ export default function BookScreen() {
     },
     [book?.id, cols, listW, win.w, horizPad, colors.metaText, router]
   );
-
-  // getItemLayout для многостолбцового режима
-  const getItemLayout =
-    cols > 1
-      ? (_: any, index: number) => {
-          const availableW = listW || win.w;
-          const gapsTotal = GAP * (cols - 1);
-          const itemW = Math.floor((availableW - gapsTotal) / cols);
-          const row = Math.floor(index / cols);
-          const rowH = itemW + GAP;
-          return { length: rowH, offset: row * rowH, index };
-        }
-      : undefined;
 
   if (!book) {
     return (
@@ -222,10 +209,8 @@ export default function BookScreen() {
           setScrollY(e.nativeEvent.contentOffset.y);
         }}
         scrollEventThrottle={16}
-        // без gap, только выравнивание
         columnWrapperStyle={cols > 1 ? { alignItems: "flex-start" } : undefined}
         showsVerticalScrollIndicator={false}
-        // ВАЖНО: добавили горизонтальные паддинги — это и есть «поля» слева/справа
         contentContainerStyle={{
           paddingBottom: 40,
           paddingHorizontal: horizPad,
@@ -237,10 +222,8 @@ export default function BookScreen() {
         maxToRenderPerBatch={cols === 1 ? 10 : 24}
         updateCellsBatchingPeriod={50}
         windowSize={11}
-        getItemLayout={undefined}
       />
 
-      {/* FAB "вверх" */}
       <Animated.View
         style={[
           styles.fab,
@@ -257,8 +240,6 @@ export default function BookScreen() {
     </View>
   );
 }
-
-import { Pressable } from "react-native";
 
 const FAB_SIZE = 48;
 const styles = StyleSheet.create({

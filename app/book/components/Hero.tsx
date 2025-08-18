@@ -2,17 +2,20 @@ import type { Book } from "@/api/nhentai";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import { useTheme } from "@/lib/ThemeContext";
 import { AntDesign, Feather } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { timeAgo } from "../utils/timeAgo";
 import Ring from "./Ring";
-import TagBlock from "./TagBlock";
+import TagBlock, { TagLite } from "./TagBlock";
 
-// Хедер книги: адаптивно под wide/narrow
+const READ_HISTORY_KEY = "readHistory";
+type ReadHistoryEntry = [number, number, number, number];
+
 const styles = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
@@ -21,18 +24,43 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 8,
   },
-  actionRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+
+  actionRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+
   readBtn: {
     flex: 1,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
-    borderRadius: 100,
+    borderRadius: 14,
     paddingVertical: 10,
   },
   readTxt: { fontWeight: "800", fontSize: 16, letterSpacing: 0.3 },
-  iconBtn: { padding: 8, borderRadius: 12 },
+
+  circleBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+
+  dlCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  dlInner: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   galleryRow: {
     marginBottom: 8,
     flexDirection: "row",
@@ -57,10 +85,12 @@ export default function Hero({
   pr,
   local,
   handleDownloadOrDelete,
+  cancel,
   modeOf,
   onTagPress,
   win,
   innerPadding,
+  cycle,
 }: {
   book: Book;
   containerW: number;
@@ -74,17 +104,79 @@ export default function Hero({
   pr: number;
   local: boolean;
   handleDownloadOrDelete: () => void;
-  modeOf: (t: { type: string; name: string }) => string | undefined;
+  cancel: () => void;
+  modeOf: (t: {
+    type: string;
+    name: string;
+  }) => "include" | "exclude" | undefined;
   onTagPress: (name: string) => void;
   win: { w: number; h: number };
   innerPadding: number;
+  cycle: (t: { type: string; name: string }) => void;
 }) {
   const { colors } = useTheme();
   const router = useRouter();
   const coverAR =
     book.coverW && book.coverH ? book.coverW / book.coverH : 3 / 4;
 
-  // Убираем дубликаты общих тегов из списка "Tags"
+  const [readBtn, setReadBtn] = useState<{
+    label: string;
+    page: number;
+    restart: boolean;
+  }>({
+    label: "ЧИТАТЬ",
+    page: 1,
+    restart: false,
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      (async () => {
+        try {
+          const raw = await AsyncStorage.getItem(READ_HISTORY_KEY);
+          if (!alive) return;
+
+          let entry: ReadHistoryEntry | undefined;
+          if (raw) {
+            try {
+              const arr = JSON.parse(raw) as any;
+              if (Array.isArray(arr))
+                entry = arr.find((e: ReadHistoryEntry) => e?.[0] === book.id);
+            } catch {}
+          }
+
+          if (!entry) {
+            setReadBtn({ label: "ЧИТАТЬ", page: 1, restart: false });
+            return;
+          }
+
+          const [, current0, total0] = entry;
+          const total = Math.max(1, Number(total0) || book.pagesCount || 1);
+          const current = Math.min(
+            Math.max(0, Number(current0) || 0),
+            total - 1
+          );
+          const done = current >= total - 1;
+
+          if (done)
+            setReadBtn({ label: "Читать заново", page: 1, restart: true });
+          else
+            setReadBtn({
+              label: `Продолжить стр. ${current + 1}`,
+              page: current + 1,
+              restart: false,
+            });
+        } catch {
+          setReadBtn({ label: "ЧИТАТЬ", page: 1, restart: false });
+        }
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [book.id, book.pagesCount])
+  );
+
   const dedupTags = useMemo(() => {
     const skip = new Set(
       [
@@ -98,6 +190,57 @@ export default function Hero({
     );
     return book.tags.filter((t) => !skip.has(t.name));
   }, [book]);
+
+  const DownloadControl = () => {
+    if (!dl && !local) {
+      return (
+        <View style={{ borderRadius: 20, overflow: "hidden" }}>
+          <Pressable
+            onPress={handleDownloadOrDelete}
+            style={[styles.circleBtn, { backgroundColor: colors.tagBg }]}
+            android_ripple={{ color: colors.accent + "22", borderless: false }}
+            accessibilityRole="button"
+            accessibilityLabel="Скачать"
+          >
+            <Feather name="download" size={20} color={colors.accent} />
+          </Pressable>
+        </View>
+      );
+    }
+
+    if (!dl && local) {
+      return (
+        <View style={{ borderRadius: 20, overflow: "hidden" }}>
+          <Pressable
+            onPress={handleDownloadOrDelete}
+            style={[styles.circleBtn, { backgroundColor: colors.tagBg }]}
+            android_ripple={{ color: colors.accent + "22", borderless: false }}
+            accessibilityRole="button"
+            accessibilityLabel="Удалить из памяти"
+          >
+            <Feather name="trash-2" size={20} color={colors.accent} />
+          </Pressable>
+        </View>
+      );
+    }
+
+    return (
+      <View style={{ borderRadius: 20, overflow: "hidden" }}>
+        <Pressable
+          onPress={cancel}
+          style={[styles.dlCircle, { backgroundColor: colors.tagBg }]}
+          android_ripple={{ color: colors.accent + "22", borderless: false }}
+          accessibilityRole="button"
+          accessibilityLabel="Отменить скачивание"
+        >
+          <Ring progress={pr} size={28} />
+          <View style={styles.dlInner}>
+            <Feather name="x" size={14} color={colors.accent} />
+          </View>
+        </Pressable>
+      </View>
+    );
+  };
 
   if (wide) {
     return (
@@ -139,6 +282,7 @@ export default function Hero({
                 {book.title.pretty}
               </Text>
             </Pressable>
+
             <Pressable
               onLongPress={() => Clipboard.setStringAsync(book.title.english)}
             >
@@ -146,6 +290,7 @@ export default function Hero({
                 {book.title.english}
               </Text>
             </Pressable>
+
             {book.title.japanese !== book.title.english && (
               <Pressable
                 onLongPress={() =>
@@ -214,91 +359,102 @@ export default function Hero({
             </View>
 
             <View style={[styles.actionRow, { marginTop: 14 }]}>
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/read",
-                    params: { id: String(book.id), page: "1" },
-                  })
-                }
-                style={[styles.readBtn, { backgroundColor: colors.accent }]}
-              >
-                <Feather name="book-open" size={18} color={colors.bg} />
-                <Text style={[styles.readTxt, { color: colors.bg }]}>
-                  ЧИТАТЬ
-                </Text>
-              </Pressable>
+              <View style={{ borderRadius: 14, overflow: "hidden", flex: 1 }}>
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: "/read",
+                      params: {
+                        id: String(book.id),
+                        page: String(readBtn.page),
+                      },
+                    })
+                  }
+                  style={[styles.readBtn, { backgroundColor: colors.accent }]}
+                  android_ripple={{ color: "#ffffff22", borderless: false }}
+                >
+                  <Feather
+                    name={readBtn.restart ? "rotate-ccw" : "book-open"}
+                    size={18}
+                    color={colors.bg}
+                  />
+                  <Text style={[styles.readTxt, { color: colors.bg }]}>
+                    {readBtn.label}
+                  </Text>
+                </Pressable>
+              </View>
 
-              <Pressable
-                onPress={handleDownloadOrDelete}
-                style={styles.iconBtn}
-              >
-                {dl ? (
-                  <Ring progress={pr} />
-                ) : local ? (
-                  <Feather name="trash-2" size={20} color={colors.accent} />
-                ) : (
-                  <Feather name="download" size={20} color={colors.accent} />
-                )}
-              </Pressable>
+              <DownloadControl />
 
-              <Pressable onPress={toggleLike} style={styles.iconBtn}>
-                <AntDesign
-                  name={liked ? "heart" : "hearto"}
-                  size={20}
-                  color={liked ? "#FF5A5F" : colors.accent}
-                />
-              </Pressable>
+              <View style={{ borderRadius: 20, overflow: "hidden" }}>
+                <Pressable
+                  onPress={toggleLike}
+                  style={[styles.circleBtn, { backgroundColor: colors.tagBg }]}
+                  android_ripple={{
+                    color: colors.accent + "22",
+                    borderless: false,
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    liked ? "Убрать из избранного" : "Добавить в избранное"
+                  }
+                >
+                  <AntDesign
+                    name={liked ? "heart" : "hearto"}
+                    size={20}
+                    color={liked ? "#FF5A5F" : colors.accent}
+                  />
+                </Pressable>
+              </View>
             </View>
 
-            {/* Теговые блоки */}
             <TagBlock
               label="Artists"
-              tags={book.artists}
+              tags={book.artists as TagLite[]}
               modeOf={modeOf}
-              cycle={() => {}}
+              cycle={cycle}
               onTagPress={onTagPress}
             />
             <TagBlock
               label="Characters"
-              tags={book.characters}
+              tags={book.characters as TagLite[]}
               modeOf={modeOf}
-              cycle={() => {}}
+              cycle={cycle}
               onTagPress={onTagPress}
             />
             <TagBlock
               label="Parodies"
-              tags={book.parodies}
+              tags={book.parodies as TagLite[]}
               modeOf={modeOf}
-              cycle={() => {}}
+              cycle={cycle}
               onTagPress={onTagPress}
             />
             <TagBlock
               label="Groups"
-              tags={book.groups}
+              tags={book.groups as TagLite[]}
               modeOf={modeOf}
-              cycle={() => {}}
+              cycle={cycle}
               onTagPress={onTagPress}
             />
             <TagBlock
               label="Categories"
-              tags={book.categories}
+              tags={book.categories as TagLite[]}
               modeOf={modeOf}
-              cycle={() => {}}
+              cycle={cycle}
               onTagPress={onTagPress}
             />
             <TagBlock
               label="Languages"
-              tags={book.languages}
+              tags={book.languages as TagLite[]}
               modeOf={modeOf}
-              cycle={() => {}}
+              cycle={cycle}
               onTagPress={onTagPress}
             />
             <TagBlock
               label="Tags"
-              tags={dedupTags}
+              tags={dedupTags as TagLite[]}
               modeOf={modeOf}
-              cycle={() => {}}
+              cycle={cycle}
               onTagPress={onTagPress}
             />
 
@@ -319,7 +475,6 @@ export default function Hero({
     );
   }
 
-  // — narrow layout —
   const contentW = containerW - pad * 2;
   const cardW = contentW * 0.78;
 
@@ -462,85 +617,99 @@ export default function Hero({
         </View>
 
         <View style={[styles.actionRow, { marginTop: 14 }]}>
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: "/read",
-                params: { id: String(book.id), page: "1" },
-              })
-            }
-            style={[styles.readBtn, { backgroundColor: colors.accent }]}
-          >
-            <Feather name="book-open" size={18} color={colors.bg} />
-            <Text style={[styles.readTxt, { color: colors.bg }]}>ЧИТАТЬ</Text>
-          </Pressable>
+          <View style={{ borderRadius: 14, overflow: "hidden", flex: 1 }}>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/read",
+                  params: { id: String(book.id), page: String(readBtn.page) },
+                })
+              }
+              style={[styles.readBtn, { backgroundColor: colors.accent }]}
+              android_ripple={{ color: "#ffffff22", borderless: false }}
+            >
+              <Feather
+                name={readBtn.restart ? "rotate-ccw" : "book-open"}
+                size={18}
+                color={colors.bg}
+              />
+              <Text style={[styles.readTxt, { color: colors.bg }]}>
+                {readBtn.label}
+              </Text>
+            </Pressable>
+          </View>
 
-          <Pressable onPress={handleDownloadOrDelete} style={styles.iconBtn}>
-            {dl ? (
-              <Ring progress={pr} />
-            ) : local ? (
-              <Feather name="trash-2" size={20} color={colors.accent} />
-            ) : (
-              <Feather name="download" size={20} color={colors.accent} />
-            )}
-          </Pressable>
+          <DownloadControl />
 
-          <Pressable onPress={toggleLike} style={styles.iconBtn}>
-            <AntDesign
-              name={liked ? "heart" : "hearto"}
-              size={20}
-              color={liked ? "#FF5A5F" : colors.accent}
-            />
-          </Pressable>
+          <View style={{ borderRadius: 20, overflow: "hidden" }}>
+            <Pressable
+              onPress={toggleLike}
+              style={[styles.circleBtn, { backgroundColor: colors.tagBg }]}
+              android_ripple={{
+                color: colors.accent + "22",
+                borderless: false,
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={
+                liked ? "Убрать из избранного" : "Добавить в избранное"
+              }
+            >
+              <AntDesign
+                name={liked ? "heart" : "hearto"}
+                size={20}
+                color={liked ? "#FF5A5F" : colors.accent}
+              />
+            </Pressable>
+          </View>
         </View>
 
         <TagBlock
           label="Artists"
-          tags={book.artists}
+          tags={book.artists as TagLite[]}
           modeOf={modeOf}
-          cycle={() => {}}
+          cycle={cycle}
           onTagPress={onTagPress}
         />
         <TagBlock
           label="Characters"
-          tags={book.characters}
+          tags={book.characters as TagLite[]}
           modeOf={modeOf}
-          cycle={() => {}}
+          cycle={cycle}
           onTagPress={onTagPress}
         />
         <TagBlock
           label="Parodies"
-          tags={book.parodies}
+          tags={book.parodies as TagLite[]}
           modeOf={modeOf}
-          cycle={() => {}}
+          cycle={cycle}
           onTagPress={onTagPress}
         />
         <TagBlock
           label="Groups"
-          tags={book.groups}
+          tags={book.groups as TagLite[]}
           modeOf={modeOf}
-          cycle={() => {}}
+          cycle={cycle}
           onTagPress={onTagPress}
         />
         <TagBlock
           label="Categories"
-          tags={book.categories}
+          tags={book.categories as TagLite[]}
           modeOf={modeOf}
-          cycle={() => {}}
+          cycle={cycle}
           onTagPress={onTagPress}
         />
         <TagBlock
           label="Languages"
-          tags={book.languages}
+          tags={book.languages as TagLite[]}
           modeOf={modeOf}
-          cycle={() => {}}
+          cycle={cycle}
           onTagPress={onTagPress}
         />
         <TagBlock
           label="Tags"
-          tags={dedupTags}
+          tags={dedupTags as TagLite[]}
           modeOf={modeOf}
-          cycle={() => {}}
+          cycle={cycle}
           onTagPress={onTagPress}
         />
 

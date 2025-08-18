@@ -6,26 +6,73 @@ import React from "react";
 import {
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type MenuRoute =
   | "/downloaded"
   | "/favorites"
+  | "/history"
   | "/recommendations"
   | "/tags"
   | "/settings";
 
-const MENU: { label: string; icon: string; route: MenuRoute }[] = [
-  { label: "Скачанные галереи", icon: "download", route: "/downloaded" },
-  { label: "Избранные галереи", icon: "heart", route: "/favorites" },
+const MENU: {
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+  route: MenuRoute;
+}[] = [
+  { label: "Скачанные", icon: "download", route: "/downloaded" },
+  { label: "Избранное", icon: "heart", route: "/favorites" },
+  { label: "История", icon: "clock", route: "/history" },
   { label: "Рекомендации", icon: "star", route: "/recommendations" },
   { label: "Теги / Фильтры", icon: "tag", route: "/tags" },
   { label: "Настройки", icon: "settings", route: "/settings" },
 ];
+
+function Rounded({
+  children,
+  radius = 10,
+  rippleColor,
+  style,
+  onPress,
+  disabled,
+  pressedStyle,
+}: {
+  children: React.ReactNode;
+  radius?: number;
+  rippleColor: string;
+  style?: any;
+  onPress?: () => void;
+  disabled?: boolean;
+  pressedStyle?: any;
+}) {
+  return (
+    <View style={[{ borderRadius: radius, overflow: "hidden" }, style]}>
+      <Pressable
+        disabled={disabled}
+        onPress={onPress}
+        android_ripple={{ color: rippleColor, borderless: false }}
+        style={({ pressed }) => [
+          { borderRadius: radius },
+          pressed &&
+            (pressedStyle ??
+              Platform.select({
+                android: { opacity: 0.94, transform: [{ scale: 0.99 }] },
+                ios: { opacity: 0.85 },
+              })),
+        ]}
+      >
+        {children}
+      </Pressable>
+    </View>
+  );
+}
 
 export default function SideMenu({
   closeDrawer,
@@ -35,6 +82,7 @@ export default function SideMenu({
   fullscreen: boolean;
 }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
   const [randomLoading, setRandomLoading] = React.useState(false);
@@ -46,24 +94,38 @@ export default function SideMenu({
       const b = await getRandomBook();
       closeDrawer();
       router.push({ pathname: "/book/[id]", params: { id: String(b.id) } });
-    } catch (e) {
-      console.warn("Random book failed", e);
     } finally {
       setRandomLoading(false);
     }
   };
 
+  const R = 10;
+  const PAD_V = 8;
+  const PAD_H = 10;
+  const ICON = 18;
+  const FS = 13;
+  const GAP = 8;
+  const rippleItem = colors.accent + "2A";
+  const rippleLucky = "#ffffff22";
+
+  const dynamicTop = fullscreen ? 12 : Math.max(insets.top, 12);
+
   return (
-    <View style={[styles.menuContainer, { backgroundColor: colors.menuBg }]}>
-      <View style={[styles.header, { marginTop: fullscreen ? 0 : 20 }]}>
+    <View
+      style={[
+        styles.root,
+        {
+          backgroundColor: colors.menuBg,
+          paddingTop: dynamicTop,
+          paddingHorizontal: 12,
+        },
+      ]}
+    >
+      <View style={[styles.header, { marginBottom: 6 }]}>
         <View
           style={[
             styles.logoWrap,
-            {
-              backgroundColor: colors.accent + "22",
-              borderRadius: 12,
-              overflow: "hidden",
-            },
+            { backgroundColor: colors.accent + "22", borderRadius: 9 },
           ]}
         >
           <Image
@@ -77,115 +139,155 @@ export default function SideMenu({
             NHApp Android
           </Text>
           <Text style={[styles.subtitle, { color: colors.sub }]}>
-            Неофициальный клиент
+            Unofficial
           </Text>
         </View>
       </View>
 
-      <View style={[styles.divider, { borderBottomColor: colors.page }]} />
-
-      <Pressable
+      <Rounded
+        rippleColor={rippleLucky}
+        radius={R}
         onPress={goRandom}
         disabled={randomLoading}
-        style={[
-          styles.luckyBtn,
-          {
-            backgroundColor: colors.accent,
-            shadowColor: "#000",
-          },
-        ]}
-        android_ripple={{ color: "#ffffff22", borderless: false }}
       >
-        {randomLoading ? (
-          <ActivityIndicator size="small" color={colors.bg} />
-        ) : (
-          <>
-            <Feather name="shuffle" size={18} color={colors.bg} />
-            <Text style={[styles.luckyTxt, { color: colors.bg }]}>
-              Мне повезёт
-            </Text>
-          </>
-        )}
-      </Pressable>
-
-      <View style={[styles.divider, { borderBottomColor: colors.page }]} />
-
-      {MENU.map((item) => {
-        const active = pathname?.startsWith(item.route);
-        const bg = active ? colors.accent + "26" : "transparent";
-        const txt = active ? colors.accent : colors.menuTxt;
-
-        return (
-          <Pressable
-            key={item.route}
-            style={[styles.menuItem, { backgroundColor: bg, borderRadius: 12 }]}
-            android_ripple={{ color: colors.accent + "33", borderless: false }}
-            onPress={() => {
-              closeDrawer();
-              router.push(item.route);
-            }}
-          >
-            <Feather
-              name={item.icon as any}
-              size={20}
-              color={txt}
-              style={{ width: 28 }}
+        <View
+          style={[
+            styles.luckyBtn,
+            {
+              borderRadius: R,
+              backgroundColor: colors.accent,
+            },
+          ]}
+        >
+          {randomLoading ? (
+            <ActivityIndicator
+              size="small"
+              style={[styles.luckyTxt]}
+              color={colors.bg}
             />
-            <Text style={[styles.menuText, { color: txt }]}>{item.label}</Text>
-          </Pressable>
-        );
-      })}
+          ) : (
+            <>
+              <Feather name="shuffle" size={14} color={colors.bg} />
+              <Text style={[styles.luckyTxt, { color: colors.bg }]}>
+                Мне повезёт
+              </Text>
+            </>
+          )}
+        </View>
+      </Rounded>
+
+      <View style={{ marginTop: 6 }}>
+        {MENU.map((item) => {
+          const active = pathname?.startsWith(item.route);
+          const tint = active ? colors.accent : colors.menuTxt;
+          const bg = active ? colors.accent + "15" : "transparent";
+
+          return (
+            <Rounded
+              key={item.route}
+              radius={R}
+              rippleColor={rippleItem}
+              onPress={() => {
+                closeDrawer();
+                router.push(item.route);
+              }}
+            >
+              <View
+                style={[
+                  styles.row,
+                  {
+                    backgroundColor: bg,
+                    borderRadius: R,
+                    paddingVertical: PAD_V - 1,
+                    paddingHorizontal: PAD_H - 2,
+                  },
+                ]}
+              >
+                {active && (
+                  <View style={[styles.activeBar, { backgroundColor: tint }]} />
+                )}
+
+                <Feather
+                  name={item.icon}
+                  size={ICON}
+                  color={tint}
+                  style={{
+                    width: 22,
+                    textAlign: "center",
+                    marginRight: GAP - 2,
+                  }}
+                />
+
+                <Text
+                  style={[
+                    styles.itemTxt,
+                    { color: tint, fontSize: FS, flexShrink: 1 },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </View>
+            </Rounded>
+          );
+        })}
+      </View>
+
+      <View style={{ flex: 1 }} />
+      <Text style={[styles.footer, { color: colors.sub }]}>v1.0</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  menuContainer: { flex: 1, padding: 16 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  root: { flex: 1 },
+  header: { flexDirection: "row", alignItems: "center" },
+
   logoWrap: {
-    width: 44,
-    height: 44,
+    width: 45,
+    height: 45,
+    marginRight: 8,
     alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
+    justifyContent: "flex-end",
+    overflow: "hidden",
   },
-  logoImg: {
-    width: 44,
-    height: 44,
-  },
-  title: { fontSize: 16, fontWeight: "800" },
-  subtitle: { fontSize: 12, marginTop: 2 },
-  divider: {
-    height: 1,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    marginVertical: 8,
-  },
+  logoImg: { width: 45, height: 45 },
+
+  title: { fontSize: 14, fontWeight: "900", letterSpacing: 0.2 },
+  subtitle: { fontSize: 10, fontWeight: "700" },
 
   luckyBtn: {
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    elevation: 2,
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
   },
   luckyTxt: {
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 0.3,
+    fontSize: 12,
+    width: "100%",
+    fontWeight: "900",
+    letterSpacing: 0.2,
   },
 
-  menuItem: {
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 10,
     marginVertical: 2,
+    minHeight: 34,
   },
-  menuText: { fontSize: 15, marginLeft: 8, fontWeight: "600" },
+  activeBar: {
+    width: 3,
+    height: "70%",
+    borderRadius: 2,
+    marginRight: 8,
+  },
+  itemTxt: { fontWeight: "700" },
+
+  footer: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+    marginTop: 8,
+  },
 });

@@ -2,8 +2,9 @@ import { AntDesign, Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 
 import { Book, Tag } from "@/api/nhentai";
@@ -14,6 +15,9 @@ import { makeCardStyles } from "./BookCard.styles";
 
 const FAV_KEY = "bookFavorites";
 
+const READ_HISTORY_KEY = "readHistory";
+type ReadHistoryEntry = [number, number, number, number];
+
 const CN_FLAG = require("@/assets/images/flags/CN.png");
 const GB_FLAG = require("@/assets/images/flags/GB.png");
 const JP_FLAG = require("@/assets/images/flags/JP.png");
@@ -23,7 +27,7 @@ const FLAG_MAP: Record<string, any> = {
   japanese: JP_FLAG,
 };
 
-interface Props {
+export interface BookCardProps {
   book: Book;
   cardWidth?: number;
   isSingleCol?: boolean;
@@ -34,7 +38,8 @@ interface Props {
   onPress?: (id: number) => void;
   score?: number;
   background?: string;
-  vertical?: boolean | "true" | "false"; // совместимость с vertical="true"
+  vertical?: boolean | "true" | "false";
+  showProgressOnCard?: boolean;
 }
 
 export default function BookCard({
@@ -48,22 +53,15 @@ export default function BookCard({
   onPress,
   score,
   background,
-  vertical,
-}: Props) {
+  showProgressOnCard = true,
+}: BookCardProps) {
   const { colors } = useTheme();
   const styles = useMemo(
     () => makeCardStyles(colors, cardWidth, contentScale),
     [colors, cardWidth, contentScale]
   );
 
-  // вертикальный = по умолчанию (сохраняем твоё текущее поведение)
-  const isVertical =
-    vertical === true || vertical === "true" || vertical === undefined;
-
-  // размеры для горизонтального «лист-тайла»
-  const coverAR = 0.68; // соотношение манга-обложки
-  const rowHeight = Math.max(132, Math.round(cardWidth * 0.95 * contentScale));
-  const rowCoverWidth = Math.round(rowHeight * coverAR);
+  const coverAR = 0.68;
 
   const TAG_COLORS = useMemo<Record<string, string>>(
     () => ({
@@ -80,15 +78,62 @@ export default function BookCard({
 
   const [liked, setLiked] = useState(isFavorite);
   const [showAllTags, setShowAllTags] = useState(false);
+  const [rh, setRh] = useState<{
+    current: number;
+    total: number;
+    ts: number;
+  } | null>(null);
 
   const isNew = new Date(book.uploaded) > new Date(Date.now() - 86_400_000);
 
-  useFocusEffect(() => {
-    AsyncStorage.getItem(FAV_KEY).then((j) => {
-      const arr: number[] = j ? JSON.parse(j) : [];
-      setLiked(arr.includes(book.id));
-    });
-  });
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+
+      AsyncStorage.getItem(FAV_KEY).then((j) => {
+        if (!alive) return;
+        const arr: number[] = j ? JSON.parse(j) : [];
+        setLiked(arr.includes(book.id));
+      });
+
+      AsyncStorage.getItem(READ_HISTORY_KEY)
+        .then((raw) => {
+          if (!alive) return;
+          if (!raw) {
+            setRh(null);
+            return;
+          }
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(raw);
+          } catch {
+            setRh(null);
+            return;
+          }
+          if (!Array.isArray(parsed)) {
+            setRh(null);
+            return;
+          }
+          const found = (parsed as ReadHistoryEntry[]).find(
+            (e) => e?.[0] === book.id
+          );
+          if (!found) {
+            setRh(null);
+            return;
+          }
+          const [, current, total, ts] = found;
+          const t = Math.max(1, Number(total) || book.pagesCount || 1);
+          const c = Math.min(Math.max(0, Number(current) || 0), t - 1);
+          const ti = Number(ts) || Math.floor(Date.now() / 1000);
+          setRh({ current: c, total: t, ts: ti });
+        })
+        .catch(() => setRh(null));
+
+      return () => {
+        alive = false;
+      };
+    }, [book.id, book.pagesCount])
+  );
 
   const toggleLike = async () => {
     const raw = await AsyncStorage.getItem(FAV_KEY);
@@ -120,75 +165,62 @@ export default function BookCard({
         : book.languages[0].name.toLowerCase()
     ];
 
-  const heartSize = Math.max(18, Math.round(cardWidth * 0.12 * contentScale));
+  const heartSize = Math.max(16, Math.round(cardWidth * 0.12 * contentScale));
   const favsDisplay = book.favorites;
-  const hideFavInMeta = Boolean(onToggleFavorite);
-
-  // подзаголовок (artist) для горизонтального
   const primaryArtist =
     book.tags.find((t) => t.type === "artist")?.name ?? undefined;
+
+  const progress = useMemo(() => {
+    if (!rh) return null;
+    const done = rh.current >= rh.total - 1;
+    const ratio = Math.max(0, Math.min(1, (rh.current + 1) / rh.total));
+    return {
+      done,
+      ratio,
+      currentDisp: rh.current + 1,
+      total: rh.total,
+      ts: rh.ts,
+    };
+  }, [rh]);
 
   return (
     <Pressable
       style={[
         styles.card,
         background ? { backgroundColor: background } : undefined,
-        !isVertical && styles.hCard, // новый аккуратный контейнер
-        !isVertical && {
-          minHeight: rowHeight,
-          width: "100%",
-          alignSelf: "stretch",
-        },
+        isSingleCol && { alignSelf: "stretch" },
       ]}
       onPress={() => onPress?.(book.id)}
     >
-      {/* COVER */}
       <View
         style={[
           styles.imageWrap,
-          isVertical
-            ? isSingleCol && { aspectRatio: 0.7, height: undefined }
-            : [styles.hImageWrap, { width: rowCoverWidth, height: "100%" }],
+          isSingleCol && { aspectRatio: 0.7, height: undefined },
         ]}
       >
         <SmartImage
           sources={variants}
           style={[
             styles.cover,
-            isVertical
-              ? isSingleCol && { aspectRatio: 0.7, height: undefined }
-              : styles.hCover,
+            isSingleCol && { aspectRatio: coverAR, height: undefined },
           ]}
         />
 
-        {/* NEW — переносим с обложки в body в горизонтальном */}
-        {isNew && isVertical && <Text style={styles.newBadge}>NEW</Text>}
+        <LinearGradient
+          colors={["#00000000", `${colors.bg}40`, `${colors.bg}99`]}
+          style={styles.coverGradient}
+          pointerEvents="none"
+        />
 
-        {/* флаг поверх обложки — оставим как есть только для вертикального */}
-        {flagSrc && isVertical && (
-          <Image source={flagSrc} style={styles.flagImg} resizeMode="contain" />
-        )}
+        {isNew && <Text style={styles.newBadge}>NEW</Text>}
 
-        {/* score поверх обложки — только вертикальный */}
-        {score !== undefined && (
-          <View style={styles.scoreBadge}>
-            <Text
-              style={[
-                styles.hBadgeScore, // TextStyle
-                score >= 80
-                  ? styles.hBadgeScoreGood // <-- эти три были объявлены как ViewStyle
-                  : score >= 60
-                  ? styles.hBadgeScoreOk
-                  : styles.hBadgeScoreWarn,
-              ]}
-            >
-              {score}%
-            </Text>
+        {flagSrc && (
+          <View style={styles.langBadge}>
+            <Image source={flagSrc} style={styles.langImg} resizeMode="cover" />
           </View>
         )}
 
-        {/* лайк поверх обложки — только вертикальный */}
-        {onToggleFavorite && isVertical && (
+        {onToggleFavorite && (
           <View style={styles.favWrap}>
             <Pressable
               style={styles.favBtn}
@@ -207,127 +239,94 @@ export default function BookCard({
             <Text style={styles.favCount}>{favsDisplay}</Text>
           </View>
         )}
+
+        {showProgressOnCard && progress && !progress.done && (
+          <View
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 4,
+              backgroundColor: "#00000055",
+            }}
+          >
+            <View
+              style={{
+                width: `${Math.round(progress.ratio * 100)}%`,
+                height: "100%",
+                backgroundColor: colors.accent,
+              }}
+            />
+          </View>
+        )}
       </View>
 
-      {/* BODY */}
-      <View style={[styles.body, !isVertical && styles.hBody]}>
-        {/* верхняя строка: заголовок + бейджи справа */}
-        <View style={styles.hTopRow}>
-          <Text
-            style={[styles.title, !isVertical && styles.hTitle]}
-            numberOfLines={2}
-          >
+      <View style={styles.body}>
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={1}>
             {book.title.pretty}
           </Text>
+        </View>
 
-          {/* компактные бейджи справа (NEW / score) в горизонтальном */}
-          {!isVertical && (
-            <View style={styles.hBadges}>
-              {isNew && <Text style={styles.hBadgeNew}>NEW</Text>}
+        <View style={styles.metaRow}>
+          <View style={styles.metaItem}>
+            <Feather
+              name="calendar"
+              size={styles.metaIcon.fontSize as number}
+              color={styles.metaIcon.color as string}
+            />
+            <Text style={styles.metaText}>
+              {format(new Date(book.uploaded), "d MMM yyyy", { locale: ru })}
+            </Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Feather
+              name="book-open"
+              size={styles.metaIcon.fontSize as number}
+              color={styles.metaIcon.color as string}
+            />
+            <Text style={styles.metaText}>{book.pagesCount}</Text>
+          </View>
+          {!onToggleFavorite && (
+            <View style={styles.metaItem}>
+              <Feather
+                name="heart"
+                size={styles.metaIcon.fontSize as number}
+                color={styles.metaIcon.color as string}
+              />
+              <Text style={styles.metaText}>{book.favorites}</Text>
             </View>
           )}
         </View>
 
-        {/* подзаголовок: автор + мини-флаг языка */}
-        {!isVertical && (
-          <View style={styles.hSubtitleRow}>
-            {flagSrc && (
-              <Image
-                source={flagSrc}
-                style={styles.hLangFlag}
-                resizeMode="contain"
-              />
-            )}
-            <Text style={styles.subtitle} numberOfLines={1}>
-              {primaryArtist ?? "—"}
-            </Text>
-
-            {/* inline like справа */}
-            {onToggleFavorite && (
-              <View style={styles.hFavInline}>
-                <Pressable
-                  style={styles.hFavBtn}
-                  hitSlop={8}
-                  onPress={(e: any) => {
-                    e?.stopPropagation?.();
-                    toggleLike();
-                  }}
-                >
-                  <AntDesign
-                    name={liked ? "heart" : "hearto"}
-                    size={Math.max(18, Math.round(heartSize * 0.95))}
-                    color={liked ? "#ff5a5f" : styles.metaText.color}
-                  />
-                </Pressable>
-                <Text style={styles.hFavCount}>{favsDisplay}</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* чипы мета */}
-        {isVertical ? (
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Feather
-                name="calendar"
-                size={styles.metaText.fontSize ?? 12}
-                color={styles.metaText.color as string}
-              />
-              <Text style={styles.metaText}>
-                {format(new Date(book.uploaded), "d MMM yyyy", { locale: ru })}
+        <View style={styles.tagsRow}>
+          {typeof score === "number" && (
+            <View
+              style={[
+                styles.ribbon,
+                score >= 80
+                  ? styles.ribbonBorderGood
+                  : score >= 60
+                  ? styles.ribbonBorderOk
+                  : styles.ribbonBorderWarn,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.ribbonText,
+                  score >= 80
+                    ? styles.ribbonGood
+                    : score >= 60
+                    ? styles.ribbonOk
+                    : styles.ribbonWarn,
+                ]}
+              >
+                {score}%
               </Text>
             </View>
-            <View style={styles.metaItem}>
-              <Feather
-                name="book-open"
-                size={styles.metaText.fontSize ?? 12}
-                color={styles.metaText.color as string}
-              />
-              <Text style={styles.metaText}>{book.pagesCount}</Text>
-            </View>
+          )}
 
-            {!hideFavInMeta && (
-              <View style={styles.metaItem}>
-                <Feather
-                  name="heart"
-                  size={styles.metaText.fontSize ?? 12}
-                  color={styles.metaText.color as string}
-                />
-                <Text style={styles.metaText}>{book.favorites}</Text>
-              </View>
-            )}
-          </View>
-        ) : (
-          <View style={styles.chipsRow}>
-            <View style={styles.chip}>
-              <Feather
-                name="book-open"
-                size={styles.chipText.fontSize ?? 12}
-                color={styles.chipText.color as string}
-              />
-              <Text style={styles.chipText}>{book.pagesCount}</Text>
-            </View>
-            <View style={styles.chip}>
-              <Feather
-                name="calendar"
-                size={styles.chipText.fontSize ?? 12}
-                color={styles.chipText.color as string}
-              />
-              <Text style={styles.chipText}>
-                {format(new Date(book.uploaded), "d MMM yyyy", { locale: ru })}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* теги (считаем до maxTags, остальное прячем за +N) */}
-        <View
-          style={[
-            styles.tagsRow,
-            !isVertical && { marginTop: 6, flexWrap: "wrap" },
-          ]}
-        >
           {orderedTags.map((tag) => (
             <Text
               key={tag.id}

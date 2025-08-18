@@ -90,8 +90,8 @@ export default function BookList<T extends Book = Book>({
     const avail = width - padH;
 
     if (horizontal) {
-      const targetCols = Math.max(1, base.numColumns);
-      let w = (avail - gap * (targetCols - 1)) / targetCols;
+      const visibleCols = Math.max(1, base.numColumns);
+      let w = (avail - gap * (visibleCols - 1)) / visibleCols;
       w = Math.max(minW, w);
       return {
         cols: 1,
@@ -117,7 +117,9 @@ export default function BookList<T extends Book = Book>({
 
   const uniqueData = useMemo(() => {
     const seen = new Set<number>();
-    return data.filter((b) => (seen.has(b.id) ? false : seen.add(b.id)));
+    return data.filter((b) =>
+      seen.has(b.id) ? false : (seen.add(b.id), true)
+    );
   }, [data]);
 
   const isSingleCol = !horizontal && cols === 1;
@@ -158,7 +160,15 @@ export default function BookList<T extends Book = Book>({
     </View>
   );
 
-  const listKey = horizontal ? "row" : `cols-${cols}`;
+  const listKey = horizontal ? `row-${Math.round(cardWidth)}` : `cols-${cols}`;
+
+  const getItemLayout = horizontal
+    ? (_: any, index: number) => ({
+        length: cardWidth + columnGap,
+        offset: (cardWidth + columnGap) * index,
+        index,
+      })
+    : undefined;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.page }]}>
@@ -170,6 +180,8 @@ export default function BookList<T extends Book = Book>({
           key={listKey}
           horizontal={horizontal}
           showsHorizontalScrollIndicator={false}
+          decelerationRate={horizontal ? "fast" : undefined}
+          snapToAlignment={horizontal ? "start" : undefined}
           data={uniqueData}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem ?? defaultRender}
@@ -177,8 +189,9 @@ export default function BookList<T extends Book = Book>({
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           contentContainerStyle={{
-            paddingHorizontal,
-            paddingTop: paddingHorizontal / 2,
+            paddingHorizontal: paddingHorizontal,
+            paddingTop: horizontal ? paddingHorizontal : paddingHorizontal / 2,
+            paddingBottom: horizontal ? paddingHorizontal : null,
           }}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.4}
@@ -196,6 +209,7 @@ export default function BookList<T extends Book = Book>({
               ? [{ justifyContent: "center" }, columnWrapperStyle]
               : undefined
           }
+          getItemLayout={getItemLayout}
         />
       )}
       {children}
