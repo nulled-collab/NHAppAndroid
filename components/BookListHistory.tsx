@@ -110,7 +110,7 @@ export default function BookListHistory<T extends Book = Book>({
     const padH = base.paddingHorizontal ?? 0;
     const gap = base.columnGap ?? 0;
     const minW = base.minColumnWidth ?? 120;
-    const avail = width - padH;
+    const avail = width - padH * 2;
 
     const maxCols = Math.max(
       1,

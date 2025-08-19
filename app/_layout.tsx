@@ -15,6 +15,7 @@ import { DrawerContext } from "@/components/DrawerContext";
 import { OverlayPortalProvider } from "@/components/OverlayPortal";
 import { SearchBar } from "@/components/SearchBar";
 import SideMenu from "@/components/SideMenu";
+import { getGridConfigMap } from "@/config/gridConfig";
 import { SortProvider } from "@/context/SortContext";
 import { TagProvider } from "@/context/TagFilterContext";
 import { ThemeProvider, useTheme } from "@/lib/ThemeContext";
@@ -44,6 +45,7 @@ export default function RootLayout() {
 function AppContent() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState<boolean>(false);
+  const [gridReady, setGridReady] = useState(false);
   const pathname = usePathname();
   const { colors, hue } = useTheme();
 
@@ -63,6 +65,18 @@ function AppContent() {
         setFullscreen(raw === "1");
       } catch {}
     })();
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    getGridConfigMap()
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setGridReady(true);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const hideSearchBar =
@@ -102,6 +116,10 @@ function AppContent() {
     })();
   }, [fullscreen, colors.bg]);
 
+  if (!gridReady) {
+    return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaView
@@ -129,11 +147,7 @@ function AppContent() {
               <TagProvider>
                 <OverlayPortalProvider>
                   {!fullscreen && <TopChrome bg={colors.searchBg} />}
-                  <View
-                    style={{
-                      backgroundColor: colors.searchBg,
-                    }}
-                  >
+                  <View style={{ backgroundColor: colors.searchBg }}>
                     {!hideSearchBar && <SearchBar />}
                   </View>
                   <Stack

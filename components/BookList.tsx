@@ -87,7 +87,7 @@ export default function BookList<T extends Book = Book>({
     const padH = base.paddingHorizontal ?? 0;
     const gap = base.columnGap ?? 0;
     const minW = base.minColumnWidth ?? 120;
-    const avail = width - padH;
+    const avail = width - padH * 2;
 
     if (horizontal) {
       const visibleCols = Math.max(1, base.numColumns);

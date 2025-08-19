@@ -1,7 +1,7 @@
-// hooks/useGridConfig.ts
 import type { GridConfig } from "@/components/BookList";
 import {
   getCurrentGridConfigMapSync,
+  getGridConfigMap,
   subscribeGridConfig,
 } from "@/config/gridConfig";
 import { useEffect, useState } from "react";
@@ -13,14 +13,15 @@ export function useGridConfig(): GridConfig {
 
   useEffect(() => {
     const unsub = subscribeGridConfig(setMap);
+    getGridConfigMap()
+      .then(setMap)
+      .catch(() => {});
     return () => unsub();
   }, []);
 
   const isLandscape = width > height;
   const isTablet = Math.min(width, height) >= 600;
 
-  if (isTablet && isLandscape) return map.tabletLandscape;
-  if (isTablet && !isLandscape) return map.tabletPortrait;
-  if (!isTablet && isLandscape) return map.phoneLandscape;
-  return map.phonePortrait;
+  if (isTablet) return isLandscape ? map.tabletLandscape : map.tabletPortrait;
+  return isLandscape ? map.phoneLandscape : map.phonePortrait;
 }
