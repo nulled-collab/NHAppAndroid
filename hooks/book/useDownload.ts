@@ -1,10 +1,10 @@
 import type { Book } from "@/api/nhentai";
+import { sanitize } from "@/utils/book/sanitize";
+import { useThrottle } from "@/utils/book/useThrottle";
 import * as FileSystem from "expo-file-system";
 import { useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Platform, ToastAndroid } from "react-native";
-import { sanitize } from "../utils/sanitize";
-import { useThrottle } from "../utils/useThrottle";
 
 export const useDownload = (
   book: Book | null,

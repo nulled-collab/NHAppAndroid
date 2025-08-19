@@ -329,32 +329,6 @@ export default function BookCard({
         {/* Теги: короткие «обнимают», длинные — «…», +N; при раскрытии видно всё */}
         {visibleTags.length > 0 && (
           <View style={styles.tagsRow}>
-            {typeof score === "number" && (
-              <View
-                style={[
-                  styles.ribbon,
-                  score >= 80
-                    ? styles.ribbonBorderGood
-                    : score >= 60
-                    ? styles.ribbonBorderOk
-                    : styles.ribbonBorderWarn,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.ribbonText,
-                    score >= 80
-                      ? styles.ribbonGood
-                      : score >= 60
-                      ? styles.ribbonOk
-                      : styles.ribbonWarn,
-                  ]}
-                >
-                  {score}%
-                </Text>
-              </View>
-            )}
-
             <View
               style={[styles.tagsWrap, showAllTags && styles.tagsWrapExpanded]}
             >
@@ -371,40 +345,73 @@ export default function BookCard({
                   : undefined;
 
                 return (
-                  <Pressable
-                    key={tag.id}
-                    onPress={(e: any) => {
-                      e?.stopPropagation?.();
-                      router.push({
-                        pathname: "/explore",
-                        params: { query: tag.name, solo: "1" },
-                      });
-                    }}
-                    onLongPress={() => Clipboard.setStringAsync(tag.name)}
-                  >
-                    <View
-                      style={[
-                        styles.tagPill, // НОВОЕ: контейнер-пилюля (фон, радиусы, обрезка)
-                        showAllTags ? [styles.tagExpanded, styles.tapPillOpen] : styles.tagOneLine,
-                        !showAllTags && { maxWidth: maxPx }, // пер-теговый лимит ширины
-                        !showAllTags && capFirstTwo && i < 2 && styles.tagCap50,
-                        { borderWidth: 1, borderColor }, // рамка inc/exc на контейнере
-                        selectedTags.some((t) => t.id === tag.id) &&
-                          styles.tagSelected,
-                      ]}
-                    >
-                      <Text
-                        numberOfLines={showAllTags ? undefined : 1}
-                        ellipsizeMode={showAllTags ? undefined : "tail"} // «…» внутри пилюли
+                  <>
+                    {typeof score === "number" && i == 0 && (
+                      <View
+                        key={i}
                         style={[
-                          styles.tagText,
-                          { color: TAG_COLORS[tag.type] ?? TAG_COLORS.tag },
+                          styles.ribbon,
+                          score >= 80
+                            ? styles.ribbonBorderGood
+                            : score >= 60
+                            ? styles.ribbonBorderOk
+                            : styles.ribbonBorderWarn,
                         ]}
                       >
-                        {tag.name}
-                      </Text>
-                    </View>
-                  </Pressable>
+                        <Text
+                          style={[
+                            styles.ribbonText,
+                            score >= 80
+                              ? styles.ribbonGood
+                              : score >= 60
+                              ? styles.ribbonOk
+                              : styles.ribbonWarn,
+                          ]}
+                        >
+                          {score}%
+                        </Text>
+                      </View>
+                    )}
+                    <Pressable
+                      key={tag.id}
+                      onPress={(e: any) => {
+                        e?.stopPropagation?.();
+                        router.push({
+                          pathname: "/explore",
+                          params: { query: tag.name, solo: "1" },
+                        });
+                      }}
+                      onLongPress={() => Clipboard.setStringAsync(tag.name)}
+                    >
+                      <View
+                        style={[
+                          styles.tagPill, // НОВОЕ: контейнер-пилюля (фон, радиусы, обрезка)
+                          showAllTags
+                            ? [styles.tagExpanded, styles.tapPillOpen]
+                            : styles.tagOneLine,
+                          !showAllTags && { maxWidth: maxPx }, // пер-теговый лимит ширины
+                          !showAllTags &&
+                            capFirstTwo &&
+                            i < 2 &&
+                            styles.tagCap50,
+                          { borderWidth: 1, borderColor }, // рамка inc/exc на контейнере
+                          selectedTags.some((t) => t.id === tag.id) &&
+                            styles.tagSelected,
+                        ]}
+                      >
+                        <Text
+                          numberOfLines={showAllTags ? undefined : 1}
+                          ellipsizeMode={showAllTags ? undefined : "tail"} // «…» внутри пилюли
+                          style={[
+                            styles.tagText,
+                            { color: TAG_COLORS[tag.type] ?? TAG_COLORS.tag },
+                          ]}
+                        >
+                          {tag.name}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  </>
                 );
               })}
             </View>
@@ -419,10 +426,7 @@ export default function BookCard({
               >
                 <Text
                   numberOfLines={1}
-                  style={[
-                    styles.tagPlus,
-                    { color: TAG_COLORS.tag },
-                  ]}
+                  style={[styles.tagPlus, { color: TAG_COLORS.tag }]}
                 >
                   +{book.tags.length - maxTags}
                 </Text>

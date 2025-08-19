@@ -14,17 +14,17 @@ import {
 } from "react-native";
 
 import { Book } from "@/api/nhentai";
-import { useBookData } from "../book/hooks/useBookData";
-import { useColumns } from "../book/hooks/useColumns";
-import { useDownload } from "../book/hooks/useDownload";
-import { useFab } from "../book/hooks/useFab";
-import { useFavorites } from "../book/hooks/useFavorites";
-import { useRelatedComments } from "../book/hooks/useRelatedComments";
-import { useWindowLayout } from "../book/hooks/useWindowLayout";
+import { useBookData } from "@/hooks/book/useBookData";
+import { useColumns } from "@/hooks/book/useColumns";
+import { useDownload } from "@/hooks/book/useDownload";
+import { useFab } from "@/hooks/book/useFab";
+import { useFavorites } from "@/hooks/book/useFavorites";
+import { useRelatedComments } from "@/hooks/book/useRelatedComments";
+import { useWindowLayout } from "@/hooks/book/useWindowLayout";
 
-import Footer from "../book/components/Footer";
-import Hero from "../book/components/Hero";
-import PageItem, { GAP } from "../book/components/PageItem";
+import Footer from "@/components/book/Footer";
+import Hero from "@/components/book/Hero";
+import PageItem, { GAP } from "@/components/book/PageItem";
 
 export default function BookScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

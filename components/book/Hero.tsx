@@ -1,6 +1,7 @@
 import type { Book } from "@/api/nhentai";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import { useTheme } from "@/lib/ThemeContext";
+import { timeAgo } from "@/utils/book/timeAgo";
 import { AntDesign, Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
@@ -9,7 +10,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { timeAgo } from "../utils/timeAgo";
 import Ring from "./Ring";
 import TagBlock, { TagLite } from "./TagBlock";
 

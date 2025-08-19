@@ -2,8 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as NavigationBar from "expo-navigation-bar";
 import { Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useState } from "react";
-import { Platform, StatusBar as RNStatusBar, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Platform, View } from "react-native";
 import { Drawer } from "react-native-drawer-layout";
 import {
   SafeAreaProvider,
@@ -20,9 +20,12 @@ import { SortProvider } from "@/context/SortContext";
 import { TagProvider } from "@/context/TagFilterContext";
 import { ThemeProvider, useTheme } from "@/lib/ThemeContext";
 
+import { enableFreeze } from "react-native-screens";
+enableFreeze(true);
+
 const FS_KEY = "ui_fullscreen";
 
-function TopChrome({ bg }: { bg: string }) {
+const TopChrome = React.memo(function TopChrome({ bg }: { bg: string }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={{ backgroundColor: bg }}>
@@ -30,7 +33,7 @@ function TopChrome({ bg }: { bg: string }) {
       <View style={{ height: insets.top, backgroundColor: bg }} />
     </View>
   );
-}
+});
 
 export default function RootLayout() {
   return (
@@ -46,18 +49,24 @@ function AppContent() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState<boolean>(false);
   const [gridReady, setGridReady] = useState(false);
-  const pathname = usePathname();
-  const { colors, hue } = useTheme();
 
+  const pathname = usePathname();
+  const { colors } = useTheme();
+
+  // стабильные коллбеки
+  const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  const drawerCtxValue = useMemo(() => ({ openDrawer }), [openDrawer]);
+
+  // глобальный переключатель фуллскрина
   useEffect(() => {
     (globalThis as any).__setFullscreen = (v: boolean) => setFullscreen(v);
     return () => {
-      if ((globalThis as any).__setFullscreen) {
-        delete (globalThis as any).__setFullscreen;
-      }
+      delete (globalThis as any).__setFullscreen;
     };
   }, []);
 
+  // восстановление флага фуллскрина
   useEffect(() => {
     (async () => {
       try {
@@ -67,6 +76,7 @@ function AppContent() {
     })();
   }, []);
 
+  // прогрев карты грида до старта
   useEffect(() => {
     let alive = true;
     getGridConfigMap()
@@ -79,22 +89,21 @@ function AppContent() {
     };
   }, []);
 
-  const hideSearchBar =
-    pathname === "/read" || pathname === "/settings" || pathname === "/tags";
+  // показывать ли поиск
+  const hideSearchBar = useMemo(
+    () => pathname === "/read" || pathname === "/settings" || pathname === "/tags",
+    [pathname]
+  );
 
-  const insets = useSafeAreaInsets();
-  const statusH = useMemo(() => {
-    if (Platform.OS === "ios") return insets.top;
-    return RNStatusBar.currentHeight ?? 0;
-  }, [insets.top]);
+  const edges = useMemo(
+    () =>
+      fullscreen
+        ? ([] as const)
+        : (Platform.OS === "ios" ? (["top", "bottom"] as const) : (["bottom"] as const)),
+    [fullscreen]
+  );
 
-  const edges = useMemo(() => {
-    if (fullscreen) return [] as const;
-    return Platform.OS === "ios"
-      ? (["top", "bottom"] as const)
-      : (["bottom"] as const);
-  }, [fullscreen]);
-
+  // навбар андроида — только при изменении fullscreen
   useEffect(() => {
     if (Platform.OS !== "android") return;
     (async () => {
@@ -114,35 +123,32 @@ function AppContent() {
         console.warn("[layout] expo-navigation-bar failed:", e);
       }
     })();
-  }, [fullscreen, colors.bg]);
+  }, [fullscreen]);
 
+  // ВАЖНО: хук объявлен ДО раннего return
+  const renderDrawer = useCallback(
+    () => <SideMenu closeDrawer={closeDrawer} fullscreen={fullscreen} />,
+    [closeDrawer, fullscreen]
+  );
+
+  // сплэш-пустышка, чтобы не мигать неправильной сеткой
   if (!gridReady) {
     return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <SafeAreaView
-        edges={edges}
-        style={{ flex: 1, backgroundColor: colors.bg }}
-      >
+      <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: colors.bg }}>
         <Drawer
           open={drawerOpen}
-          onOpen={() => setDrawerOpen(true)}
-          onClose={() => setDrawerOpen(false)}
+          onOpen={openDrawer}
+          onClose={closeDrawer}
           drawerPosition="left"
           drawerStyle={{ width: 260, backgroundColor: colors.menuBg }}
           swipeEnabled={false}
-          renderDrawerContent={() => (
-            <SideMenu
-              closeDrawer={() => setDrawerOpen(false)}
-              fullscreen={fullscreen}
-            />
-          )}
+          renderDrawerContent={renderDrawer}
         >
-          <DrawerContext.Provider
-            value={{ openDrawer: () => setDrawerOpen(true) }}
-          >
+          <DrawerContext.Provider value={drawerCtxValue}>
             <SortProvider>
               <TagProvider>
                 <OverlayPortalProvider>
@@ -150,8 +156,8 @@ function AppContent() {
                   <View style={{ backgroundColor: colors.searchBg }}>
                     {!hideSearchBar && <SearchBar />}
                   </View>
+
                   <Stack
-                    key={hue}
                     screenOptions={{
                       headerShown: false,
                       contentStyle: { backgroundColor: colors.bg },
@@ -165,7 +171,7 @@ function AppContent() {
                     <Stack.Screen name="downloaded" />
                     <Stack.Screen name="recommendations" />
                     <Stack.Screen name="tags" />
-                    <Stack.Screen name="settings" />
+                    <Stack.Screen name="settings/index" />
                     <Stack.Screen name="+not-found" />
                   </Stack>
                 </OverlayPortalProvider>

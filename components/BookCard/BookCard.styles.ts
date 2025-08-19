@@ -104,8 +104,10 @@ export function makeCardStyles(
       fontSize: tagFont,
       color: "#ececec",
       backgroundColor: colors.tagBg,
-      marginBottom: Math.round(tagPadY * 1.4),
       marginRight: tagPadX,
+      alignItems: "center",
+      // VERTICAL ITEM CENTER
+      justifyContent: "center",
       borderWidth: 2,
       borderColor: "#fff",
       fontWeight: "500",
@@ -325,7 +327,7 @@ export function makeCardStyles(
     tagPlus: { marginRight: 0 } as TextStyle,
 
     tagSelected: {
-      borderWidth: 1,
+      borderWidth: 2,
       borderColor: "#fff",
     } as ViewStyle,
   };

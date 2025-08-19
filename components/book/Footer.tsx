@@ -5,13 +5,13 @@ import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import {
-    ActivityIndicator,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { timeAgo } from "../utils/timeAgo";
+import { timeAgo } from "../../utils/book/timeAgo";
 
 const s = StyleSheet.create({
   sectionHead: {
