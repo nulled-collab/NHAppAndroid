@@ -93,7 +93,7 @@ export default function BookScreen() {
         handleDownloadOrDelete={handleDownloadOrDelete}
         modeOf={modeOf}
         onTagPress={(name) =>
-          router.push({ pathname: "/explore", params: { query: name } })
+          router.push({ pathname: "/explore", params: { query: name, solo: "1" } })
         }
         win={win}
         innerPadding={innerPadding}

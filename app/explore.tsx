@@ -12,13 +12,24 @@ import { useFilterTags } from "@/context/TagFilterContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ExploreScreen() {
-  const { query: urlQ } = useLocalSearchParams<{ query?: string }>();
+  const { query: rawQ, solo: rawSolo } = useLocalSearchParams<{
+    query?: string | string[];
+    solo?: string | string[];
+  }>();
+  const urlQ = Array.isArray(rawQ) ? rawQ[0] : rawQ;
+  const solo = Array.isArray(rawSolo) ? rawSolo[0] : rawSolo;
+
   const [query, setQuery] = useState(urlQ ?? "");
 
   const { sort } = useSort();
   const { includes, excludes } = useFilterTags();
-  const incStr = JSON.stringify(includes);
-  const excStr = JSON.stringify(excludes);
+
+  const useFilters = solo !== "1";
+  const activeIncludes = useFilters ? includes : [];
+  const activeExcludes = useFilters ? excludes : [];
+
+  const incStr = JSON.stringify(activeIncludes);
+  const excStr = JSON.stringify(activeExcludes);
 
   const [books, setBooks] = useState<Book[]>([]);
   const [totalPages, setTotal] = useState(1);
@@ -39,33 +50,33 @@ export default function ExploreScreen() {
 
   const fetchPage = useCallback(
     async (page: number) => {
-      if (!query.trim()) {
+      const q = query.trim();
+      if (!q) {
         setBooks([]);
         setTotal(1);
         return;
       }
       try {
         const res = await searchBooks({
-          query: query.trim(),
+          query: q,
           sort,
           page,
-          includeTags: includes,
-          excludeTags: excludes,
+          includeTags: activeIncludes,
+          excludeTags: activeExcludes,
         });
         setBooks(res.books);
         setTotal(res.totalPages);
-        if (listRef.current) {
-          listRef.current.scrollToOffset({ offset: 0, animated: false });
-        }
+        listRef.current?.scrollToOffset({ offset: 0, animated: false });
       } catch (error) {
         console.error("Failed to fetch books:", error);
       }
     },
-    [query, sort, incStr, excStr, includes, excludes]
+    [query, sort, incStr, excStr]
   );
 
   useEffect(() => {
-    if (!query.trim()) {
+    const q = query.trim();
+    if (!q) {
       setBooks([]);
       setTotal(1);
       return;
@@ -76,12 +87,6 @@ export default function ExploreScreen() {
   useEffect(() => {
     setPage(1);
   }, [query, sort, incStr, excStr]);
-
-  useEffect(() => {
-    if (currentPage !== 1) {
-      fetchPage(currentPage);
-    }
-  }, [currentPage]);
 
   useEffect(() => {
     setQuery(urlQ ?? "");
@@ -104,7 +109,7 @@ export default function ExploreScreen() {
   }, []);
 
   return (
-    <View style={[styles.container]}>
+    <View style={styles.container}>
       <BookList
         data={books}
         loading={books.length === 0 && currentPage === 1 && !!query}
