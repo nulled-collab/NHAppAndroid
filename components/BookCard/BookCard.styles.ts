@@ -324,7 +324,7 @@ export function makeCardStyles(
       letterSpacing: 0.2,
       marginLeft: Math.round(tagPadX * 0.9),
     } as ViewStyle,
-    tagPlus: { marginRight: 0 } as TextStyle,
+    tagPlus: { marginRight: 0, fontSize: tagFont } as TextStyle,
 
     tagSelected: {
       borderWidth: 2,

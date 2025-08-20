@@ -1,19 +1,22 @@
+import { Book, getRandomBook } from "@/api/nhentai";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useTheme } from "@/lib/ThemeContext";
-import { Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Book } from "@/api/nhentai";
 import { useBookData } from "@/hooks/book/useBookData";
 import { useColumns } from "@/hooks/book/useColumns";
 import { useDownload } from "@/hooks/book/useDownload";
@@ -27,11 +30,14 @@ import Hero from "@/components/book/Hero";
 import PageItem, { GAP } from "@/components/book/PageItem";
 
 export default function BookScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, random } = useLocalSearchParams<{ id: string; random?: string }>();
   const idNum = Number(id);
+  const fromRandom = random === "1";
+
   const router = useRouter();
   const { colors } = useTheme();
   const baseGrid = useGridConfig();
+  const insets = useSafeAreaInsets();
 
   const { filters, cycle } = useFilterTags();
 
@@ -64,6 +70,7 @@ export default function BookScreen() {
   } = useFab();
 
   const [listW, setListW] = useState(win.w);
+  const [rndLoading, setRndLoading] = useState(false);
 
   const modeOf = useCallback(
     (t: { type: string; name: string }): "include" | "exclude" | undefined => {
@@ -74,6 +81,12 @@ export default function BookScreen() {
     },
     [filters]
   );
+
+  useEffect(() => {
+    if (book?.title?.pretty) {
+      router.setParams({ title: book.title.pretty });
+    }
+  }, [book?.title?.pretty]);
 
   const headerEl = useMemo(() => {
     if (!book) return null;
@@ -93,7 +106,10 @@ export default function BookScreen() {
         handleDownloadOrDelete={handleDownloadOrDelete}
         modeOf={modeOf}
         onTagPress={(name) =>
-          router.push({ pathname: "/explore", params: { query: name, solo: "1" } })
+          router.push({
+            pathname: "/explore",
+            params: { query: name, solo: "1" },
+          })
         }
         win={win}
         innerPadding={innerPadding}
@@ -174,6 +190,20 @@ export default function BookScreen() {
     [book?.id, cols, listW, win.w, horizPad, colors.metaText, router]
   );
 
+  const goRandomAgain = useCallback(async () => {
+    if (rndLoading) return;
+    try {
+      setRndLoading(true);
+      const b = await getRandomBook();
+      router.replace({
+        pathname: "/book/[id]",
+        params: { id: String(b.id), title: b.title.pretty, random: "1" },
+      });
+    } finally {
+      setRndLoading(false);
+    }
+  }, [rndLoading, router]);
+
   if (!book) {
     return (
       <View
@@ -237,6 +267,43 @@ export default function BookScreen() {
           <Ionicons name="arrow-up" size={24} color={colors.bg} />
         </Pressable>
       </Animated.View>
+
+      {fromRandom && (
+        <View
+          style={[
+            styles.tryWrap,
+            { bottom: 40 },
+          ]}
+        >
+          <View style={styles.tryRounded}>
+            <Pressable
+              disabled={rndLoading}
+              onPress={goRandomAgain}
+              android_ripple={{ color: "#ffffff22", borderless: false }}
+              style={({ pressed }) => [
+                styles.tryBtn,
+                { backgroundColor: colors.accent },
+                pressed &&
+                  (Platform.select({
+                    android: { opacity: 0.96, transform: [{ scale: 0.995 }] },
+                    ios: { opacity: 0.85 },
+                  }) as any),
+              ]}
+            >
+              {rndLoading ? (
+                <ActivityIndicator size="small" color={colors.bg} />
+              ) : (
+                <>
+                  <Feather name="shuffle" size={16} color={colors.bg} />
+                  <Text style={[styles.tryTxt, { color: colors.bg }]}>
+                    Попробуем ещё?
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -251,5 +318,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     elevation: 4,
+  },
+
+  tryWrap: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    alignItems: "center",
+  },
+  tryRounded: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  tryBtn: {
+    minHeight: 44,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    elevation: 4,
+  },
+  tryTxt: {
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0.2,
   },
 });

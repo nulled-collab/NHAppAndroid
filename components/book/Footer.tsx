@@ -105,7 +105,7 @@ export default function Footer({
           isFavorite={(bid) => favorites.has(bid)}
           onToggleFavorite={toggleFav}
           onPress={(bid) =>
-            router.push({ pathname: "/book/[id]", params: { id: String(bid) } })
+            router.push({ pathname: "/book/[id]", params: { id: String(bid), title: related.find(b => b.id === bid)?.title.pretty } })
           }
           gridConfig={{ default: oneRowGrid }}
           horizontal

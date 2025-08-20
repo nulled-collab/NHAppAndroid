@@ -103,7 +103,7 @@ export default function DownloadedScreen() {
       refreshing={refreshing}
       onRefresh={onRefresh}
       onPress={(id) =>
-        router.push({ pathname: "/book/[id]", params: { id: String(id) } })
+        router.push({ pathname: "/book/[id]", params: { id: String(id), title: downloadedBooks.find(b => b.id === id)?.title.pretty } })
       }
       ListEmptyComponent={
         !pending && downloadedBooks.length === 0 ? (

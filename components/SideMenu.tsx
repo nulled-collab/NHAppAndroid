@@ -93,7 +93,10 @@ export default function SideMenu({
       setRandomLoading(true);
       const b = await getRandomBook();
       closeDrawer();
-      router.push({ pathname: "/book/[id]", params: { id: String(b.id) } });
+      router.push({
+        pathname: "/book/[id]",
+        params: { id: String(b.id), title: b.title.pretty, random: "1" },
+      });
     } finally {
       setRandomLoading(false);
     }
@@ -167,7 +170,16 @@ export default function SideMenu({
             />
           ) : (
             <>
-              <Feather name="shuffle" size={14} color={colors.bg} />
+              <Feather
+                name="shuffle"
+                size={ICON}
+                style={{
+                  width: 22,
+                  textAlign: "center",
+                  marginRight: GAP - 2,
+                }}
+                color={colors.bg}
+              />
               <Text style={[styles.luckyTxt, { color: colors.bg }]}>
                 Мне повезёт
               </Text>
@@ -233,7 +245,7 @@ export default function SideMenu({
       </View>
 
       <View style={{ flex: 1 }} />
-      <Text style={[styles.footer, { color: colors.sub }]}>v1.0</Text>
+      {/* <Text style={[styles.footer, { color: colors.sub }]}>v1.0</Text> */}
     </View>
   );
 }
@@ -262,6 +274,9 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 6,
     paddingHorizontal: 10,
+    marginVertical: 2,
+    minHeight: 44,
+    width: "100%",
   },
   luckyTxt: {
     fontSize: 12,
@@ -274,8 +289,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginVertical: 2,
-    minHeight: 34,
+    minHeight: 44,
   },
+  
   activeBar: {
     width: 3,
     height: "70%",

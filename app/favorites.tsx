@@ -107,7 +107,7 @@ export default function FavoritesScreen() {
         isFavorite={(id) => favorites.has(id)}
         onToggleFavorite={toggleFavorite}
         onPress={(id) =>
-          router.push({ pathname: "/book/[id]", params: { id: String(id) } })
+          router.push({ pathname: "/book/[id]", params: { id: String(id), title: books.find(b => b.id === id)?.title.pretty } })
         }
         ListEmptyComponent={
           ids.length === 0 ? (

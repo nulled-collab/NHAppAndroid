@@ -1,32 +1,16 @@
 import { Feather } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  BackHandler,
-  Dimensions,
-  Keyboard,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { useGlobalSearchParams, usePathname, useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 
-import { Book, searchBooks } from "@/api/nhentai";
 import { useDrawer } from "@/components/DrawerContext";
 import { useOverlayPortal } from "@/components/OverlayPortal";
-import SmartImage from "@/components/SmartImage";
-import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import { SortKey, useSort } from "@/context/SortContext";
-import { useFilterTags } from "@/context/TagFilterContext";
 import { useTheme } from "@/lib/ThemeContext";
 
-const KEY_HISTORY = "searchHistory";
 const BAR_HEIGHT = 52;
+const BTN_SIDE = 40;
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "popular", label: "Popular" },
@@ -36,292 +20,97 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "date", label: "Newest" },
 ];
 
+function hasSeg(pathname: string | null | undefined, seg: string) {
+  const p = pathname ?? "";
+  return new RegExp(`(^|/)${seg}(\\/|$)`).test(p);
+}
+
+function getTitle(
+  pathname: string | null | undefined,
+  q: string,
+  bookTitle?: string,
+  bookId?: string
+) {
+  const p = pathname ?? "";
+  const has = (seg: string) => new RegExp(`(^|/)${seg}(\\/|$)`).test(p);
+
+  if (p === "/" || has("index")) return "Главная";
+  if (has("explore")) return q ? `Поиск: ${q}` : "Поиск";
+  if (has("favorites")) return "Избранное";
+  if (has("downloaded")) return "Загрузки";
+  if (has("recommendations")) return "Рекомендации";
+  if (has("history")) return "История";
+  if (has("settings")) return "Настройки";
+  if (has("book")) return `#${bookId} - ${bookTitle}`;
+  if (has("search")) return q ? `Поиск: ${q}` : "Поиск";
+  if (has("tags")) return "Теги";
+  return "NH App";
+}
+
+/** Круглая иконка-кнопка без «квадратов» при удержании */
+function IconBtn({
+  onPress,
+  onLongPress,
+  children,
+}: {
+  onPress?: () => void;
+  onLongPress?: () => void;
+  children: React.ReactNode;
+}) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={({ pressed }) => [
+        styles.iconBtnRound,
+        pressed && { backgroundColor: colors.accent + "22" },
+      ]}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
 export function SearchBar() {
   const { colors } = useTheme();
   const { openDrawer } = useDrawer();
   const { sort, setSort } = useSort();
-  const { includes, excludes } = useFilterTags();
   const portal = useOverlayPortal();
 
   const router = useRouter();
   const pathname = usePathname();
-  const params = useLocalSearchParams<{ query?: string | string[] }>();
+  const params = useGlobalSearchParams<{
+    query?: string | string[];
+    id?: string | string[];
+    title?: string | string[];
+  }>();
 
-  const [q, setQ] = useState(
-    typeof params.query === "string" ? params.query : ""
-  );
-  const [focused, setFocused] = useState(false);
-  const [kbH, setKbH] = useState(0);
-  const [history, setHist] = useState<string[]>([]);
-  const [suggests, setSug] = useState<Book[]>([]);
-  const [loading, setLoad] = useState(false);
+  const q = typeof params.query === "string" ? params.query : "";
 
-  const [tempSort, setTmp] = useState<SortKey>(sort);
+  const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const bookId = typeof rawId === "string" ? rawId : undefined;
+
+  const rawTitle = Array.isArray(params.title) ? params.title[0] : params.title;
+  const bookTitle = typeof rawTitle === "string" ? rawTitle : undefined;
+
   const [sortOpen, setSortOpen] = useState(false);
-
-  const barRef = useRef<View>(null);
-  const inputRef = useRef<TextInput>(null);
-  const [barBottomY, setBarBottomY] = useState(0);
-
-  const isPhone = (() => {
-    const { width, height } = Dimensions.get("window");
-    return Math.min(width, height) < 600;
-  })();
-
-  useEffect(() => {
-    AsyncStorage.getItem(KEY_HISTORY).then((j) => j && setHist(JSON.parse(j)));
-  }, []);
-
-  const measureBar = () => {
-    barRef.current?.measureInWindow((_x, y, _w, h) =>
-      setBarBottomY(Math.round(y + h))
-    );
-  };
-  useEffect(() => {
-    measureBar();
-    const sub = Dimensions.addEventListener("change", measureBar);
-    return () => sub.remove();
-  }, []);
-
-  useEffect(() => {
-    const show = Keyboard.addListener("keyboardDidShow", (e) =>
-      setKbH(e.endCoordinates.height)
-    );
-    const hide = Keyboard.addListener("keyboardDidHide", () => setKbH(0));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-
-  const incStr = JSON.stringify(includes);
-  const excStr = JSON.stringify(excludes);
-  useEffect(() => {
-    if (!q.trim()) {
-      setSug([]);
-      return;
-    }
-    setLoad(true);
-    const t = setTimeout(async () => {
-      try {
-        const { books } = await searchBooks({
-          query: q,
-          perPage: 6,
-          sort,
-          includeTags: includes,
-          excludeTags: excludes,
-        });
-        setSug(books);
-      } finally {
-        setLoad(false);
-      }
-    }, 250);
-    return () => clearTimeout(t);
-  }, [q, sort, incStr, excStr]);
+  const [tempSort, setTmp] = useState<SortKey>(sort);
+  const [backOpen, setBackOpen] = useState(false);
 
   useEffect(() => setTmp(sort), [sort]);
 
-  const saveHist = async (text: string) => {
-    const next = [text, ...history.filter((h) => h !== text)].slice(0, 10);
-    setHist(next);
-    await AsyncStorage.setItem(KEY_HISTORY, JSON.stringify(next));
-  };
-  const submit = async (text = q) => {
-    const query = text.trim();
-    if (!query) return;
-    await saveHist(query);
-    Keyboard.dismiss();
-    hideDropdown();
-    router.push({ pathname: "/explore", params: { query } });
-  };
-
-  const trimmed = q.trim();
-  const filteredHistory = useMemo(
-    () =>
-      trimmed
-        ? history.filter((h) => h.toLowerCase().includes(trimmed.toLowerCase()))
-        : history,
-    [history, trimmed]
+  const title = useMemo(
+    () => getTitle(pathname, q, bookTitle, bookId),
+    [pathname, q, bookTitle, bookId]
   );
-  const showHistory = filteredHistory.length > 0;
-  const showResults = trimmed.length > 0 && (loading || suggests.length > 0);
-  const shouldShowPanel = showHistory || showResults;
+  const showBack = pathname && pathname !== "/" && pathname !== "/index";
 
-  useEffect(() => {
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (sortOpen) {
-        closeSort();
-        return true;
-      }
-      if (focused) {
-        hideDropdown();
-        return true;
-      }
-      return false;
-    });
-    return () => sub.remove();
-  }, [focused, sortOpen]);
+  const hideRight = hasSeg(pathname, "settings") || hasSeg(pathname, "tags") || hasSeg(pathname, "book");
 
-  const BG = colors.searchBg;
-  const TXT = colors.searchTxt;
-  const SUB = colors.sub;
-  const ACCENT = colors.accent;
-
-  const TOP_GAP = isPhone ? 42 : 36;
-  const top = Math.max(BAR_HEIGHT + TOP_GAP, barBottomY + TOP_GAP);
-  const bottom = Math.max(8, kbH + 8);
-
-  const renderDropdown = () => (
-    <Pressable
-      style={StyleSheet.absoluteFill}
-      onPress={hideDropdown}
-      pointerEvents="auto"
-    >
-      <Pressable
-        onPress={() => {}}
-        style={[
-          styles.dropdown,
-          styles.rounded,
-          {
-            backgroundColor: BG,
-            borderColor: colors.page,
-            top,
-            left: 8,
-            right: 8,
-            bottom,
-          },
-        ]}
-      >
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.dropdownContent}
-        >
-          {showHistory && (
-            <>
-              <View style={styles.headRow}>
-                <Text style={[styles.headTxt, { color: SUB }]}>HISTORY</Text>
-                <Pressable
-                  style={[styles.pillBtn, styles.rounded]}
-                  android_ripple={{ color: ACCENT + "22", borderless: false }}
-                  onPress={async () => {
-                    setHist([]);
-                    await AsyncStorage.removeItem(KEY_HISTORY);
-                  }}
-                >
-                  <Text style={[styles.pillBtnTxt, { color: SUB }]}>clear</Text>
-                </Pressable>
-              </View>
-
-              {filteredHistory.map((item) => (
-                <View key={item} style={styles.row}>
-                  <Pressable
-                    style={[styles.rowPress, styles.rounded]}
-                    android_ripple={{ color: ACCENT + "22", borderless: false }}
-                    onPress={() => {
-                      setQ(item);
-                      submit(item);
-                    }}
-                  >
-                    <Feather
-                      name="clock"
-                      size={16}
-                      color={SUB}
-                      style={{ marginRight: 8 }}
-                    />
-                    <Text
-                      style={[styles.rowTxt, { color: TXT }]}
-                      numberOfLines={1}
-                    >
-                      {item}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    hitSlop={10}
-                    style={[styles.iconBtnSmall, styles.rounded]}
-                    android_ripple={{ color: ACCENT + "22", borderless: false }}
-                    onPress={async () => {
-                      const next = history.filter((h) => h !== item);
-                      setHist(next);
-                      await AsyncStorage.setItem(
-                        KEY_HISTORY,
-                        JSON.stringify(next)
-                      );
-                    }}
-                  >
-                    <Feather name="x" size={16} color={SUB} />
-                  </Pressable>
-                </View>
-              ))}
-            </>
-          )}
-
-          {trimmed.length > 0 && (
-            <>
-              <Text
-                style={[
-                  styles.headTxt,
-                  { color: SUB, marginTop: showHistory ? 14 : 2 },
-                ]}
-              >
-                RESULTS
-              </Text>
-
-              {loading && (
-                <ActivityIndicator
-                  size="small"
-                  color={SUB}
-                  style={{ marginVertical: 12 }}
-                />
-              )}
-
-              {!loading &&
-                suggests.map((b) => (
-                  <Pressable
-                    key={b.id}
-                    style={[styles.row, styles.rounded]}
-                    android_ripple={{ color: ACCENT + "22", borderless: false }}
-                    onPress={() => {
-                      hideDropdown();
-                      router.push({
-                        pathname: "/book/[id]",
-                        params: { id: String(b.id) },
-                      });
-                    }}
-                  >
-                    <SmartImage
-                      sources={buildImageFallbacks(b.thumbnail)}
-                      style={styles.thumb}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={[styles.rowTxt, { color: TXT }]}
-                        numberOfLines={1}
-                      >
-                        {b.title.pretty}
-                      </Text>
-                      <Text style={[styles.metaTxt, { color: SUB }]}>
-                        {b.pagesCount} pages
-                      </Text>
-                    </View>
-                  </Pressable>
-                ))}
-            </>
-          )}
-        </ScrollView>
-      </Pressable>
-    </Pressable>
-  );
-
-  const showDropdown = () => {
-    portal.show(renderDropdown());
-  };
-
-  const hideDropdown = () => {
-    setFocused(false);
+  const closeSort = () => {
+    setSortOpen(false);
     portal.hide();
-    inputRef.current?.blur();
-    Keyboard.dismiss();
   };
 
   const renderSortSheet = () => (
@@ -337,13 +126,9 @@ export function SearchBar() {
           <Text style={[styles.sheetTitle, { color: colors.searchTxt }]}>
             Sort by
           </Text>
-          <Pressable
-            onPress={closeSort}
-            style={[styles.iconBtnSmall, styles.rounded]}
-            android_ripple={{ color: colors.accent + "22", borderless: false }}
-          >
+          <IconBtn onPress={closeSort}>
             <Feather name="x" size={18} color={colors.sub} />
-          </Pressable>
+          </IconBtn>
         </View>
 
         <ScrollView
@@ -399,21 +184,91 @@ export function SearchBar() {
     </View>
   );
 
-  const openSort = () => {
-    hideDropdown();
-    setTmp(sort);
-    setSortOpen(true);
-  };
-
-  const closeSort = () => {
-    setSortOpen(false);
+  function backOne() {
     portal.hide();
-  };
+    setBackOpen(false);
+    router.back();
+  }
+  function backTwo() {
+    portal.hide();
+    setBackOpen(false);
+    router.back();
+    setTimeout(() => router.back(), 0);
+  }
+  function backHome() {
+    portal.hide();
+    setBackOpen(false);
+    router.replace("/");
+  }
+
+  const renderBackSheet = () => (
+    <View style={styles.sheetBackdrop} pointerEvents="auto">
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={() => {
+          setBackOpen(false);
+          portal.hide();
+        }}
+      />
+      <View
+        style={[
+          styles.sheet,
+          { backgroundColor: colors.searchBg, borderColor: colors.page },
+        ]}
+      >
+        <View style={styles.sheetHeader}>
+          <Text style={[styles.sheetTitle, { color: colors.searchTxt }]}>
+            Назад
+          </Text>
+          <IconBtn
+            onPress={() => {
+              setBackOpen(false);
+              portal.hide();
+            }}
+          >
+            <Feather name="x" size={18} color={colors.sub} />
+          </IconBtn>
+        </View>
+
+        <ScrollView
+          style={styles.sheetScroll}
+          contentContainerStyle={{ paddingVertical: 4 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <Pressable
+            style={[styles.sortRow, styles.rounded]}
+            onPress={backOne}
+            android_ripple={{ color: colors.accent + "22", borderless: false }}
+          >
+            <Text style={[styles.sortTxt, { color: colors.searchTxt }]}>
+              Назад на 1
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.sortRow, styles.rounded]}
+            onPress={backTwo}
+            android_ripple={{ color: colors.accent + "22", borderless: false }}
+          >
+            <Text style={[styles.sortTxt, { color: colors.searchTxt }]}>
+              Назад на 2
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.sortRow, styles.rounded]}
+            onPress={backHome}
+            android_ripple={{ color: colors.accent + "22", borderless: false }}
+          >
+            <Text style={[styles.sortTxt, { color: colors.searchTxt }]}>
+              На главную
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </View>
+    </View>
+  );
 
   useEffect(() => {
-    if (sortOpen) {
-      portal.show(renderSortSheet());
-    }
+    if (sortOpen) portal.show(renderSortSheet());
   }, [
     sortOpen,
     tempSort,
@@ -423,124 +278,74 @@ export function SearchBar() {
     colors.accent,
     colors.sub,
   ]);
-
   useEffect(() => {
-    if (focused && shouldShowPanel) {
-      measureBar();
-      showDropdown();
-    } else if (!sortOpen) {
-      portal.hide();
-    }
+    if (backOpen) portal.show(renderBackSheet());
   }, [
-    focused,
-    shouldShowPanel,
-    kbH,
-    filteredHistory,
-    suggests,
-    q,
-    loading,
-    top,
-    bottom,
-    sortOpen,
+    backOpen,
+    colors.searchBg,
+    colors.page,
+    colors.searchTxt,
+    colors.accent,
+    colors.sub,
   ]);
 
-  const showBack = pathname && pathname !== "/" && pathname !== "/index";
+  const openSort = () => {
+    setTmp(sort);
+    setSortOpen(true);
+  };
 
   return (
-    <>
-      <Animated.View
-        ref={barRef as any}
-        onLayout={measureBar}
-        style={[
-          styles.bar,
-          {
-            backgroundColor: colors.searchBg,
-            height: BAR_HEIGHT,
-            borderBottomColor: colors.page,
-          },
-        ]}
+    <Animated.View
+      style={[
+        styles.bar,
+        {
+          backgroundColor: colors.searchBg,
+          height: BAR_HEIGHT,
+          borderBottomColor: colors.page,
+        },
+      ]}
+    >
+      {showBack ? (
+        <IconBtn
+          onPress={() => router.back()}
+          onLongPress={() => setBackOpen(true)}
+        >
+          <Feather name="arrow-left" size={20} color={colors.searchTxt} />
+        </IconBtn>
+      ) : (
+        <IconBtn onPress={openDrawer}>
+          <Feather name="menu" size={22} color={colors.searchTxt} />
+        </IconBtn>
+      )}
+
+      <Text
+        numberOfLines={1}
+        style={[styles.title, { color: colors.searchTxt }]}
       >
-        {showBack ? (
-          <Pressable
-            onPress={() => router.back()}
-            style={[styles.iconBtn, styles.rounded]}
-            android_ripple={{ color: colors.accent + "33", borderless: false }}
-          >
-            <Feather name="arrow-left" size={20} color={colors.searchTxt} />
-          </Pressable>
-        ) : (
-          <Pressable
-            onPress={() => {
-              hideDropdown();
-              openDrawer();
-            }}
-            style={[styles.iconBtn, styles.rounded]}
-            android_ripple={{ color: colors.accent + "33", borderless: false }}
-          >
-            <Feather name="menu" size={22} color={colors.searchTxt} />
-          </Pressable>
-        )}
+        {title}
+      </Text>
 
-        <View
-          style={[
-            styles.inputWrap,
-            styles.rounded,
-            { backgroundColor: colors.page, borderColor: colors.page },
-          ]}
-        >
-          <Feather
-            name="search"
-            size={18}
-            color={colors.sub}
-            style={{ marginHorizontal: 6 }}
-          />
-          <TextInput
-            ref={inputRef}
-            style={[styles.input, { color: colors.searchTxt }]}
-            placeholder="Search…"
-            placeholderTextColor={colors.sub}
-            value={q}
-            onChangeText={setQ}
-            onFocus={() => setFocused(true)}
-            onSubmitEditing={() => submit()}
-            returnKeyType="search"
-            autoCorrect={false}
-            autoCapitalize="none"
-          />
-          {q !== "" && (
-            <Pressable
-              hitSlop={10}
-              onPress={() => setQ("")}
-              style={[styles.iconBtnSmall, styles.rounded]}
-              android_ripple={{
-                color: colors.accent + "22",
-                borderless: false,
-              }}
-            >
-              <Feather name="x" size={16} color={colors.sub} />
-            </Pressable>
-          )}
+      {!hideRight && (
+        <View style={styles.rightGroup}>
+          <IconBtn
+            onPress={() =>
+              router.push({
+                pathname: "/search",
+                params: q ? { query: q } : {},
+              })
+            }
+          >
+            <Feather name="search" size={18} color={colors.searchTxt} />
+          </IconBtn>
+          <IconBtn onPress={openSort}>
+            <Feather name="filter" size={18} color={colors.accent} />
+          </IconBtn>
+          <IconBtn onPress={() => router.push("/tags")}>
+            <Feather name="tag" size={18} color={colors.accent} />
+          </IconBtn>
         </View>
-
-        <Pressable
-          onPress={openSort}
-          style={[styles.iconBtn, styles.rounded]}
-          android_ripple={{ color: colors.accent + "33", borderless: false }}
-        >
-          <Feather name="filter" size={18} color={colors.accent} />
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            hideDropdown();
-            router.push("/tags");
-          }}
-          style={[styles.iconBtn, styles.rounded]}
-          android_ripple={{ color: colors.accent + "33", borderless: false }}
-        >
-          <Feather name="tag" size={18} color={colors.accent} />
-        </Pressable>
-      </Animated.View>
-    </>
+      )}
+    </Animated.View>
   );
 }
 
@@ -554,48 +359,29 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     zIndex: 20,
   },
+  title: {
+    marginLeft: 8,
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "700",
+    textAlignVertical: "center",
+  },
+  rightGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    marginLeft: 6,
+  },
   iconBtn: { padding: 8 },
-  iconBtnSmall: { padding: 6 },
-  inputWrap: {
-    flex: 1,
-    height: 38,
-    flexDirection: "row",
+  iconBtnRound: {
+    width: BTN_SIDE,
+    height: BTN_SIDE,
+    borderRadius: 12,
+    overflow: "hidden",
     alignItems: "center",
-    paddingHorizontal: 6,
-    marginHorizontal: 6,
-    borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: "center",
   },
-  input: { flex: 1, fontSize: 15, paddingVertical: 0 },
-  dropdown: {
-    position: "absolute",
-    borderWidth: StyleSheet.hairlineWidth,
-    elevation: 10,
-  },
-  dropdownContent: {
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 16,
-  },
-  headRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  headTxt: { fontSize: 11, letterSpacing: 0.5, fontWeight: "700" },
-  pillBtn: { paddingHorizontal: 10, paddingVertical: 6 },
-  pillBtnTxt: { fontSize: 11, fontWeight: "700" },
-  row: { flexDirection: "row", alignItems: "center", paddingVertical: 6 },
-  rowPress: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-  },
-  rowTxt: { fontSize: 14, flex: 1 },
-  metaTxt: { fontSize: 12 },
-  thumb: { width: 50, height: 70, borderRadius: 8, marginRight: 10 },
+
   sheetBackdrop: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "flex-end",
@@ -645,3 +431,5 @@ const styles = StyleSheet.create({
   },
   footerBtnTxt: { fontSize: 15, fontWeight: "800", letterSpacing: 0.3 },
 });
+
+export default SearchBar;

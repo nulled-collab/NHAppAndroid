@@ -123,6 +123,7 @@ export default function RecommendationsScreen() {
         <ActivityIndicator style={{ flex: 1 }} />
       ) : (
         <BookList
+        
           data={books}
           loading={loading}
           refreshing={refreshing}
@@ -137,7 +138,10 @@ export default function RecommendationsScreen() {
           onPress={(id) =>
             router.push({
               pathname: "/book/[id]",
-              params: { id: String(id) },
+              params: {
+                id: String(id),
+                title: books.find((b) => b.id === id)?.title.pretty,
+              },
             })
           }
           ListEmptyComponent={

@@ -91,7 +91,7 @@ function AppContent() {
 
   // показывать ли поиск
   const hideSearchBar = useMemo(
-    () => pathname === "/read" || pathname === "/settings" || pathname === "/tags",
+    () => pathname === "/read" || pathname === "/search",
     [pathname]
   );
 
@@ -99,7 +99,9 @@ function AppContent() {
     () =>
       fullscreen
         ? ([] as const)
-        : (Platform.OS === "ios" ? (["top", "bottom"] as const) : (["bottom"] as const)),
+        : Platform.OS === "ios"
+        ? (["top", "bottom"] as const)
+        : (["bottom"] as const),
     [fullscreen]
   );
 
@@ -138,7 +140,10 @@ function AppContent() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: colors.bg }}>
+      <SafeAreaView
+        edges={edges}
+        style={{ flex: 1, backgroundColor: colors.bg }}
+      >
         <Drawer
           open={drawerOpen}
           onOpen={openDrawer}
@@ -164,6 +169,7 @@ function AppContent() {
                     }}
                   >
                     <Stack.Screen name="index" />
+                    <Stack.Screen name="search" />
                     <Stack.Screen name="favorites" />
                     <Stack.Screen name="explore" />
                     <Stack.Screen name="book/[id]" />

@@ -1,15 +1,16 @@
-import { useGridConfig } from "@/hooks/useGridConfig";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { StyleSheet, View } from "react-native";
 
 import { Book, searchBooks } from "@/api/nhentai";
 import BookList from "@/components/BookList";
 import PaginationBar from "@/components/PaginationBar";
 import { useSort } from "@/context/SortContext";
 import { useFilterTags } from "@/context/TagFilterContext";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useGridConfig } from "@/hooks/useGridConfig";
+
+const EXPLORE_CACHE = new Map<string, { books: Book[]; totalPages: number }>();
 
 export default function ExploreScreen() {
   const { query: rawQ, solo: rawSolo } = useLocalSearchParams<{
@@ -20,7 +21,6 @@ export default function ExploreScreen() {
   const solo = Array.isArray(rawSolo) ? rawSolo[0] : rawSolo;
 
   const [query, setQuery] = useState(urlQ ?? "");
-
   const { sort } = useSort();
   const { includes, excludes } = useFilterTags();
 
@@ -37,9 +37,7 @@ export default function ExploreScreen() {
   const [favorites, setFav] = useState<Set<number>>(new Set());
   const [refreshing, setRef] = useState(false);
 
-  const listRef = useRef<FlatList>(null);
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const gridConfig = useGridConfig();
 
   useEffect(() => {
@@ -48,14 +46,34 @@ export default function ExploreScreen() {
     );
   }, []);
 
+  const cacheKey = useMemo(
+    () =>
+      JSON.stringify({
+        q: query.trim(),
+        sort,
+        inc: activeIncludes,
+        exc: activeExcludes,
+        page: currentPage,
+      }),
+    [query, sort, incStr, excStr, currentPage]
+  );
+
   const fetchPage = useCallback(
-    async (page: number) => {
+    async (page: number, keyForCache: string) => {
       const q = query.trim();
       if (!q) {
         setBooks([]);
         setTotal(1);
         return;
       }
+
+      const cached = EXPLORE_CACHE.get(keyForCache);
+      if (cached) {
+        setBooks(cached.books);
+        setTotal(cached.totalPages);
+        return;
+      }
+
       try {
         const res = await searchBooks({
           query: q,
@@ -66,7 +84,10 @@ export default function ExploreScreen() {
         });
         setBooks(res.books);
         setTotal(res.totalPages);
-        listRef.current?.scrollToOffset({ offset: 0, animated: false });
+        EXPLORE_CACHE.set(keyForCache, {
+          books: res.books,
+          totalPages: res.totalPages,
+        });
       } catch (error) {
         console.error("Failed to fetch books:", error);
       }
@@ -81,45 +102,98 @@ export default function ExploreScreen() {
       setTotal(1);
       return;
     }
-    fetchPage(currentPage);
-  }, [currentPage, query, sort, incStr, excStr, fetchPage]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [query, sort, incStr, excStr]);
+    fetchPage(currentPage, cacheKey);
+  }, [cacheKey, currentPage, fetchPage]);
 
   useEffect(() => {
     setQuery(urlQ ?? "");
   }, [urlQ]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [query, sort, incStr, excStr]);
+
   const onRefresh = useCallback(async () => {
     setRef(true);
-    await fetchPage(currentPage);
+    try {
+      const q = query.trim();
+      if (!q) {
+        setBooks([]);
+        setTotal(1);
+        return;
+      }
+      const res = await searchBooks({
+        query: q,
+        sort,
+        page: currentPage,
+        includeTags: activeIncludes,
+        excludeTags: activeExcludes,
+      });
+      setBooks(res.books);
+      setTotal(res.totalPages);
+      EXPLORE_CACHE.set(cacheKey, {
+        books: res.books,
+        totalPages: res.totalPages,
+      });
+    } catch (e) {
+      console.error(e);
+    }
     setRef(false);
-  }, [currentPage, fetchPage]);
+  }, [query, sort, currentPage, cacheKey, incStr, excStr]);
 
-  const toggleFav = useCallback((id: number, next: boolean) => {
-    setFav((prev) => {
-      const cp = new Set(prev);
-      if (next) cp.add(id);
-      else cp.delete(id);
-      AsyncStorage.setItem("bookFavorites", JSON.stringify([...cp]));
-      return cp;
-    });
-  }, []);
+  const toggleFav = useCallback(
+    (id: number, next: boolean) => {
+      setFav((prev) => {
+        const cp = new Set(prev);
+        if (next) cp.add(id);
+        else cp.delete(id);
+        AsyncStorage.setItem("bookFavorites", JSON.stringify([...cp]));
+        return cp;
+      });
+
+      setBooks((prev) => {
+        const patched = prev.map((b) =>
+          b.id === id
+            ? {
+                ...b,
+                favorites: Math.max(
+                  0,
+                  (typeof b.favorites === "number" ? b.favorites : 0) +
+                    (next ? 1 : -1)
+                ),
+              }
+            : b
+        );
+        const cached = EXPLORE_CACHE.get(cacheKey);
+        if (cached) {
+          EXPLORE_CACHE.set(cacheKey, {
+            books: patched,
+            totalPages: cached.totalPages,
+          });
+        }
+        return patched;
+      });
+    },
+    [cacheKey]
+  );
 
   return (
     <View style={styles.container}>
       <BookList
+        key={`page-${currentPage}`}
         data={books}
         loading={books.length === 0 && currentPage === 1 && !!query}
         refreshing={refreshing}
         onRefresh={onRefresh}
         isFavorite={(id) => favorites.has(id)}
         onToggleFavorite={toggleFav}
-        onPress={(id) =>
-          router.push({ pathname: "/book/[id]", params: { id: String(id) } })
-        }
+        onPress={(id) => {
+          const b = books.find((x) => x.id === id);
+          router.push({
+            pathname: "/book/[id]",
+            params: { id: String(id), title: b?.title?.pretty ?? "" },
+          });
+        }}
         gridConfig={{ default: gridConfig }}
       />
       <PaginationBar

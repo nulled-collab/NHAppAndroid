@@ -5,8 +5,8 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { Book, getFavorites } from "@/api/nhentai";
 import BookListHistory, {
-    READ_HISTORY_KEY,
-    ReadHistoryEntry,
+  READ_HISTORY_KEY,
+  ReadHistoryEntry,
 } from "@/components/BookListHistory";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useTheme } from "@/lib/ThemeContext";
@@ -136,7 +136,7 @@ export default function HistoryScreen() {
         onRefresh={onRefresh}
         onEndReached={handleLoadMore}
         onPress={(id) =>
-          router.push({ pathname: "/book/[id]", params: { id: String(id) } })
+          router.push({ pathname: "/book/[id]", params: { id: String(id), title: books.find(b => b.id === id)?.title.pretty } })
         }
         ListEmptyComponent={
           ids.length === 0 ? (

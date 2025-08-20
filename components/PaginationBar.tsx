@@ -1,7 +1,7 @@
 import { useTheme } from "@/lib/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Animated,
   Modal,
@@ -15,41 +15,38 @@ interface Props {
   currentPage: number;
   totalPages: number;
   onChange: (page: number) => void;
+  onRequestScrollTop?: () => void;
 }
 
 export default function PaginationBar({
   currentPage,
   totalPages,
   onChange,
+  onRequestScrollTop,
 }: Props) {
   const { colors } = useTheme();
   const [visible, setVisible] = useState(false);
   const [sliderPage, setSliderPage] = useState(currentPage);
-  const scaleAnim = useState(new Animated.Value(1))[0];
+  const scaleAnim = useMemo(() => new Animated.Value(1), []);
 
   if (totalPages <= 1) return null;
 
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.95,
-      useNativeDriver: true,
-    }).start();
-  };
+  const animate = (to: number) =>
+    Animated.spring(scaleAnim, { toValue: to, useNativeDriver: true }).start();
 
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
+  const handleChange = (next: number) => {
+    if (next === currentPage) return;
+    onRequestScrollTop?.();
+    onChange(next);
   };
 
   return (
     <>
       <View style={[styles.bar, { backgroundColor: colors.menuBg }]}>
         <TouchableOpacity
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          onPress={() => currentPage > 1 && onChange(currentPage - 1)}
+          onPressIn={() => animate(0.95)}
+          onPressOut={() => animate(1)}
+          onPress={() => currentPage > 1 && handleChange(currentPage - 1)}
           disabled={currentPage === 1}
           style={styles.button}
         >
@@ -61,8 +58,8 @@ export default function PaginationBar({
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
+          onPressIn={() => animate(0.95)}
+          onPressOut={() => animate(1)}
           onPress={() => {
             setSliderPage(currentPage);
             setVisible(true);
@@ -82,9 +79,11 @@ export default function PaginationBar({
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          onPress={() => currentPage < totalPages && onChange(currentPage + 1)}
+          onPressIn={() => animate(0.95)}
+          onPressOut={() => animate(1)}
+          onPress={() =>
+            currentPage < totalPages && handleChange(currentPage + 1)
+          }
           disabled={currentPage === totalPages}
           style={styles.button}
         >
@@ -107,6 +106,7 @@ export default function PaginationBar({
             <Text style={[styles.title, { color: colors.txt }]}>
               Выбор страницы
             </Text>
+
             <Slider
               style={styles.slider}
               minimumValue={1}
@@ -118,6 +118,7 @@ export default function PaginationBar({
               maximumTrackTintColor={colors.sub}
               thumbTintColor={colors.accent}
             />
+
             <View style={styles.pager}>
               <TouchableOpacity
                 onPress={() => setSliderPage((p) => Math.max(1, p - 1))}
@@ -137,6 +138,7 @@ export default function PaginationBar({
                 <Ionicons name="chevron-forward" size={28} color={colors.txt} />
               </TouchableOpacity>
             </View>
+
             <View style={styles.buttons}>
               <TouchableOpacity
                 onPress={() => setVisible(false)}
@@ -149,7 +151,7 @@ export default function PaginationBar({
               <TouchableOpacity
                 onPress={() => {
                   setVisible(false);
-                  sliderPage !== currentPage && onChange(sliderPage);
+                  if (sliderPage !== currentPage) handleChange(sliderPage);
                 }}
                 style={[
                   styles.actionButton,
@@ -177,23 +179,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
   },
-  button: {
-    padding: 8,
-    borderRadius: 16,
-  },
-  indicatorContainer: {
-    flex: 1,
-    marginHorizontal: 8,
-    alignItems: "center",
-  },
-  indicatorWrapper: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  indicator: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  button: { padding: 8, borderRadius: 16 },
+  indicatorContainer: { flex: 1, marginHorizontal: 8, alignItems: "center" },
+  indicatorWrapper: { alignItems: "center", justifyContent: "center" },
+  indicator: { fontSize: 16, fontWeight: "600" },
+
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.7)",
@@ -216,24 +206,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 16,
   },
-  slider: {
-    width: "100%",
-    height: 40,
-  },
+  slider: { width: "100%", height: 40 },
   pager: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginVertical: 16,
   },
-  pageText: {
-    fontSize: 22,
-    fontWeight: "500",
-  },
-  modalButton: {
-    padding: 8,
-    borderRadius: 12,
-  },
+  pageText: { fontSize: 22, fontWeight: "500" },
+  modalButton: { padding: 8, borderRadius: 12 },
   buttons: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -245,12 +226,6 @@ const styles = StyleSheet.create({
     minWidth: 100,
     alignItems: "center",
   },
-  btnCancel: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  btnOk: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  btnCancel: { fontSize: 16, fontWeight: "500" },
+  btnOk: { fontSize: 16, fontWeight: "600" },
 });

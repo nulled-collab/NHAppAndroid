@@ -378,30 +378,35 @@ export default function BookCard({
                         e?.stopPropagation?.();
                         router.push({
                           pathname: "/explore",
-                          params: { query: tag.name, solo: "1" },
+                          params: {
+                            query: tag.name,
+                            solo: "1",
+                            id: String(book.id),
+                            title: book.title.pretty,
+                          },
                         });
                       }}
                       onLongPress={() => Clipboard.setStringAsync(tag.name)}
                     >
                       <View
                         style={[
-                          styles.tagPill, // НОВОЕ: контейнер-пилюля (фон, радиусы, обрезка)
+                          styles.tagPill,
                           showAllTags
                             ? [styles.tagExpanded, styles.tapPillOpen]
                             : styles.tagOneLine,
-                          !showAllTags && { maxWidth: maxPx }, // пер-теговый лимит ширины
+                          !showAllTags && { maxWidth: maxPx },
                           !showAllTags &&
                             capFirstTwo &&
                             i < 2 &&
                             styles.tagCap50,
-                          { borderWidth: 1, borderColor }, // рамка inc/exc на контейнере
+                          { borderWidth: 1, borderColor },
                           selectedTags.some((t) => t.id === tag.id) &&
                             styles.tagSelected,
                         ]}
                       >
                         <Text
                           numberOfLines={showAllTags ? undefined : 1}
-                          ellipsizeMode={showAllTags ? undefined : "tail"} // «…» внутри пилюли
+                          ellipsizeMode={showAllTags ? undefined : "tail"}
                           style={[
                             styles.tagText,
                             { color: TAG_COLORS[tag.type] ?? TAG_COLORS.tag },

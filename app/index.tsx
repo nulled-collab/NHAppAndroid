@@ -170,6 +170,7 @@ export default function HomeScreen() {
       )}
 
       <BookList
+        key={`page-${currentPage}`}
         data={books}
         loading={books.length === 0 && currentPage === 1}
         refreshing={refreshing}
@@ -177,7 +178,13 @@ export default function HomeScreen() {
         isFavorite={(id) => favorites.has(id)}
         onToggleFavorite={toggleFav}
         onPress={(id) =>
-          router.push({ pathname: "/book/[id]", params: { id: String(id) } })
+          router.push({
+            pathname: "/book/[id]",
+            params: {
+              id: String(id),
+              title: books.find((b) => b.id === id)?.title.pretty,
+            },
+          })
         }
         gridConfig={{ default: gridConfig }}
       />
