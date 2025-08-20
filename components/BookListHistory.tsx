@@ -99,7 +99,7 @@ export default function BookListHistory<T extends Book = Book>({
     const loc: Locale =
       resolved === "ru"
         ? ru
-        : resolved === "zhCN"
+        : resolved === "zh"
         ? zhCN
         : resolved === "ja"
         ? ja

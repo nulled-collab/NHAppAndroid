@@ -1,0 +1,201 @@
+{
+  "app": {
+    "name": "NHAppAndroid",
+    "version": {
+      "beta": "ベータ"
+    }
+  },
+  "book": {
+    "cancelDownload": "ダウンロードをキャンセル",
+    "continuePage": "ページ {page} から続ける",
+    "download": "ダウンロード",
+    "fromRandomCta": "別のを試す？",
+    "gallery": "ギャラリー",
+    "new": "新着",
+    "read": "読む",
+    "readAgain": "もう一度読む",
+    "removeDownload": "ダウンロードを削除"
+  },
+  "comments": "コメント",
+  "common": {
+    "back": "戻る",
+    "cancel": "キャンセル",
+    "nextPage": "次へ",
+    "ok": "OK",
+    "save": "保存",
+    "tapHere": "ここをタップ",
+    "yes": "はい"
+  },
+  "explore": {
+    "sort": {
+      "latest": "新着",
+      "popular": "人気",
+      "popularMonth": "今月の人気",
+      "popularToday": "今日の人気",
+      "popularWeek": "今週の人気"
+    },
+    "sortBy": "並び替え"
+  },
+  "historyNotFound": "履歴は空です ¯\\_(ツ)_/¯",
+  "menu": {
+    "downloaded": "ダウンロード済み",
+    "explore": "探索",
+    "favorites": "お気に入り",
+    "history": "履歴",
+    "home": "ホーム",
+    "random": "おまかせ",
+    "recommendations": "おすすめ",
+    "search": "検索",
+    "settings": "設定",
+    "tags": "タグ"
+  },
+  "reader": {
+    "banner": {
+      "dual": "見開き: {state}",
+      "fit": "モード: {mode}",
+      "fitContain": "合わせる",
+      "fitCover": "全画面",
+      "hand": "利き手切替: {state}",
+      "inspect": "検証: {state}",
+      "off": "オフ",
+      "on": "オン",
+      "orientation": "向き: {mode}",
+      "orientationHorizontal": "横",
+      "orientationVertical": "縦",
+      "tap": "タップでページ送り: {state}"
+    },
+    "controls": {
+      "back": "戻る",
+      "fitContain": "合わせる",
+      "fitCover": "全画面",
+      "inspect": "検証",
+      "orientation": "向き",
+      "tap": "タップ"
+    },
+    "menuHint": "操作を開く"
+  },
+  "related": "関連",
+  "search": {
+    "results": "結果",
+    "placeholder": "タイトルやタグで検索",
+    "recent": "最近の検索",
+    "clearHistory": "履歴を消去",
+    "loading": "読み込み中…"
+  },
+  "searchBar": {
+    "backHome": "ホームに戻る",
+    "backOne": "1つ戻る",
+    "backTwo": "2つ戻る"
+  },
+  "settings": {
+    "appearance": {
+      "hue": "色相: {deg}°",
+      "theme": "アプリのテーマ"
+    },
+    "display": {
+      "androidNote": "Androidではフルスクリーン中でも下からスワイプでシステムバーを表示できます。",
+      "fullscreen": "フルスクリーン",
+      "fullscreenDesc": "ステータスバーとシステムナビゲーションを隠す。全画面表示。"
+    },
+    "language": {
+      "choose": "アプリの言語",
+      "english": "English",
+      "note": "インターフェースの言語のみ切り替えます。コンテンツの言語は影響しません。",
+      "russian": "Русский",
+      "japanese": "日本語",
+      "chinese": "中文",
+      "system": "システム"
+    },
+    "reader": {
+      "hideHints": "ヒントを非表示",
+      "hideHintsDesc": "リーダーでのヒントやジェスチャーの強調を隠す。"
+    },
+    "section": {
+      "appearance": "外観",
+      "display": "表示",
+      "grid": "カタロググリッド",
+      "language": "言語",
+      "reader": "リーダー",
+      "storage": "デバイスストレージ"
+    },
+    "grid": {
+      "phonePortrait": "スマホ · 縦",
+      "phoneLandscape": "スマホ · 横",
+      "tabletPortrait": "タブレット · 縦",
+      "tabletLandscape": "タブレット · 横",
+      "columns": "列数",
+      "spacingSides": "サイド余白",
+      "spacingBetween": "列の間隔",
+      "resetProfile": "プロフィールをリセット",
+      "resetAll": "すべてリセット"
+    },
+    "title": "設定"
+  },
+  "showMore": "{count} 件もっと見る",
+  "showOriginal": "原文を表示",
+  "storageManager": {
+    "actions": {
+      "clearAll": "すべて消去",
+      "copy": "コピー",
+      "delete": "削除",
+      "edit": "編集",
+      "export": "エクスポート",
+      "importClipboard": "クリップボードからインポート",
+      "importFile": "ファイルからインポート"
+    },
+    "bytesSuffix": "バイト",
+    "confirm": {
+      "clearAll": "すべてのキーを削除しますか？元に戻せません。",
+      "deleteKey": "キーを削除\n{key}?",
+      "title": "確認",
+      "wipeBeforeImport": "インポート前にすべてのキーを削除しますか？元に戻せません。"
+    },
+    "export": {
+      "failed": "エクスポート失敗: {error}",
+      "title": "エクスポート"
+    },
+    "import": {
+      "clipboardEmpty": "クリップボードは空です。",
+      "error": "インポートエラー: {error}",
+      "invalidJson": "無効なJSON: {error}",
+      "ok": "{count} 件のキーをインポートしました",
+      "title": "インポート",
+      "webHint": "Web版では「クリップボードからインポート」を使用してください。"
+    },
+    "meta": "{count} 件のキー · {size} KB",
+    "modal": {
+      "editTitle": "キーを編集",
+      "valuePlaceholder": "値 (文字列またはJSON)"
+    },
+    "noMatches": "一致なし",
+    "options": {
+      "overwrite": "既存を上書き",
+      "wipeBeforeImport": "インポート前に消去"
+    },
+    "searchPlaceholder": "キーまたは値で検索",
+    "title": "デバイスストレージ"
+  },
+  "tags": {
+    "artists": "アーティスト",
+    "categories": "カテゴリ",
+    "characters": "キャラクター",
+    "groups": "グループ",
+    "languages": "言語",
+    "parodies": "パロディ",
+    "tags": "タグ",
+
+    "all": "すべて",
+    "searchPlaceholder": "タグを検索…",
+    "selected": "選択済み",
+    "included": "含む",
+    "excluded": "除外",
+    "reset": "リセット",
+    "empty": "空",
+    "sort": {
+      "popular": "人気",
+      "az": "A–Z"
+    }
+  },
+  "translate": "翻訳",
+  "translating": "翻訳中…"
+}

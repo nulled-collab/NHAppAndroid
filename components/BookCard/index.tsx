@@ -68,7 +68,7 @@ export default function BookCard({
   const dateLocale =
     resolved === "ru"
       ? ru
-      : resolved === "zhCN"
+      : resolved === "zh"
       ? zhCN
       : resolved === "ja"
       ? ja

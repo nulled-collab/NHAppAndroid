@@ -106,7 +106,7 @@ export default function BookScreen() {
         local={local}
         handleDownloadOrDelete={handleDownloadOrDelete}
         modeOf={modeOf}
-        onTagPress={(name) =>
+        onTagPress={(name: any) =>
           router.push({
             pathname: "/explore",
             params: { query: name, solo: "1" },

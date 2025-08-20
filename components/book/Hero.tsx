@@ -116,7 +116,7 @@ export default function Hero({
   cycle: (t: { type: string; name: string }) => void;
 }) {
   const { colors } = useTheme();
-  const { t, resolved } = useI18n();
+  const { t, resolvedDateFns } = useI18n();
 
   const router = useRouter();
   const coverAR =
@@ -337,7 +337,7 @@ export default function Hero({
                 style={{ marginLeft: 12 }}
               />
               <Text style={{ fontSize: 13, color: colors.metaText }}>
-                {timeAgo(book.uploaded, resolved)}
+                {timeAgo(book.uploaded, resolvedDateFns)}
               </Text>
 
               <Feather
@@ -595,7 +595,7 @@ export default function Hero({
             style={{ marginLeft: 12 }}
           />
           <Text style={{ fontSize: 13, color: colors.metaText }}>
-            {timeAgo(book.uploaded, resolved)}
+            {timeAgo(book.uploaded, resolvedDateFns)}
           </Text>
 
           <Feather

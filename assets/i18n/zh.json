@@ -1,0 +1,201 @@
+{
+  "app": {
+    "name": "NHAppAndroid",
+    "version": {
+      "beta": "测试版"
+    }
+  },
+  "book": {
+    "cancelDownload": "取消下载",
+    "continuePage": "继续第 {page} 页",
+    "download": "下载",
+    "fromRandomCta": "再试一个？",
+    "gallery": "画廊",
+    "new": "新",
+    "read": "阅读",
+    "readAgain": "再读一次",
+    "removeDownload": "删除下载"
+  },
+  "comments": "评论",
+  "common": {
+    "back": "返回",
+    "cancel": "取消",
+    "nextPage": "下一页",
+    "ok": "确定",
+    "save": "保存",
+    "tapHere": "点这里",
+    "yes": "是"
+  },
+  "explore": {
+    "sort": {
+      "latest": "最新",
+      "popular": "热门",
+      "popularMonth": "本月热门",
+      "popularToday": "今日热门",
+      "popularWeek": "本周热门"
+    },
+    "sortBy": "排序方式"
+  },
+  "historyNotFound": "历史为空 ¯\\_(ツ)_/¯",
+  "menu": {
+    "downloaded": "已下载",
+    "explore": "探索",
+    "favorites": "收藏",
+    "history": "历史",
+    "home": "首页",
+    "random": "手气不错",
+    "recommendations": "推荐",
+    "search": "搜索",
+    "settings": "设置",
+    "tags": "标签"
+  },
+  "reader": {
+    "banner": {
+      "dual": "双页: {state}",
+      "fit": "模式: {mode}",
+      "fitContain": "适应",
+      "fitCover": "填充",
+      "hand": "切换手: {state}",
+      "inspect": "检查: {state}",
+      "off": "关",
+      "on": "开",
+      "orientation": "方向: {mode}",
+      "orientationHorizontal": "横向",
+      "orientationVertical": "纵向",
+      "tap": "点击翻页: {state}"
+    },
+    "controls": {
+      "back": "返回",
+      "fitContain": "适应",
+      "fitCover": "填充",
+      "inspect": "检查",
+      "orientation": "方向",
+      "tap": "点击"
+    },
+    "menuHint": "打开控制"
+  },
+  "related": "相关",
+  "search": {
+    "results": "结果",
+    "placeholder": "按标题或标签搜索",
+    "recent": "最近搜索",
+    "clearHistory": "清除历史",
+    "loading": "加载中…"
+  },
+  "searchBar": {
+    "backHome": "返回首页",
+    "backOne": "返回一步",
+    "backTwo": "返回两步"
+  },
+  "settings": {
+    "appearance": {
+      "hue": "色调: {deg}°",
+      "theme": "应用主题"
+    },
+    "display": {
+      "androidNote": "在 Android 上，即使全屏模式下，也可以通过底部上滑显示系统栏。",
+      "fullscreen": "全屏模式",
+      "fullscreenDesc": "隐藏状态栏和导航栏。内容全屏显示。"
+    },
+    "language": {
+      "choose": "应用语言",
+      "english": "English",
+      "note": "只切换界面语言，内容语言不受影响。",
+      "russian": "Русский",
+      "japanese": "日本語",
+      "chinese": "中文",
+      "system": "系统"
+    },
+    "reader": {
+      "hideHints": "隐藏提示",
+      "hideHintsDesc": "隐藏阅读器中的提示和手势提示。"
+    },
+    "section": {
+      "appearance": "外观",
+      "display": "显示",
+      "grid": "目录网格",
+      "language": "语言",
+      "reader": "阅读器",
+      "storage": "设备存储"
+    },
+    "grid": {
+      "phonePortrait": "手机 · 竖屏",
+      "phoneLandscape": "手机 · 横屏",
+      "tabletPortrait": "平板 · 竖屏",
+      "tabletLandscape": "平板 · 横屏",
+      "columns": "列数",
+      "spacingSides": "边距",
+      "spacingBetween": "列间距",
+      "resetProfile": "重置配置",
+      "resetAll": "重置全部"
+    },
+    "title": "设置"
+  },
+  "showMore": "显示更多 {count}",
+  "showOriginal": "显示原文",
+  "storageManager": {
+    "actions": {
+      "clearAll": "清除全部",
+      "copy": "复制",
+      "delete": "删除",
+      "edit": "编辑",
+      "export": "导出",
+      "importClipboard": "从剪贴板导入",
+      "importFile": "从文件导入"
+    },
+    "bytesSuffix": "字节",
+    "confirm": {
+      "clearAll": "删除所有键？此操作不可撤销。",
+      "deleteKey": "删除键\n{key}?",
+      "title": "确认",
+      "wipeBeforeImport": "导入前清除所有键？此操作不可撤销。"
+    },
+    "export": {
+      "failed": "导出失败: {error}",
+      "title": "导出"
+    },
+    "import": {
+      "clipboardEmpty": "剪贴板为空。",
+      "error": "导入错误: {error}",
+      "invalidJson": "无效的 JSON: {error}",
+      "ok": "导入键数: {count}",
+      "title": "导入",
+      "webHint": "在网页端请使用“从剪贴板导入”。"
+    },
+    "meta": "{count} 个键 · {size} KB",
+    "modal": {
+      "editTitle": "编辑键",
+      "valuePlaceholder": "值 (字符串或 JSON)"
+    },
+    "noMatches": "没有匹配项",
+    "options": {
+      "overwrite": "覆盖已有",
+      "wipeBeforeImport": "导入前清空"
+    },
+    "searchPlaceholder": "按键或值搜索",
+    "title": "设备存储"
+  },
+  "tags": {
+    "artists": "作者",
+    "categories": "分类",
+    "characters": "角色",
+    "groups": "社团",
+    "languages": "语言",
+    "parodies": "原作",
+    "tags": "标签",
+
+    "all": "全部",
+    "searchPlaceholder": "搜索标签…",
+    "selected": "已选择",
+    "included": "已包含",
+    "excluded": "已排除",
+    "reset": "重置",
+    "empty": "空",
+    "sort": {
+      "popular": "热门",
+      "az": "A–Z"
+    }
+  },
+  "translate": "翻译",
+  "translating": "翻译中…"
+}

@@ -151,7 +151,7 @@ function CommentItem({
   c: GalleryComment;
   colors: any;
   dateLocale: Locale;
-  resolved: "en" | "ru" | "zhCN" | "ja";
+  resolved: "en" | "ru" | "zh" | "ja";
   t: (key: string, vars?: any) => string;
 }) {
   const ui = {
@@ -170,7 +170,7 @@ function CommentItem({
   const [showOriginal, setShowOriginal] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const target = resolved === "zhCN" ? "zh-CN" : resolved;
+  const target = resolved === "zh" ? "zh-CN" : resolved;
   const detected3 = franc(c.body || "", { minLength: 3 });
   const src = mapIso3ToMyMemory(detected3, c.body || "");
   const needsTranslation =
@@ -424,7 +424,7 @@ export default function Footer({
   const dateLocale: Locale =
     resolved === "ru"
       ? ru
-      : resolved === "zhCN"
+      : resolved === "zh"
       ? zhCN
       : resolved === "ja"
       ? ja
@@ -520,7 +520,7 @@ export default function Footer({
               c={c}
               colors={colors}
               dateLocale={dateLocale}
-              resolved={resolved as "en" | "ru" | "zhCN" | "ja"}
+              resolved={resolved as "en" | "ru" | "zh" | "ja"}
               t={t}
             />
           ))}

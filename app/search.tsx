@@ -19,6 +19,7 @@ import { buildImageFallbacks } from "@/components/buildImageFallbacks";
 import { useSort } from "@/context/SortContext";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useTheme } from "@/lib/ThemeContext";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 const KEY_HISTORY = "searchHistory";
 const BAR_H = 52;
@@ -74,6 +75,7 @@ function RowPress({
 
 export default function SearchScreen() {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const router = useRouter();
 
   const { includes, excludes } = useFilterTags();
@@ -104,6 +106,7 @@ export default function SearchScreen() {
     setHist(next);
     await AsyncStorage.setItem(KEY_HISTORY, JSON.stringify(next));
   };
+
   const submit = async (text = q) => {
     const query = text.trim();
     if (!query) return;
@@ -121,7 +124,7 @@ export default function SearchScreen() {
       return;
     }
     setLoad(true);
-    const t = setTimeout(async () => {
+    const tmo = setTimeout(async () => {
       try {
         const { books } = await searchBooks({
           query,
@@ -135,7 +138,7 @@ export default function SearchScreen() {
         setLoad(false);
       }
     }, 250);
-    return () => clearTimeout(t);
+    return () => clearTimeout(tmo);
   }, [q, sort, incStr, excStr]);
 
   const trimmed = q.trim();
@@ -149,6 +152,7 @@ export default function SearchScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      {/* top bar */}
       <View
         style={[
           styles.topBar,
@@ -176,7 +180,7 @@ export default function SearchScreen() {
             <TextInput
               ref={inputRef}
               style={[styles.input, { color: colors.searchTxt }]}
-              placeholder="Search…"
+              placeholder={t("search.placeholder")}
               placeholderTextColor={colors.sub}
               value={q}
               onChangeText={setQ}
@@ -211,7 +215,8 @@ export default function SearchScreen() {
           style={{ paddingHorizontal: 12, paddingTop: 10, paddingBottom: 4 }}
         >
           <Text style={{ fontSize: 12, fontWeight: "700", color: colors.sub }}>
-            Ищу: <Text style={{ color: colors.searchTxt }}>{trimmed}</Text>
+            {t("search.results")}:{" "}
+            <Text style={{ color: colors.searchTxt }}>{trimmed}</Text>
           </Text>
         </View>
       )}
@@ -225,7 +230,7 @@ export default function SearchScreen() {
           <>
             <View style={styles.headRow}>
               <Text style={[styles.headTxt, { color: colors.sub }]}>
-                HISTORY
+                {t("search.recent")}
               </Text>
               <Pressable
                 style={({ pressed }) => [
@@ -239,7 +244,7 @@ export default function SearchScreen() {
                 }}
               >
                 <Text style={[styles.pillBtnTxt, { color: colors.sub }]}>
-                  clear
+                  {t("search.clearHistory")}
                 </Text>
               </Pressable>
             </View>
@@ -294,7 +299,7 @@ export default function SearchScreen() {
                 },
               ]}
             >
-              RESULTS
+              {t("search.results")}
             </Text>
 
             {loading && (
@@ -328,7 +333,7 @@ export default function SearchScreen() {
                       {b.title.pretty}
                     </Text>
                     <Text style={[styles.metaTxt, { color: colors.sub }]}>
-                      {b.pagesCount} pages
+                      {t("book.pages", { count: b.pagesCount })}
                     </Text>
                   </View>
                 </RowPress>
@@ -345,7 +350,7 @@ export default function SearchScreen() {
                   },
                 ]}
               >
-                Ничего не найдено
+                {t("empty.search", { q: trimmed })}
               </Text>
             )}
           </>

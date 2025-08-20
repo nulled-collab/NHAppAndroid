@@ -1,9 +1,16 @@
-type Locale = "en" | "ru" | "zhCN" | "ja";
+// timeAgo.ts
+
+// Если хочешь использовать и строковые коды, и объекты date-fns:
+import type { Locale as DFLocale } from "date-fns";
+
+export type UiLocale = "en" | "ru" | "zh" | "ja";
+
+type UnitKey = "year" | "month" | "day" | "hour" | "minute" | "second";
 
 const translations: Record<
-  Locale,
+  UiLocale,
   {
-    units: Record<string, string[]>;
+    units: Record<UnitKey, string[]>; // en: [singular, plural], ru: [1,2-4,5+], zh/ja: [form, form]
     justNow: string;
     ago: string;
   }
@@ -32,7 +39,7 @@ const translations: Record<
     justNow: "только что",
     ago: "назад",
   },
-  zhCN: {
+  zh: {
     units: {
       year: ["年", "年"],
       month: ["个月", "个月"],
@@ -58,7 +65,7 @@ const translations: Record<
   },
 };
 
-function pluralRu(n: number, forms: string[]) {
+function pluralRu(n: number, forms: [string, string, string]) {
   return forms[
     n % 10 === 1 && n % 100 !== 11
       ? 0
@@ -68,11 +75,46 @@ function pluralRu(n: number, forms: string[]) {
   ];
 }
 
-export const timeAgo = (d: string | number, locale: Locale = "en") => {
-  const t = typeof d === "string" ? Date.parse(d) : d * 1000;
-  const s = Math.floor((Date.now() - t) / 1000);
+// Нормализация: принимаем либо UiLocale, либо date-fns Locale
+function normalizeLocale(loc?: UiLocale | DFLocale): UiLocale {
+  if (!loc) return "en";
+  if (typeof loc === "string") {
+    // совместимость со старыми значениями типа "zhCN"
+    if (loc === "zh") return "zh";
+    return (["en", "ru", "zh", "ja"].includes(loc) ? loc : "en") as UiLocale;
+  }
+  // DFLocale: пробуем по коду
+  const code = (loc as any)?.code as string | undefined;
+  if (code) {
+    const lower = code.toLowerCase();
+    if (lower.startsWith("ru")) return "ru";
+    if (lower.startsWith("ja")) return "ja";
+    if (lower.startsWith("zh")) return "zh";
+    return "en";
+  }
+  return "en";
+}
 
-  const tbl: [keyof (typeof translations)["en"]["units"], number][] = [
+function toDate(input: string | number | Date): Date {
+  if (input instanceof Date) return input;
+  if (typeof input === "string") {
+    const t = Date.parse(input);
+    return Number.isFinite(t) ? new Date(t) : new Date();
+  }
+  // число: если похоже на секунды — умножаем
+  return new Date(input < 1e12 ? input * 1000 : input);
+}
+
+export function timeAgo(
+  d: string | number | Date,
+  locale?: UiLocale | DFLocale
+): string {
+  const date = toDate(d);
+  const s = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  const l = normalizeLocale(locale);
+  const tr = translations[l];
+
+  const table: [UnitKey, number][] = [
     ["year", 31536000],
     ["month", 2592000],
     ["day", 86400],
@@ -81,19 +123,18 @@ export const timeAgo = (d: string | number, locale: Locale = "en") => {
     ["second", 1],
   ];
 
-  const tr = translations[locale];
-
-  for (const [u, n] of tbl) {
-    if (s >= n) {
-      const v = Math.floor(s / n);
-      if (locale === "ru") {
-        return `${v} ${pluralRu(v, tr.units[u])} ${tr.ago}`;
-      } else if (locale === "zhCN" || locale === "ja") {
-        return `${v}${tr.units[u][0]}${tr.ago}`;
-      } else {
-        return `${v} ${tr.units[u][v > 1 ? 1 : 0]} ${tr.ago}`;
+  for (const [unit, secs] of table) {
+    if (s >= secs) {
+      const v = Math.floor(s / secs);
+      if (l === "ru") {
+        return `${v} ${pluralRu(v, tr.units[unit] as [string, string, string])} ${tr.ago}`;
       }
+      if (l === "zh" || l === "ja") {
+        return `${v}${tr.units[unit][0]}${tr.ago}`;
+      }
+      // en
+      return `${v} ${tr.units[unit][v === 1 ? 0 : 1]} ${tr.ago}`;
     }
   }
   return tr.justNow;
-};
+}
