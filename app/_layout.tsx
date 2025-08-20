@@ -19,6 +19,7 @@ import { getGridConfigMap } from "@/config/gridConfig";
 import { SortProvider } from "@/context/SortContext";
 import { TagProvider } from "@/context/TagFilterContext";
 import { ThemeProvider, useTheme } from "@/lib/ThemeContext";
+import { I18nProvider } from "@/lib/i18n/I18nContext";
 
 import { enableFreeze } from "react-native-screens";
 enableFreeze(true);
@@ -39,7 +40,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppContent />
+        <I18nProvider>
+          <AppContent />
+        </I18nProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

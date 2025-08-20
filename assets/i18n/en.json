@@ -1,0 +1,331 @@
+{
+  "app": {
+    "name": "NHAppAndroid",
+    "version": { "beta": "Beta" }
+  },
+
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "yes": "Yes",
+    "no": "No",
+    "retry": "Retry",
+    "nextPage": "Next",
+    "back": "Back",
+    "more": "More",
+    "copied": "Copied",
+    "tapHere": "Tap here"
+  },
+
+  "errors": {
+    "generic": "Something went wrong.",
+    "network": "Network error. Check your connection.",
+    "timeout": "Request timed out.",
+    "notFound": "Not found.",
+    "forbidden": "Access denied."
+  },
+
+  "empty": {
+    "list": "Nothing here yet.",
+    "search": "No results for “{q}”.",
+    "downloads": "No downloads yet.",
+    "favorites": "No favorites yet.",
+    "history": "No history yet."
+  },
+
+  "menu": {
+    "home": "Home",
+    "search": "Search",
+    "explore": "Explore",
+    "downloaded": "Downloaded",
+    "favorites": "Favorites",
+    "history": "History",
+    "recommendations": "Recommendations",
+    "tags": "Tags",
+    "settings": "Settings",
+    "random": "I’m feeling lucky"
+  },
+
+  "actions": {
+    "open": "Open",
+    "share": "Share",
+    "copy": "Copy",
+    "copyLink": "Copy link",
+    "add": "Add",
+    "remove": "Remove",
+    "apply": "Apply",
+    "clear": "Clear",
+    "reset": "Reset",
+    "filter": "Filter",
+    "sort": "Sort",
+    "include": "Include",
+    "exclude": "Exclude",
+    "includeAll": "Include all",
+    "excludeAll": "Exclude all",
+    "download": "Download",
+    "removeDownload": "Remove download",
+    "pause": "Pause",
+    "resume": "Resume",
+    "cancelDownload": "Cancel download",
+    "tryAnother": "Try another?",
+    "showMore": "Show more",
+    "showLess": "Show less"
+  },
+
+  "search": {
+    "placeholder": "Search by title or tag",
+    "recent": "Recent searches",
+    "clearHistory": "Clear history",
+    "results": "Results",
+    "loading": "Loading…"
+  },
+
+  "explore": {
+    "sortBy": "Sort by",
+    "sort": {
+      "popular": "Hot",
+      "popularWeek": "Hot Week",
+      "popularToday": "Hot Today",
+      "popularMonth": "Hot Month",
+      "latest": "New"
+    }
+  },
+  "searchBar": {
+    "backOne": "Back one",
+    "backTwo": "Back two",
+    "backHome": "Back to home"
+  },
+
+  "book": {
+    "read": "Read",
+    "readAgain": "Read again",
+    "continuePage": "Continue p.{page}",
+    "download": "Download",
+    "removeDownload": "Remove download",
+    "cancelDownload": "Cancel download",
+    "gallery": "Gallery",
+    "new": "NEW",
+    "title": "Book",
+    "pages": "{count} pages",
+    "language": "Language",
+    "languages": "Languages",
+    "artists": "Artists",
+    "groups": "Groups",
+    "parodies": "Parodies",
+    "characters": "Characters",
+    "tags": "Tags",
+    "related": "Related",
+    "comments": "Comments",
+    "details": "Details",
+    "addToFavorites": "Add to favorites",
+    "removeFromFavorites": "Remove from favorites",
+    "addedToFavorites": "Added to favorites",
+    "removedFromFavorites": "Removed from favorites",
+    "openRandom": "Open random",
+    "randomAgain": "Try another random",
+    "fromRandomCta": "Try another?"
+  },
+
+  "reader": {
+    "title": "Reader",
+    "page": "Page {index} / {total}",
+    "nextPage": "Next page",
+    "prevPage": "Previous page",
+    "menuHint": "Open controls",
+    "fit": "Fit",
+    "fitWidth": "Fit width",
+    "fitHeight": "Fit height",
+    "zoom": "Zoom",
+    "spread": "Spread",
+    "singlePage": "Single page",
+    "doublePage": "Double page",
+    "showHints": "Show hints",
+    "hideHints": "Hide hints",
+    "brightness": "Brightness",
+    "keepScreenOn": "Keep screen on",
+    "goToPage": "Go to page",
+    "controls": {
+      "back": "Back",
+      "tap": "Tap",
+      "orientation": "Orientation",
+      "fitContain": "Fit",
+      "fitCover": "Fill",
+      "inspect": "Inspect"
+    },
+    "banner": {
+      "orientation": "Orientation: {mode}",
+      "orientationVertical": "Vertical",
+      "orientationHorizontal": "Horizontal",
+      "dual": "Dual page: {state}",
+      "fit": "Mode: {mode}",
+      "fitContain": "Fit",
+      "fitCover": "Fill",
+      "tap": "Tap paging: {state}",
+      "hand": "Hand swap: {state}",
+      "inspect": "Inspect: {state}",
+      "on": "ON",
+      "off": "OFF"
+    }
+  },
+
+  "tags": {
+    "artists": "Artists",
+    "characters": "Characters",
+    "parodies": "Parodies",
+    "groups": "Groups",
+    "categories": "Categories",
+    "languages": "Languages",
+    "tags": "Tags",
+    "include": "Include tags",
+    "exclude": "Exclude tags",
+    "soloMode": "Explore via this tag only",
+    "applyToExplore": "Apply to Explore",
+    "clearAll": "Clear all",
+    "selectedCount": "Selected: {count}"
+  },
+
+  "downloads": {
+    "title": "Downloads",
+    "queued": "Queued",
+    "downloading": "Downloading",
+    "completed": "Completed",
+    "failed": "Failed",
+    "canceled": "Canceled",
+    "openFolder": "Open folder",
+    "deleteAll": "Delete all",
+    "confirmDeleteAll": "Delete all downloaded files?",
+    "noPermission": "Storage permission is required."
+  },
+
+  "favorites": { "title": "Favorites" },
+  "history": {
+    "title": "History",
+    "clear": "Clear history",
+    "confirmClear": "Clear reading history?"
+  },
+  "recommendations": { "title": "Recommendations" },
+
+  "settings": {
+    "title": "Settings",
+
+    "section": {
+      "language": "Language",
+      "appearance": "Appearance",
+      "display": "Display",
+      "reader": "Reader",
+      "grid": "Catalog grid",
+      "storage": "Device storage"
+    },
+
+    "language": {
+      "choose": "App language",
+      "system": "System",
+      "english": "English",
+      "russian": "Русский",
+      "note": "Switch only the interface language. Content language is not affected."
+    },
+
+    "appearance": {
+      "theme": "App theme",
+      "hue": "Hue: {deg}°"
+    },
+
+    "display": {
+      "fullscreen": "Fullscreen mode",
+      "fullscreenDesc": "Hide the status bar and system nav bar. Edge-to-edge content.",
+      "androidNote": "On Android, system bars can be revealed with a bottom swipe even in fullscreen."
+    },
+
+    "reader": {
+      "hideHints": "Hide hints",
+      "hideHintsDesc": "Hide onboarding hints, overlays and gesture highlights in the reader."
+    },
+
+    "grid": {
+      "phonePortrait": "Phone · Portrait",
+      "phoneLandscape": "Phone · Landscape",
+      "tabletPortrait": "Tablet · Portrait",
+      "tabletLandscape": "Tablet · Landscape",
+      "columns": "Columns",
+      "spacingSides": "Side padding",
+      "spacingBetween": "Column gap",
+      "resetProfile": "Reset profile",
+      "resetAll": "Reset all"
+    },
+
+    "storage": {
+      "cache": "Cache",
+      "cacheSize": "Cache size: {size}",
+      "clearCache": "Clear cache",
+      "downloads": "Downloaded files",
+      "downloadsSize": "Downloads size: {size}",
+      "clearDownloads": "Delete all downloads",
+      "confirmClearDownloads": "Delete all downloaded files?",
+      "freeSpace": "Free space: {size}"
+    }
+  },
+
+  "storageManager": {
+    "title": "Device storage",
+    "meta": "{count} keys · {size} KB",
+    "searchPlaceholder": "Search by key or value",
+
+    "actions": {
+      "export": "Export",
+      "importFile": "Import from file",
+      "importClipboard": "Import from clipboard",
+      "clearAll": "Clear all",
+      "edit": "Edit",
+      "copy": "Copy",
+      "delete": "Delete"
+    },
+
+    "options": {
+      "overwrite": "Overwrite existing",
+      "wipeBeforeImport": "Clear before import"
+    },
+
+    "noMatches": "No matches",
+
+    "modal": {
+      "editTitle": "Edit key",
+      "valuePlaceholder": "Value (string or JSON)"
+    },
+
+    "confirm": {
+      "title": "Confirmation",
+      "clearAll": "Delete ALL keys? This cannot be undone.",
+      "deleteKey": "Delete key\n{key}?",
+      "wipeBeforeImport": "Clear all keys before import? This cannot be undone."
+    },
+
+    "import": {
+      "title": "Import",
+      "webHint": "On web, use “Import from clipboard”.",
+      "error": "Import error: {error}",
+      "clipboardEmpty": "Clipboard is empty.",
+      "ok": "Imported keys: {count}",
+      "invalidJson": "Invalid JSON: {error}"
+    },
+
+    "export": {
+      "title": "Export",
+      "failed": "Failed to export: {error}"
+    },
+
+    "bytesSuffix": "b"
+  },
+
+  "translate": "Translate",
+  "translating": "Translating…",
+  "showOriginal": "Show original",
+  "showTranslation": "Show translation",
+  "related": "Related",
+  "comments": "Comments",
+  "showMore": "Show more {count}",
+  "historyNotFound": "History is empty ¯\\_(ツ)_/¯"
+}

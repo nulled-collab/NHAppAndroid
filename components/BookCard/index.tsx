@@ -1,7 +1,8 @@
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { AntDesign, Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { format } from "date-fns";
-import { ru } from "date-fns/locale";
+import { enUS, ja, ru, zhCN } from "date-fns/locale";
 import * as Clipboard from "expo-clipboard";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -62,6 +63,16 @@ export default function BookCard({
     () => makeCardStyles(colors, cardWidth, contentScale),
     [colors, cardWidth, contentScale]
   );
+
+  const { t, resolved } = useI18n();
+  const dateLocale =
+    resolved === "ru"
+      ? ru
+      : resolved === "zhCN"
+      ? zhCN
+      : resolved === "ja"
+      ? ja
+      : enUS;
 
   const coverAR = 0.68;
 
@@ -241,7 +252,7 @@ export default function BookCard({
           style={styles.coverGradient}
           pointerEvents="none"
         />
-        {isNew && <Text style={styles.newBadge}>NEW</Text>}
+        {isNew && <Text style={styles.newBadge}>{t("book.new")}</Text>}
         {flagSrc && (
           <View style={styles.langBadge}>
             <Image source={flagSrc} style={styles.langImg} resizeMode="cover" />
@@ -303,7 +314,9 @@ export default function BookCard({
               color={styles.metaIcon.color as string}
             />
             <Text style={styles.metaText}>
-              {format(new Date(book.uploaded), "d MMM yyyy", { locale: ru })}
+              {format(new Date(book.uploaded), "d MMM yyyy", {
+                locale: dateLocale,
+              })}
             </Text>
           </View>
           <View style={styles.metaItem}>

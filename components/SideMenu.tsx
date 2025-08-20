@@ -1,4 +1,5 @@
 import { getRandomBook } from "@/api/nhentai";
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
@@ -23,16 +24,16 @@ type MenuRoute =
   | "/settings";
 
 const MENU: {
-  label: string;
+  labelKey: string;
   icon: keyof typeof Feather.glyphMap;
   route: MenuRoute;
 }[] = [
-  { label: "Скачанные", icon: "download", route: "/downloaded" },
-  { label: "Избранное", icon: "heart", route: "/favorites" },
-  { label: "История", icon: "clock", route: "/history" },
-  { label: "Рекомендации", icon: "star", route: "/recommendations" },
-  { label: "Теги / Фильтры", icon: "tag", route: "/tags" },
-  { label: "Настройки", icon: "settings", route: "/settings" },
+  { labelKey: "menu.downloaded", icon: "download", route: "/downloaded" },
+  { labelKey: "menu.favorites", icon: "heart", route: "/favorites" },
+  { labelKey: "menu.history", icon: "clock", route: "/history" },
+  { labelKey: "menu.recommendations", icon: "star", route: "/recommendations" },
+  { labelKey: "menu.tags", icon: "tag", route: "/tags" },
+  { labelKey: "menu.settings", icon: "settings", route: "/settings" },
 ];
 
 function Rounded({
@@ -82,6 +83,7 @@ export default function SideMenu({
   fullscreen: boolean;
 }) {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
@@ -139,11 +141,9 @@ export default function SideMenu({
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.menuTxt }]}>
-            NHApp Android
+            {t("app.name")}
           </Text>
-          <Text style={[styles.subtitle, { color: colors.sub }]}>
-            Unofficial
-          </Text>
+          <Text style={[styles.subtitle, { color: colors.sub }]}>Unofficial</Text>
         </View>
       </View>
 
@@ -181,7 +181,7 @@ export default function SideMenu({
                 color={colors.bg}
               />
               <Text style={[styles.luckyTxt, { color: colors.bg }]}>
-                Мне повезёт
+                {t("menu.random")}
               </Text>
             </>
           )}
@@ -236,7 +236,7 @@ export default function SideMenu({
                     { color: tint, fontSize: FS, flexShrink: 1 },
                   ]}
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </Text>
               </View>
             </Rounded>
@@ -245,7 +245,6 @@ export default function SideMenu({
       </View>
 
       <View style={{ flex: 1 }} />
-      {/* <Text style={[styles.footer, { color: colors.sub }]}>v1.0</Text> */}
     </View>
   );
 }
@@ -291,7 +290,7 @@ const styles = StyleSheet.create({
     marginVertical: 2,
     minHeight: 44,
   },
-  
+
   activeBar: {
     width: 3,
     height: "70%",

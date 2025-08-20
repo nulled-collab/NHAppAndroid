@@ -18,9 +18,11 @@ import { FS_KEY, RH_KEY, STORAGE_KEY_HUE } from "@/components/settings/keys";
 import type { SettingsSection } from "@/components/settings/schema";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { useTheme } from "@/lib/ThemeContext";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 import Section from "@/components/settings/Section";
 import StorageManager from "@/components/settings/StorageManager";
+import LanguageRow from "@/components/settings/rows/LanguageRow";
 import { GridProfile } from "@/config/gridConfig";
 
 function systemProfileForDims(w: number, h: number): GridProfile {
@@ -33,6 +35,7 @@ function systemProfileForDims(w: number, h: number): GridProfile {
 }
 
 export default function SettingsScreen() {
+  const { t } = useI18n();
   const { width, height } = useWindowDimensions();
   const sysProfile = systemProfileForDims(width, height);
   const [activeProfile, setActiveProfile] = useState<GridProfile>(sysProfile);
@@ -71,8 +74,24 @@ export default function SettingsScreen() {
   const sections: SettingsSection[] = useMemo(
     () => [
       {
+        id: "language",
+        title: t("settings.section.language"),
+        cards: [
+          {
+            id: "language-card",
+            items: [
+              {
+                id: "language-row",
+                kind: "custom",
+                render: () => <LanguageRow />,
+              },
+            ],
+          },
+        ],
+      },
+      {
         id: "appearance",
-        title: "Оформление",
+        title: t("settings.section.appearance"),
         cards: [
           {
             id: "theme-card",
@@ -89,12 +108,14 @@ export default function SettingsScreen() {
                         color: colors.txt,
                       }}
                     >
-                      Тема приложения
+                      {t("settings.appearance.theme")}
                     </Text>
                     <Text
                       style={{ fontSize: 14, color: colors.sub, marginTop: 8 }}
                     >
-                      Оттенок: {Math.round(hueLocal)}°
+                      {t("settings.appearance.hue", {
+                        deg: Math.round(hueLocal),
+                      })}
                     </Text>
                     <Slider
                       style={{ marginTop: 8 }}
@@ -105,9 +126,7 @@ export default function SettingsScreen() {
                       minimumTrackTintColor={colors.accent}
                       thumbTintColor={colors.accent}
                       onValueChange={(deg) => setHueLocal(deg)}
-                      onSlidingComplete={(deg) => {
-                        setHue(deg);
-                      }}
+                      onSlidingComplete={(deg) => setHue(deg)}
                     />
                   </>
                 ),
@@ -118,7 +137,7 @@ export default function SettingsScreen() {
       },
       {
         id: "screen",
-        title: "Экран",
+        title: t("settings.section.display"),
         cards: [
           {
             id: "screen-card",
@@ -126,9 +145,8 @@ export default function SettingsScreen() {
               {
                 id: "fullscreen",
                 kind: "toggle",
-                title: "Полноэкранный режим",
-                description:
-                  "Скрывать статус-бар и нижнюю системную панель. Контент — от края до края.",
+                title: t("settings.display.fullscreen"),
+                description: t("settings.display.fullscreenDesc"),
                 value: fullscreen,
                 onToggle: toggleFullscreen,
               },
@@ -148,8 +166,7 @@ export default function SettingsScreen() {
                     }}
                   >
                     <Text style={{ fontSize: 11, color: colors.sub }}>
-                      На Android панели можно вызвать жестом снизу даже в
-                      fullscreen.
+                      {t("settings.display.androidNote")}
                     </Text>
                   </View>
                 ),
@@ -160,7 +177,7 @@ export default function SettingsScreen() {
       },
       {
         id: "reader",
-        title: "Чтение",
+        title: t("settings.section.reader"),
         cards: [
           {
             id: "reader-card",
@@ -168,9 +185,8 @@ export default function SettingsScreen() {
               {
                 id: "hide-hints",
                 kind: "toggle",
-                title: "Скрывать подсказки",
-                description:
-                  "Прятать обучающие подсказки, оверлеи и подсветки жестов в режиме чтения.",
+                title: t("settings.reader.hideHints"),
+                description: t("settings.reader.hideHintsDesc"),
                 value: hideHints,
                 onToggle: (v) => {
                   setHideHints(v);
@@ -184,20 +200,20 @@ export default function SettingsScreen() {
         ],
       },
     ],
-    [colors, fullscreen, hideHints, hueLocal]
+    [colors, fullscreen, hideHints, hueLocal, t]
   );
 
   return (
-    <SettingsLayout title="Настройки">
+    <SettingsLayout title={t("settings.title")}>
       <SettingsBuilder sections={sections} />
 
-      <Section title="Сетка каталога" />
+      <Section title={t("settings.section.grid")} />
       <GridSection
         activeProfile={activeProfile}
         setActiveProfile={setActiveProfile}
       />
 
-      <Section title="Память устройства" />
+      <Section title={t("settings.section.storage")} />
       <StorageManager />
     </SettingsLayout>
   );

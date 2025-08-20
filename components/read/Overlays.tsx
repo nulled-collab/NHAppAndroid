@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n/I18nContext";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -19,6 +20,8 @@ export function HintsOverlay({
   hints: { left: boolean; center: boolean; right: boolean };
   handSwap: boolean;
 }) {
+  const { t } = useI18n();
+
   if (!visible || !(hints.left || hints.center || hints.right)) return null;
 
   return (
@@ -41,7 +44,9 @@ export function HintsOverlay({
           ]}
         >
           <Text style={[styles.hintText, { color: colors.searchTxt }]}>
-            {!handSwap ? "Нажми тут — Назад" : "Нажми тут — Вперёд"}
+            {!handSwap
+              ? `${t("common.tapHere")} — ${t("common.back")}`
+              : `${t("common.tapHere")} — ${t("common.nextPage")}`}
           </Text>
         </View>
       )}
@@ -61,7 +66,7 @@ export function HintsOverlay({
           ]}
         >
           <Text style={[styles.hintText, { color: colors.searchTxt }]}>
-            Нажми тут — Панель
+            {`${t("common.tapHere")} — ${t("reader.menuHint")}`}
           </Text>
         </View>
       )}
@@ -80,7 +85,9 @@ export function HintsOverlay({
           ]}
         >
           <Text style={[styles.hintText, { color: colors.searchTxt }]}>
-            {!handSwap ? "Нажми тут — Вперёд" : "Нажми тут — Назад"}
+            {!handSwap
+              ? `${t("common.tapHere")} — ${t("common.nextPage")}`
+              : `${t("common.tapHere")} — ${t("common.back")}`}
           </Text>
         </View>
       )}

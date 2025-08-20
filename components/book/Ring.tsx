@@ -2,7 +2,6 @@ import { useTheme } from "@/lib/ThemeContext";
 import React from "react";
 import Svg, { Circle as SvgCircle } from "react-native-svg";
 
-// Кольцо прогресса (для загрузки)
 export const Ring = ({
   progress,
   size = 22,

@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -7,15 +8,15 @@ import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Alert,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Alert,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import Card from "./Card";
 
@@ -73,6 +74,7 @@ function ChipBtn({
 
 export default function StorageManager() {
   const { colors, setHue } = useTheme();
+  const { t } = useI18n();
 
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<KV[]>([]);
@@ -182,18 +184,19 @@ export default function StorageManager() {
         } catch {}
       }
     } catch (e) {
-      Alert.alert("Экспорт", "Не удалось экспортировать: " + String(e));
+      Alert.alert(
+        t("storageManager.export.title"),
+        t("storageManager.export.failed", { error: String(e) })
+      );
     }
   };
 
   const importFromFile = async () => {
     try {
       if (Platform.OS === "web") {
-        Alert.alert(
-          "Импорт",
-          "На вебе проще использовать импорт из буфера. Нажми ‘Импорт из буфера’.",
-          [{ text: "Ок" }]
-        );
+        Alert.alert(t("storageManager.import.title"), t("storageManager.import.webHint"), [
+          { text: t("common.ok") },
+        ]);
         return;
       }
       const res = await DocumentPicker.getDocumentAsync({
@@ -206,7 +209,10 @@ export default function StorageManager() {
       });
       await importJson(raw);
     } catch (e) {
-      Alert.alert("Импорт", "Ошибка импорта: " + String(e));
+      Alert.alert(
+        t("storageManager.import.title"),
+        t("storageManager.import.error", { error: String(e) })
+      );
     }
   };
 
@@ -214,12 +220,15 @@ export default function StorageManager() {
     try {
       const raw = await Clipboard.getStringAsync();
       if (!raw) {
-        Alert.alert("Импорт", "В буфере пусто");
+        Alert.alert(t("storageManager.import.title"), t("storageManager.import.clipboardEmpty"));
         return;
       }
       await importJson(raw);
     } catch (e) {
-      Alert.alert("Импорт", "Ошибка чтения буфера: " + String(e));
+      Alert.alert(
+        t("storageManager.import.title"),
+        t("storageManager.import.error", { error: String(e) })
+      );
     }
   };
 
@@ -229,9 +238,7 @@ export default function StorageManager() {
       const data: Record<string, string> = parsed.data ?? parsed;
 
       if (wipeBeforeImport) {
-        const ok = await confirmAsync(
-          "Очистить все ключи перед импортом? Это необратимо."
-        );
+        const ok = await confirmAsync(t("storageManager.confirm.wipeBeforeImport"));
         if (!ok) return;
         await AsyncStorage.clear();
         broadcastChange({ op: "clear" });
@@ -246,23 +253,29 @@ export default function StorageManager() {
       }
       broadcastChange({ op: "multi-set", keys: entries.map(([k]) => k) });
 
-      Alert.alert("Импорт", `Импортировано ключей: ${entries.length}`);
+      Alert.alert(
+        t("storageManager.import.title"),
+        t("storageManager.import.ok", { count: entries.length })
+      );
       reload();
     } catch (e) {
-      Alert.alert("Импорт", "Некорректный JSON: " + String(e));
+      Alert.alert(
+        t("storageManager.import.title"),
+        t("storageManager.import.invalidJson", { error: String(e) })
+      );
     }
   };
 
   const confirmAsync = (message: string) =>
     new Promise<boolean>((resolve) => {
-      Alert.alert("Подтверждение", message, [
-        { text: "Отмена", style: "cancel", onPress: () => resolve(false) },
-        { text: "Да", style: "destructive", onPress: () => resolve(true) },
+      Alert.alert(t("storageManager.confirm.title"), message, [
+        { text: t("common.cancel"), style: "cancel", onPress: () => resolve(false) },
+        { text: t("common.yes"), style: "destructive", onPress: () => resolve(true) },
       ]);
     });
 
   const removeKey = async (k: string) => {
-    const ok = await confirmAsync(`Удалить ключ \n${k}?`);
+    const ok = await confirmAsync(t("storageManager.confirm.deleteKey", { key: k }));
     if (!ok) return;
     await AsyncStorage.removeItem(k);
     setItems((prev) => prev.filter((i) => i.key !== k));
@@ -270,9 +283,7 @@ export default function StorageManager() {
   };
 
   const clearAll = async () => {
-    const ok = await confirmAsync(
-      "Действительно удалить ВСЕ ключи? Это необратимо."
-    );
+    const ok = await confirmAsync(t("storageManager.confirm.clearAll"));
     if (!ok) return;
     await AsyncStorage.clear();
     setItems([]);
@@ -304,15 +315,17 @@ export default function StorageManager() {
     return v;
   };
 
+  const kb = (totalSize / 1024).toFixed(1);
+
   return (
     <Card>
       <View style={styles.headerRow}>
         <Feather name="database" size={16} color={colors.sub} />
         <Text style={[styles.title, { color: colors.txt }]}>
-          Память устройства
+          {t("storageManager.title")}
         </Text>
         <Text style={[styles.meta, { color: colors.sub }]}>
-          {items.length} ключей · {(totalSize / 1024).toFixed(1)} KB
+          {t("storageManager.meta", { count: items.length, size: kb })}
         </Text>
       </View>
 
@@ -324,7 +337,7 @@ export default function StorageManager() {
       >
         <Feather name="search" size={14} color={colors.searchTxt} />
         <TextInput
-          placeholder="Поиск по ключу или значению"
+          placeholder={t("storageManager.searchPlaceholder")}
           placeholderTextColor={colors.sub}
           value={query}
           onChangeText={setQuery}
@@ -346,7 +359,7 @@ export default function StorageManager() {
       <View style={styles.actionsRow}>
         <ChipBtn
           icon="download"
-          label="Экспорт"
+          label={t("storageManager.actions.export")}
           onPress={exportAll}
           bg={colors.tagBg}
           fg={colors.tagText}
@@ -354,7 +367,7 @@ export default function StorageManager() {
         />
         <ChipBtn
           icon="upload"
-          label="Импорт из файла"
+          label={t("storageManager.actions.importFile")}
           onPress={importFromFile}
           bg={colors.tagBg}
           fg={colors.tagText}
@@ -362,7 +375,7 @@ export default function StorageManager() {
         />
         <ChipBtn
           icon="clipboard"
-          label="Импорт из буфера"
+          label={t("storageManager.actions.importClipboard")}
           onPress={importFromClipboard}
           bg={colors.tagBg}
           fg={colors.tagText}
@@ -370,7 +383,7 @@ export default function StorageManager() {
         />
         <ChipBtn
           icon="trash-2"
-          label="Очистить всё"
+          label={t("storageManager.actions.clearAll")}
           onPress={clearAll}
           bg={"#ff585811"}
           fg={"#ff5858"}
@@ -389,7 +402,7 @@ export default function StorageManager() {
             color={colors.sub}
           />
           <Text style={{ color: colors.sub, fontSize: 12 }}>
-            Перезаписывать существующие
+            {t("storageManager.options.overwrite")}
           </Text>
         </Pressable>
         <Pressable
@@ -402,7 +415,7 @@ export default function StorageManager() {
             color={colors.sub}
           />
           <Text style={{ color: colors.sub, fontSize: 12 }}>
-            Очистить перед импортом
+            {t("storageManager.options.wipeBeforeImport")}
           </Text>
         </Pressable>
       </View>
@@ -442,7 +455,7 @@ export default function StorageManager() {
                     numberOfLines={1}
                     style={{ color: colors.sub, fontSize: 12 }}
                   >
-                    {it.value?.length || 0}b
+                    {(it.value?.length || 0) + t("storageManager.bytesSuffix")}
                   </Text>
                   <Feather
                     name={isOpen ? "chevron-up" : "chevron-down"}
@@ -474,14 +487,14 @@ export default function StorageManager() {
                   <View style={styles.itemActions}>
                     <ChipBtn
                       icon="edit"
-                      label="Редактировать"
+                      label={t("storageManager.actions.edit")}
                       onPress={() => openEdit(it.key, it.value)}
                       bg={colors.incBg}
                       fg={colors.incTxt}
                     />
                     <ChipBtn
                       icon="copy"
-                      label="Копировать"
+                      label={t("storageManager.actions.copy")}
                       onPress={() => Clipboard.setStringAsync(it.value)}
                       bg={colors.tagBg}
                       fg={colors.tagText}
@@ -489,7 +502,7 @@ export default function StorageManager() {
                     />
                     <ChipBtn
                       icon="trash-2"
-                      label="Удалить"
+                      label={t("storageManager.actions.delete")}
                       onPress={() => removeKey(it.key)}
                       bg={"#ff585811"}
                       fg={"#ff5858"}
@@ -510,7 +523,7 @@ export default function StorageManager() {
               marginTop: 8,
             }}
           >
-            Нет совпадений
+            {t("storageManager.noMatches")}
           </Text>
         )}
       </View>
@@ -523,14 +536,14 @@ export default function StorageManager() {
         <View style={[styles.modal, { backgroundColor: colors.bg }]}>
           <View style={styles.modalTop}>
             <Text style={[styles.modalTitle, { color: colors.txt }]}>
-              Редактирование ключа
+              {t("storageManager.modal.editTitle")}
             </Text>
             <Text style={{ color: colors.sub, fontSize: 12 }}>{editKey}</Text>
           </View>
           <TextInput
             value={editVal}
             onChangeText={setEditVal}
-            placeholder="Значение (строка или JSON)"
+            placeholder={t("storageManager.modal.valuePlaceholder")}
             placeholderTextColor={colors.sub}
             style={[
               styles.input,
@@ -548,14 +561,14 @@ export default function StorageManager() {
           <View style={styles.modalBtns}>
             <ChipBtn
               icon="save"
-              label="Сохранить"
+              label={t("common.save")}
               onPress={saveEdit}
               bg={colors.accent}
               fg={colors.bg}
             />
             <ChipBtn
               icon="x"
-              label="Отмена"
+              label={t("common.cancel")}
               onPress={() => setEditKey(null)}
               bg={colors.tagBg}
               fg={colors.tagText}

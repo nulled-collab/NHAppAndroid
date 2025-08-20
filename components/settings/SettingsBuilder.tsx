@@ -53,6 +53,5 @@ function ItemRenderer({ item }: { item: SettingsItem }) {
       />
     );
   }
-  // custom — произвольный JSX
   return <>{item.render()}</>;
 }

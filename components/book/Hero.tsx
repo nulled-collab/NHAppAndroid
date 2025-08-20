@@ -1,5 +1,6 @@
 import type { Book } from "@/api/nhentai";
 import { buildImageFallbacks } from "@/components/buildImageFallbacks";
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { timeAgo } from "@/utils/book/timeAgo";
 import { AntDesign, Feather } from "@expo/vector-icons";
@@ -115,6 +116,8 @@ export default function Hero({
   cycle: (t: { type: string; name: string }) => void;
 }) {
   const { colors } = useTheme();
+  const { t, resolved } = useI18n();
+
   const router = useRouter();
   const coverAR =
     book.coverW && book.coverH ? book.coverW / book.coverH : 3 / 4;
@@ -124,7 +127,7 @@ export default function Hero({
     page: number;
     restart: boolean;
   }>({
-    label: "ЧИТАТЬ",
+    label: t("book.read"),
     page: 1,
     restart: false,
   });
@@ -147,7 +150,7 @@ export default function Hero({
           }
 
           if (!entry) {
-            setReadBtn({ label: "ЧИТАТЬ", page: 1, restart: false });
+            setReadBtn({ label: t("book.read"), page: 1, restart: false });
             return;
           }
 
@@ -160,21 +163,21 @@ export default function Hero({
           const done = current >= total - 1;
 
           if (done)
-            setReadBtn({ label: "Читать заново", page: 1, restart: true });
+            setReadBtn({ label: t("book.readAgain"), page: 1, restart: true });
           else
             setReadBtn({
-              label: `Продолжить стр. ${current + 1}`,
+              label: t("book.continuePage", { page: current + 1 }),
               page: current + 1,
               restart: false,
             });
         } catch {
-          setReadBtn({ label: "ЧИТАТЬ", page: 1, restart: false });
+          setReadBtn({ label: t("book.read"), page: 1, restart: false });
         }
       })();
       return () => {
         alive = false;
       };
-    }, [book.id, book.pagesCount])
+    }, [book.id, book.pagesCount, t])
   );
 
   const dedupTags = useMemo(() => {
@@ -200,7 +203,7 @@ export default function Hero({
             style={[styles.circleBtn, { backgroundColor: colors.tagBg }]}
             android_ripple={{ color: colors.accent + "22", borderless: false }}
             accessibilityRole="button"
-            accessibilityLabel="Скачать"
+            accessibilityLabel={t("book.download")}
           >
             <Feather name="download" size={20} color={colors.accent} />
           </Pressable>
@@ -216,7 +219,7 @@ export default function Hero({
             style={[styles.circleBtn, { backgroundColor: colors.tagBg }]}
             android_ripple={{ color: colors.accent + "22", borderless: false }}
             accessibilityRole="button"
-            accessibilityLabel="Удалить из памяти"
+            accessibilityLabel={t("book.removeDownload")}
           >
             <Feather name="trash-2" size={20} color={colors.accent} />
           </Pressable>
@@ -231,7 +234,7 @@ export default function Hero({
           style={[styles.dlCircle, { backgroundColor: colors.tagBg }]}
           android_ripple={{ color: colors.accent + "22", borderless: false }}
           accessibilityRole="button"
-          accessibilityLabel="Отменить скачивание"
+          accessibilityLabel={t("book.cancelDownload")}
         >
           <Ring progress={pr} size={28} />
           <View style={styles.dlInner}>
@@ -334,7 +337,7 @@ export default function Hero({
                 style={{ marginLeft: 12 }}
               />
               <Text style={{ fontSize: 13, color: colors.metaText }}>
-                {timeAgo(book.uploaded)}
+                {timeAgo(book.uploaded, resolved)}
               </Text>
 
               <Feather
@@ -409,49 +412,49 @@ export default function Hero({
             </View>
 
             <TagBlock
-              label="Artists"
+              label={t("tags.artists")}
               tags={book.artists as TagLite[]}
               modeOf={modeOf}
               cycle={cycle}
               onTagPress={onTagPress}
             />
             <TagBlock
-              label="Characters"
+              label={t("tags.characters")}
               tags={book.characters as TagLite[]}
               modeOf={modeOf}
               cycle={cycle}
               onTagPress={onTagPress}
             />
             <TagBlock
-              label="Parodies"
+              label={t("tags.parodies")}
               tags={book.parodies as TagLite[]}
               modeOf={modeOf}
               cycle={cycle}
               onTagPress={onTagPress}
             />
             <TagBlock
-              label="Groups"
+              label={t("tags.groups")}
               tags={book.groups as TagLite[]}
               modeOf={modeOf}
               cycle={cycle}
               onTagPress={onTagPress}
             />
             <TagBlock
-              label="Categories"
+              label={t("tags.categories")}
               tags={book.categories as TagLite[]}
               modeOf={modeOf}
               cycle={cycle}
               onTagPress={onTagPress}
             />
             <TagBlock
-              label="Languages"
+              label={t("tags.languages")}
               tags={book.languages as TagLite[]}
               modeOf={modeOf}
               cycle={cycle}
               onTagPress={onTagPress}
             />
             <TagBlock
-              label="Tags"
+              label={t("tags.tags")}
               tags={dedupTags as TagLite[]}
               modeOf={modeOf}
               cycle={cycle}
@@ -460,7 +463,7 @@ export default function Hero({
 
             <View style={[styles.galleryRow, { marginTop: 16 }]}>
               <Text style={[styles.galleryLabel, { color: colors.metaText }]}>
-                GALLERY
+                {t("book.gallery")}
               </Text>
               <Pressable onPress={cycleCols} style={styles.layoutBtn}>
                 <Feather name="layout" size={18} color={colors.metaText} />
@@ -592,7 +595,7 @@ export default function Hero({
             style={{ marginLeft: 12 }}
           />
           <Text style={{ fontSize: 13, color: colors.metaText }}>
-            {timeAgo(book.uploaded)}
+            {timeAgo(book.uploaded, resolved)}
           </Text>
 
           <Feather
@@ -664,49 +667,49 @@ export default function Hero({
         </View>
 
         <TagBlock
-          label="Artists"
+          label={t("tags.artists")}
           tags={book.artists as TagLite[]}
           modeOf={modeOf}
           cycle={cycle}
           onTagPress={onTagPress}
         />
         <TagBlock
-          label="Characters"
+          label={t("tags.characters")}
           tags={book.characters as TagLite[]}
           modeOf={modeOf}
           cycle={cycle}
           onTagPress={onTagPress}
         />
         <TagBlock
-          label="Parodies"
+          label={t("tags.parodies")}
           tags={book.parodies as TagLite[]}
           modeOf={modeOf}
           cycle={cycle}
           onTagPress={onTagPress}
         />
         <TagBlock
-          label="Groups"
+          label={t("tags.groups")}
           tags={book.groups as TagLite[]}
           modeOf={modeOf}
           cycle={cycle}
           onTagPress={onTagPress}
         />
         <TagBlock
-          label="Categories"
+          label={t("tags.categories")}
           tags={book.categories as TagLite[]}
           modeOf={modeOf}
           cycle={cycle}
           onTagPress={onTagPress}
         />
         <TagBlock
-          label="Languages"
+          label={t("tags.languages")}
           tags={book.languages as TagLite[]}
           modeOf={modeOf}
           cycle={cycle}
           onTagPress={onTagPress}
         />
         <TagBlock
-          label="Tags"
+          label={t("tags.tags")}
           tags={dedupTags as TagLite[]}
           modeOf={modeOf}
           cycle={cycle}
@@ -715,7 +718,7 @@ export default function Hero({
 
         <View style={[styles.galleryRow, { marginTop: 16 }]}>
           <Text style={[styles.galleryLabel, { color: colors.metaText }]}>
-            GALLERY
+            {t("gallery")}
           </Text>
           <Pressable onPress={cycleCols} style={styles.layoutBtn}>
             <Feather name="layout" size={18} color={colors.metaText} />

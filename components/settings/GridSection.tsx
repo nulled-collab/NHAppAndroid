@@ -8,13 +8,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
-    GridProfile,
-    defaultGridConfigMap,
-    getGridConfigMap,
-    resetGridConfigMap,
-    setGridConfigMap,
-    subscribeGridConfig,
+  GridProfile,
+  defaultGridConfigMap,
+  getGridConfigMap,
+  resetGridConfigMap,
+  setGridConfigMap,
+  subscribeGridConfig,
 } from "@/config/gridConfig";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 function GridPreview({
   config,
@@ -74,11 +75,11 @@ function GridPreview({
   );
 }
 
-const PROFILES: { key: GridProfile; title: string }[] = [
-  { key: "phonePortrait", title: "Телефон · Портрет" },
-  { key: "phoneLandscape", title: "Телефон · Альбом" },
-  { key: "tabletPortrait", title: "Планшет · Портрет" },
-  { key: "tabletLandscape", title: "Планшет · Альбом" },
+const PROFILES: GridProfile[] = [
+  "phonePortrait",
+  "phoneLandscape",
+  "tabletPortrait",
+  "tabletLandscape",
 ];
 
 export default function GridSection({
@@ -89,6 +90,7 @@ export default function GridSection({
   setActiveProfile: (p: GridProfile) => void;
 }) {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const [gridMap, setGridMapState] = useState(defaultGridConfigMap);
   const profCfg = gridMap[activeProfile];
   const [previewBooks, setPreviewBooks] = useState<Book[]>([]);
@@ -166,22 +168,20 @@ export default function GridSection({
       >
         {PROFILES.map((p) => (
           <Pressable
-            key={p.key}
-            onPress={() => setActiveProfile(p.key)}
+            key={p}
+            onPress={() => setActiveProfile(p)}
             style={{
               paddingHorizontal: 10,
               paddingVertical: 8,
               borderRadius: 12,
               borderWidth: 1,
-              backgroundColor: chipBg(p.key),
-              borderColor: chipBr(p.key),
+              backgroundColor: chipBg(p),
+              borderColor: chipBr(p),
             }}
             android_ripple={{ color: colors.accent + "22", borderless: false }}
           >
-            <Text
-              style={{ color: chipFg(p.key), fontWeight: "700", fontSize: 12 }}
-            >
-              {p.title}
+            <Text style={{ color: chipFg(p), fontWeight: "700", fontSize: 12 }}>
+              {t(`settings.grid.${p}`)}
             </Text>
           </Pressable>
         ))}
@@ -195,7 +195,9 @@ export default function GridSection({
       />
 
       <View style={{ marginTop: 8 }}>
-        <Text style={labelStyle as any}>Колонок: {profCfg.numColumns}</Text>
+        <Text style={labelStyle as any}>
+          {t("settings.grid.columns")}: {profCfg.numColumns}
+        </Text>
         <Slider
           minimumValue={1}
           maximumValue={8}
@@ -207,7 +209,7 @@ export default function GridSection({
         />
 
         <Text style={labelStyle as any}>
-          Отступы по бокам: {profCfg.paddingHorizontal}
+          {t("settings.grid.spacingSides")}: {profCfg.paddingHorizontal}
         </Text>
         <Slider
           minimumValue={0}
@@ -220,7 +222,7 @@ export default function GridSection({
         />
 
         <Text style={labelStyle as any}>
-          Интервал между колонками: {profCfg.columnGap}
+          {t("settings.grid.spacingBetween")}: {profCfg.columnGap}
         </Text>
         <Slider
           minimumValue={0}
@@ -266,7 +268,7 @@ export default function GridSection({
               color: colors.searchTxt,
             }}
           >
-            Сбросить профиль
+            {t("settings.grid.resetProfile")}
           </Text>
         </Pressable>
 
@@ -294,7 +296,7 @@ export default function GridSection({
               color: colors.bg,
             }}
           >
-            Сбросить всё
+            {t("settings.grid.resetAll")}
           </Text>
         </Pressable>
       </View>

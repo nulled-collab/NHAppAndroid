@@ -1,3 +1,4 @@
+import { useI18n } from "@/lib/i18n/I18nContext";
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { RowBtn, RowToggle } from "./Buttons";
@@ -37,6 +38,7 @@ export function ControlsMobile({
   onBack: () => void;
   isSingleFrame: boolean;
 }) {
+  const { t } = useI18n();
   const inspectDisabled = !isSingleFrame;
 
   return (
@@ -50,7 +52,7 @@ export function ControlsMobile({
         <RowBtn
           onPress={onBack}
           icon="corner-up-left"
-          label="Назад"
+          label={t("reader.controls.back")}
           color={colors.searchTxt}
         />
       </View>
@@ -60,7 +62,7 @@ export function ControlsMobile({
           active={tapFlipEnabled}
           onToggle={toggleTapFlip}
           icon="loader"
-          label="Тап"
+          label={t("reader.controls.tap")}
           color={colors.searchTxt}
           activeColor={colors.accent}
         />
@@ -87,7 +89,7 @@ export function ControlsMobile({
           icon={
             settings.orientation === "vertical" ? "arrow-down" : "arrow-right"
           }
-          label="Ориент."
+          label={t("reader.controls.orientation")}
           color={colors.searchTxt}
         />
       </View>
@@ -96,7 +98,11 @@ export function ControlsMobile({
         <RowBtn
           onPress={toggleFit}
           icon={settings.fit === "contain" ? "maximize" : "minimize"}
-          label={settings.fit === "contain" ? "Подогн." : "Заполн."}
+          label={
+            settings.fit === "contain"
+              ? t("reader.controls.fitContain")
+              : t("reader.controls.fitCover")
+          }
           color={colors.searchTxt}
         />
       </View>
@@ -108,7 +114,7 @@ export function ControlsMobile({
             if (!inspectDisabled) toggleInspect();
           }}
           icon="search"
-          label="Осмотр"
+          label={t("reader.controls.inspect")}
           color={colors.searchTxt}
           activeColor={colors.accent}
         />

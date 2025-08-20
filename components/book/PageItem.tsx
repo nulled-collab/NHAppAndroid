@@ -2,7 +2,6 @@ import { Image as ExpoImage } from "expo-image";
 import React, { memo } from "react";
 import { Pressable, Text } from "react-native";
 
-// единый зазор между карточками (как CSS gap)
 export const GAP = 10;
 
 export const PageItem = memo(
@@ -26,9 +25,7 @@ export const PageItem = memo(
         onPress={onPress}
         style={{
           width: itemW,
-          // вертикальный зазор между строками
           marginBottom: GAP,
-          // симметричный горизонтальный gap: по половинке на каждую сторону
           marginHorizontal: isGrid ? GAP / 2 : 0,
         }}
       >

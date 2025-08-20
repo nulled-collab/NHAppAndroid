@@ -31,6 +31,7 @@ import {
 import { BookPage, getBook, loadBookFromLocal } from "@/api/nhentai";
 import { useTheme } from "@/lib/ThemeContext";
 
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { ControlsDesktop } from "../components/read/ControlsDesktop";
 import { ControlsMobile } from "../components/read/ControlsMobile";
 import { InspectCanvas } from "../components/read/InspectCanvas";
@@ -142,6 +143,7 @@ export default function ReadScreen() {
   const [frameIdx, setFrameIdx] = useState(0);
   const frameIdxRef = useRef(0);
   const absIndexRef = useRef(0);
+  const { t } = useI18n();
 
   const didInitRef = useRef(false);
 
@@ -433,38 +435,71 @@ export default function ReadScreen() {
     setSettings((s) => ({ ...s, orientation: nv }));
     saveStr(G_ORIENT, nv);
     showBanner(
-      `Ориентация: ${nv === "vertical" ? "Вертикаль" : "Горизонталь"}`
+      t("reader.banner.orientation", {
+        mode:
+          nv === "vertical"
+            ? t("reader.banner.orientationVertical")
+            : t("reader.banner.orientationHorizontal"),
+      })
     );
   };
+
   const toggleDual = () => {
     const nv = !settings.dualInLandscape;
     setSettings((s) => ({ ...s, dualInLandscape: nv }));
     saveBool(G_DUAL, nv);
-    showBanner(`Двойная страница: ${nv ? "ВКЛ" : "ВЫКЛ"}`);
+    showBanner(
+      t("reader.banner.dual", {
+        state: nv ? t("reader.banner.on") : t("reader.banner.off"),
+      })
+    );
   };
+
   const toggleFit = () => {
     const nv: FitMode = settings.fit === "contain" ? "cover" : "contain";
     setSettings((s) => ({ ...s, fit: nv }));
     saveStr(G_FIT, nv);
-    showBanner(`Режим: ${nv === "contain" ? "Подогнать" : "Заполнить"}`);
+    showBanner(
+      t("reader.banner.fit", {
+        mode:
+          nv === "contain"
+            ? t("reader.banner.fitContain")
+            : t("reader.banner.fitCover"),
+      })
+    );
   };
+
   const toggleTapFlip = () => {
     const nv = !tapFlipEnabled;
     setTapFlip(nv);
     saveBool(G_TAP, nv);
-    showBanner(`Тап-листалка: ${nv ? "ВКЛ" : "ВЫКЛ"}`);
+    showBanner(
+      t("reader.banner.tap", {
+        state: nv ? t("reader.banner.on") : t("reader.banner.off"),
+      })
+    );
   };
+
   const toggleHandSwap = () => {
     const nv = !handSwap;
     setHandSwap(nv);
     saveBool(G_HAND, nv);
-    showBanner(`Смена пальцев: ${nv ? "ВКЛ" : "ВЫКЛ"}`);
+    showBanner(
+      t("reader.banner.hand", {
+        state: nv ? t("reader.banner.on") : t("reader.banner.off"),
+      })
+    );
   };
+
   const toggleInspect = () => {
     const nv = !inspect;
     setInspect(nv);
     saveBool(G_INSPECT, nv);
-    showBanner(`Осмотр: ${nv ? "ВКЛ" : "ВЫКЛ"}`);
+    showBanner(
+      t("reader.banner.inspect", {
+        state: nv ? t("reader.banner.on") : t("reader.banner.off"),
+      })
+    );
   };
 
   return (

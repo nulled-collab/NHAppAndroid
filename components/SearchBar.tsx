@@ -8,43 +8,14 @@ import { useDrawer } from "@/components/DrawerContext";
 import { useOverlayPortal } from "@/components/OverlayPortal";
 import { SortKey, useSort } from "@/context/SortContext";
 import { useTheme } from "@/lib/ThemeContext";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 const BAR_HEIGHT = 52;
 const BTN_SIDE = 40;
 
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: "popular", label: "Popular" },
-  { key: "popular-week", label: "Hot Week" },
-  { key: "popular-today", label: "Hot Today" },
-  { key: "popular-month", label: "Hot Month" },
-  { key: "date", label: "Newest" },
-];
-
 function hasSeg(pathname: string | null | undefined, seg: string) {
   const p = pathname ?? "";
   return new RegExp(`(^|/)${seg}(\\/|$)`).test(p);
-}
-
-function getTitle(
-  pathname: string | null | undefined,
-  q: string,
-  bookTitle?: string,
-  bookId?: string
-) {
-  const p = pathname ?? "";
-  const has = (seg: string) => new RegExp(`(^|/)${seg}(\\/|$)`).test(p);
-
-  if (p === "/" || has("index")) return "Главная";
-  if (has("explore")) return q ? `Поиск: ${q}` : "Поиск";
-  if (has("favorites")) return "Избранное";
-  if (has("downloaded")) return "Загрузки";
-  if (has("recommendations")) return "Рекомендации";
-  if (has("history")) return "История";
-  if (has("settings")) return "Настройки";
-  if (has("book")) return `#${bookId} - ${bookTitle}`;
-  if (has("search")) return q ? `Поиск: ${q}` : "Поиск";
-  if (has("tags")) return "Теги";
-  return "NH App";
 }
 
 /** Круглая иконка-кнопка без «квадратов» при удержании */
@@ -78,6 +49,16 @@ export function SearchBar() {
   const { sort, setSort } = useSort();
   const portal = useOverlayPortal();
 
+  const { t } = useI18n();
+
+  const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+    { key: "popular", label: t("explore.sort.popular") },
+    { key: "popular-week", label: t("explore.sort.popularWeek") },
+    { key: "popular-today", label: t("explore.sort.popularToday") },
+    { key: "popular-month", label: t("explore.sort.popularMonth") },
+    { key: "date", label: t("explore.sort.latest") },
+  ];
+
   const router = useRouter();
   const pathname = usePathname();
   const params = useGlobalSearchParams<{
@@ -85,6 +66,30 @@ export function SearchBar() {
     id?: string | string[];
     title?: string | string[];
   }>();
+
+  function getTitle(
+    pathname: string | null | undefined,
+    q: string,
+    bookTitle?: string,
+    bookId?: string
+  ) {
+    const p = pathname ?? "";
+    const has = (seg: string) => new RegExp(`(^|/)${seg}(\\/|$)`).test(p);
+
+    if (p === "/" || has("index")) return t("menu.home");
+    if (has("explore"))
+      return q ? t("search.results") + ": " + q : t("menu.explore");
+    if (has("favorites")) return t("menu.favorites");
+    if (has("downloaded")) return t("menu.downloaded");
+    if (has("recommendations")) return t("menu.recommendations");
+    if (has("history")) return t("menu.history");
+    if (has("settings")) return t("menu.settings");
+    if (has("book")) return `#${bookId} - ${bookTitle}`;
+    if (has("search"))
+      return q ? t("menu.search") + ": " + q : t("menu.search");
+    if (has("tags")) return t("menu.tags");
+    return "NH App";
+  }
 
   const q = typeof params.query === "string" ? params.query : "";
 
@@ -106,7 +111,10 @@ export function SearchBar() {
   );
   const showBack = pathname && pathname !== "/" && pathname !== "/index";
 
-  const hideRight = hasSeg(pathname, "settings") || hasSeg(pathname, "tags") || hasSeg(pathname, "book");
+  const hideRight =
+    hasSeg(pathname, "settings") ||
+    hasSeg(pathname, "tags") ||
+    hasSeg(pathname, "book");
 
   const closeSort = () => {
     setSortOpen(false);
@@ -124,7 +132,7 @@ export function SearchBar() {
       >
         <View style={styles.sheetHeader}>
           <Text style={[styles.sheetTitle, { color: colors.searchTxt }]}>
-            Sort by
+            {t("explore.sortBy")}
           </Text>
           <IconBtn onPress={closeSort}>
             <Feather name="x" size={18} color={colors.sub} />
@@ -177,7 +185,9 @@ export function SearchBar() {
               closeSort();
             }}
           >
-            <Text style={[styles.footerBtnTxt, { color: colors.bg }]}>OK</Text>
+            <Text style={[styles.footerBtnTxt, { color: colors.bg }]}>
+              {t("common.ok")}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -218,7 +228,7 @@ export function SearchBar() {
       >
         <View style={styles.sheetHeader}>
           <Text style={[styles.sheetTitle, { color: colors.searchTxt }]}>
-            Назад
+            {t("common.back")}
           </Text>
           <IconBtn
             onPress={() => {
@@ -241,7 +251,7 @@ export function SearchBar() {
             android_ripple={{ color: colors.accent + "22", borderless: false }}
           >
             <Text style={[styles.sortTxt, { color: colors.searchTxt }]}>
-              Назад на 1
+              {t("searchBar.backOne")}
             </Text>
           </Pressable>
           <Pressable
@@ -250,7 +260,7 @@ export function SearchBar() {
             android_ripple={{ color: colors.accent + "22", borderless: false }}
           >
             <Text style={[styles.sortTxt, { color: colors.searchTxt }]}>
-              Назад на 2
+              {t("searchBar.backTwo")}
             </Text>
           </Pressable>
           <Pressable
@@ -259,7 +269,7 @@ export function SearchBar() {
             android_ripple={{ color: colors.accent + "22", borderless: false }}
           >
             <Text style={[styles.sortTxt, { color: colors.searchTxt }]}>
-              На главную
+              {t("searchBar.backHome")}
             </Text>
           </Pressable>
         </ScrollView>

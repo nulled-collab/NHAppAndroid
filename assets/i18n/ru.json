@@ -1,0 +1,330 @@
+{
+  "app": {
+    "name": "NHAppAndroid",
+    "version": { "beta": "Бета" }
+  },
+
+  "common": {
+    "ok": "ОК",
+    "cancel": "Отмена",
+    "close": "Закрыть",
+    "save": "Сохранить",
+    "edit": "Редактировать",
+    "delete": "Удалить",
+    "yes": "Да",
+    "no": "Нет",
+    "retry": "Повторить",
+    "nextPage": "Далее",
+    "back": "Назад",
+    "more": "Ещё",
+    "copied": "Скопировано",
+    "tapHere": "Коснитесь здесь"
+  },
+
+  "errors": {
+    "generic": "Что-то пошло не так.",
+    "network": "Ошибка сети. Проверьте подключение.",
+    "timeout": "Истекло время ожидания.",
+    "notFound": "Ничего не найдено.",
+    "forbidden": "Доступ запрещён."
+  },
+
+  "empty": {
+    "list": "Здесь пока пусто.",
+    "search": "Нет результатов по запросу «{q}».",
+    "downloads": "Загрузок пока нет.",
+    "favorites": "Избранного пока нет.",
+    "history": "История пока пуста."
+  },
+
+  "menu": {
+    "home": "Главная",
+    "search": "Поиск",
+    "explore": "Каталог",
+    "downloaded": "Скачанные",
+    "favorites": "Избранное",
+    "history": "История",
+    "recommendations": "Рекомендации",
+    "tags": "Теги",
+    "settings": "Настройки",
+    "random": "Мне повезёт"
+  },
+
+  "actions": {
+    "open": "Открыть",
+    "share": "Поделиться",
+    "copy": "Копировать",
+    "copyLink": "Скопировать ссылку",
+    "add": "Добавить",
+    "remove": "Удалить",
+    "apply": "Применить",
+    "clear": "Очистить",
+    "reset": "Сбросить",
+    "filter": "Фильтр",
+    "sort": "Сортировка",
+    "include": "Включить",
+    "exclude": "Исключить",
+    "includeAll": "Включить всё",
+    "excludeAll": "Исключить всё",
+    "download": "Скачать",
+    "removeDownload": "Удалить загрузку",
+    "pause": "Пауза",
+    "resume": "Продолжить",
+    "cancelDownload": "Отменить загрузку",
+    "tryAnother": "Попробуем ещё?",
+    "showMore": "Показать больше",
+    "showLess": "Показать меньше"
+  },
+
+  "search": {
+    "placeholder": "Искать по названию или тегу",
+    "recent": "Недавние запросы",
+    "clearHistory": "Очистить историю",
+    "results": "Результаты",
+    "loading": "Загрузка…"
+  },
+
+  "explore": {
+    "sortBy": "Сортировать по",
+    "sort": {
+      "popular": "Популярное",
+      "popularWeek": "Популярное за неделю",
+      "popularToday": "Популярное за сегодня",
+      "popularMonth": "Популярное за месяц",
+      "latest": "Новинки"
+    }
+  },
+  "searchBar": {
+    "backOne": "Назад на 1",
+    "backTwo": "Назад на 2",
+    "backHome": "На главную"
+  },
+  "book": {
+    "read": "Читать",
+    "readAgain": "Читать заново",
+    "continuePage": "Продолжить стр.{page}",
+    "download": "Скачать",
+    "removeDownload": "Удалить из памяти",
+    "cancelDownload": "Отменить скачивание",
+    "gallery": "Галерея",
+    "new": "НОВОЕ",
+    "title": "Книга",
+    "pages": "{count} стр.",
+    "language": "Язык",
+    "languages": "Языки",
+    "artists": "Авторы",
+    "groups": "Группы",
+    "parodies": "Пародии",
+    "characters": "Персонажи",
+    "tags": "Теги",
+    "related": "Похожее",
+    "comments": "Комментарии",
+    "details": "Подробности",
+    "addToFavorites": "В избранное",
+    "removeFromFavorites": "Убрать из избранного",
+    "addedToFavorites": "Добавлено в избранное",
+    "removedFromFavorites": "Убрано из избранного",
+    "openRandom": "Открыть случайную",
+    "randomAgain": "Ещё случайная",
+    "fromRandomCta": "Попробуем ещё?"
+  },
+
+  "reader": {
+    "title": "Читалка",
+    "page": "Стр. {index} / {total}",
+    "nextPage": "Следующая страница",
+    "prevPage": "Предыдущая страница",
+    "menuHint": "Показать интерфейс",
+    "fit": "По экрану",
+    "fitWidth": "По ширине",
+    "fitHeight": "По высоте",
+    "zoom": "Масштаб",
+    "spread": "Разворот",
+    "singlePage": "Одна страница",
+    "doublePage": "Две страницы",
+    "showHints": "Показывать подсказки",
+    "hideHints": "Скрывать подсказки",
+    "brightness": "Яркость",
+    "keepScreenOn": "Не выключать экран",
+    "goToPage": "Перейти к странице",
+    "controls": {
+      "back": "Назад",
+      "tap": "Тап",
+      "orientation": "Ориент.",
+      "fitContain": "Подогн.",
+      "fitCover": "Заполн.",
+      "inspect": "Осмотр"
+    },
+    "banner": {
+      "orientation": "Ориентация: {mode}",
+      "orientationVertical": "Вертикаль",
+      "orientationHorizontal": "Горизонталь",
+      "dual": "Двойная страница: {state}",
+      "fit": "Режим: {mode}",
+      "fitContain": "Подогнать",
+      "fitCover": "Заполнить",
+      "tap": "Тап-листалка: {state}",
+      "hand": "Смена пальцев: {state}",
+      "inspect": "Осмотр: {state}",
+      "on": "ВКЛ",
+      "off": "ВЫКЛ"
+    }
+  },
+
+  "tags": {
+    "artists": "Авторы",
+    "characters": "Персонажи",
+    "parodies": "Пародии",
+    "groups": "Группы",
+    "categories": "Категории",
+    "languages": "Языки",
+    "tags": "Теги",
+    "include": "Включить теги",
+    "exclude": "Исключить теги",
+    "soloMode": "Искать только по этому тегу",
+    "applyToExplore": "Применить к каталогу",
+    "clearAll": "Сбросить всё",
+    "selectedCount": "Выбрано: {count}"
+  },
+
+  "downloads": {
+    "title": "Загрузки",
+    "queued": "В очереди",
+    "downloading": "Загрузка",
+    "completed": "Готово",
+    "failed": "Ошибка",
+    "canceled": "Отменено",
+    "openFolder": "Открыть папку",
+    "deleteAll": "Удалить всё",
+    "confirmDeleteAll": "Удалить все загруженные файлы?",
+    "noPermission": "Нужно разрешение на доступ к памяти."
+  },
+
+  "favorites": { "title": "Избранное" },
+  "history": {
+    "title": "История",
+    "clear": "Очистить историю",
+    "confirmClear": "Очистить историю чтения?"
+  },
+  "recommendations": { "title": "Рекомендации" },
+
+  "settings": {
+    "title": "Настройки",
+
+    "section": {
+      "language": "Язык",
+      "appearance": "Оформление",
+      "display": "Экран",
+      "reader": "Чтение",
+      "grid": "Сетка каталога",
+      "storage": "Память устройства"
+    },
+
+    "language": {
+      "choose": "Язык интерфейса",
+      "system": "Системный",
+      "english": "English",
+      "russian": "Русский",
+      "note": "Меняется только язык интерфейса. На язык контента это не влияет."
+    },
+
+    "appearance": {
+      "theme": "Тема приложения",
+      "hue": "Оттенок: {deg}°"
+    },
+
+    "display": {
+      "fullscreen": "Полноэкранный режим",
+      "fullscreenDesc": "Скрывать статус-бар и системную панель. Контент от края до края.",
+      "androidNote": "На Android панели можно вызвать жестом снизу даже в полноэкранном режиме."
+    },
+
+    "reader": {
+      "hideHints": "Скрывать подсказки",
+      "hideHintsDesc": "Прятать обучающие подсказки, оверлеи и подсветки жестов в режиме чтения."
+    },
+
+    "grid": {
+      "phonePortrait": "Телефон · Портрет",
+      "phoneLandscape": "Телефон · Альбом",
+      "tabletPortrait": "Планшет · Портрет",
+      "tabletLandscape": "Планшет · Альбом",
+      "columns": "Колонок",
+      "spacingSides": "Отступы по бокам",
+      "spacingBetween": "Интервал между колонками",
+      "resetProfile": "Сбросить профиль",
+      "resetAll": "Сбросить всё"
+    },
+
+    "storage": {
+      "cache": "Кэш",
+      "cacheSize": "Размер кэша: {size}",
+      "clearCache": "Очистить кэш",
+      "downloads": "Загруженные файлы",
+      "downloadsSize": "Размер загрузок: {size}",
+      "clearDownloads": "Удалить все загрузки",
+      "confirmClearDownloads": "Удалить все загруженные файлы?",
+      "freeSpace": "Свободно: {size}"
+    }
+  },
+
+  "storageManager": {
+    "title": "Память устройства",
+    "meta": "{count} ключей · {size} КБ",
+    "searchPlaceholder": "Поиск по ключу или значению",
+
+    "actions": {
+      "export": "Экспорт",
+      "importFile": "Импорт из файла",
+      "importClipboard": "Импорт из буфера",
+      "clearAll": "Очистить всё",
+      "edit": "Редактировать",
+      "copy": "Копировать",
+      "delete": "Удалить"
+    },
+
+    "options": {
+      "overwrite": "Перезаписывать существующие",
+      "wipeBeforeImport": "Очистить перед импортом"
+    },
+
+    "noMatches": "Нет совпадений",
+
+    "modal": {
+      "editTitle": "Редактирование ключа",
+      "valuePlaceholder": "Значение (строка или JSON)"
+    },
+
+    "confirm": {
+      "title": "Подтверждение",
+      "clearAll": "Действительно удалить ВСЕ ключи? Это необратимо.",
+      "deleteKey": "Удалить ключ \n{key}?",
+      "wipeBeforeImport": "Очистить все ключи перед импортом? Это необратимо."
+    },
+
+    "import": {
+      "title": "Импорт",
+      "webHint": "На вебе удобнее использовать «Импорт из буфера».",
+      "error": "Ошибка импорта: {error}",
+      "clipboardEmpty": "В буфере пусто.",
+      "ok": "Импортировано ключей: {count}",
+      "invalidJson": "Некорректный JSON: {error}"
+    },
+
+    "export": {
+      "title": "Экспорт",
+      "failed": "Не удалось экспортировать: {error}"
+    },
+
+    "bytesSuffix": "б"
+  },
+
+  "translate": "Перевести",
+  "translating": "Перевод…",
+  "showOriginal": "Показать оригинал",
+  "showTranslation": "Показать перевод",
+  "related": "Похожее",
+  "comments": "Комментарии",
+  "showMore": "Показать ещё {count}",
+  "historyNotFound": "История пуста ¯\\_(ツ)_/¯"
+}

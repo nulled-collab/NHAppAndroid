@@ -15,7 +15,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useBookData } from "@/hooks/book/useBookData";
 import { useColumns } from "@/hooks/book/useColumns";
@@ -28,6 +27,7 @@ import { useWindowLayout } from "@/hooks/book/useWindowLayout";
 import Footer from "@/components/book/Footer";
 import Hero from "@/components/book/Hero";
 import PageItem, { GAP } from "@/components/book/PageItem";
+import { useI18n } from "@/lib/i18n/I18nContext";
 
 export default function BookScreen() {
   const { id, random } = useLocalSearchParams<{ id: string; random?: string }>();
@@ -37,7 +37,8 @@ export default function BookScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const baseGrid = useGridConfig();
-  const insets = useSafeAreaInsets();
+
+  const { t } = useI18n();
 
   const { filters, cycle } = useFilterTags();
 
@@ -296,7 +297,7 @@ export default function BookScreen() {
                 <>
                   <Feather name="shuffle" size={16} color={colors.bg} />
                   <Text style={[styles.tryTxt, { color: colors.bg }]}>
-                    Попробуем ещё?
+                    {t("book.fromRandomCta")}
                   </Text>
                 </>
               )}

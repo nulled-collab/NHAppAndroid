@@ -1,21 +1,22 @@
 import { Book } from "@/api/nhentai";
-import { format } from "date-fns";
-import { ru } from "date-fns/locale";
+import { format, Locale } from "date-fns";
+import { enUS, ja, ru, zhCN } from "date-fns/locale";
 import React, { ReactElement, ReactNode, useMemo, useRef } from "react";
 import {
-    ActivityIndicator,
-    RefreshControl,
-    SectionList,
-    SectionListData,
-    SectionListRenderItem,
-    StyleSheet,
-    Text,
-    View,
-    useWindowDimensions,
+  ActivityIndicator,
+  RefreshControl,
+  SectionList,
+  SectionListData,
+  SectionListRenderItem,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import Animated, { FadeOut } from "react-native-reanimated";
 
 import { useTheme } from "@/lib/ThemeContext";
+import { useI18n } from "@/lib/i18n/I18nContext";
 import BookCard from "./BookCard";
 
 export type ReadHistoryEntry = [number, number, number, number];
@@ -90,8 +91,22 @@ export default function BookListHistory<T extends Book = Book>({
   children,
 }: BookListHistoryProps<T>) {
   const { colors } = useTheme();
+  const { t, resolved } = useI18n();
   const listRef = useRef<SectionList<SectionRow<T>>>(null);
   const { width, height } = useWindowDimensions();
+
+  const { dateLocale, timePattern } = useMemo(() => {
+    const loc: Locale =
+      resolved === "ru"
+        ? ru
+        : resolved === "zhCN"
+        ? zhCN
+        : resolved === "ja"
+        ? ja
+        : enUS;
+    const timeFmt = resolved === "en" ? "h:mm a" : "HH:mm";
+    return { dateLocale: loc, timePattern: timeFmt };
+  }, [resolved]);
 
   const base = useMemo<GridConfig>(() => {
     const isPortrait = height > width;
@@ -142,8 +157,8 @@ export default function BookListHistory<T extends Book = Book>({
           book: b,
           ts,
           dateKey: format(d, "yyyy-MM-dd"),
-          dateTitle: format(d, "d MMM yyyy", { locale: ru }),
-          timeHHmm: format(d, "HH:mm"),
+          dateTitle: format(d, "d MMM yyyy", { locale: dateLocale }),
+          timeHHmm: format(d, timePattern, { locale: dateLocale }),
         };
       })
       .filter(Boolean) as {
@@ -179,7 +194,7 @@ export default function BookListHistory<T extends Book = Book>({
 
     result.sort((a, b) => (a.key > b.key ? -1 : a.key < b.key ? 1 : 0));
     return result;
-  }, [data, historyIndex, cols]);
+  }, [data, historyIndex, cols, dateLocale, timePattern]);
 
   const renderRow: SectionListRenderItem<SectionRow<T>> = ({ item: row }) => {
     return (
@@ -228,7 +243,7 @@ export default function BookListHistory<T extends Book = Book>({
                         { color: done ? colors.bg : colors.metaText },
                       ]}
                     >
-                      {done ? "✔ прочитано" : `${curDisp}/${total}`}
+                      {done ? "✔" : `${curDisp}/${total}`}
                     </Text>
                   </View>
                 )}
@@ -272,7 +287,7 @@ export default function BookListHistory<T extends Book = Book>({
   const Empty = () => (
     <View style={styles.empty}>
       <Animated.Text entering={FadeOut.duration(400)} style={styles.emptyText}>
-        История пуста ¯\_(ツ)_/¯
+        {t("historyNotFound")}
       </Animated.Text>
     </View>
   );
@@ -342,10 +357,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     marginRight: 8,
   },
-  progressPill: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
+  progressPill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   progressPillText: { fontWeight: "800", fontSize: 11 },
 });

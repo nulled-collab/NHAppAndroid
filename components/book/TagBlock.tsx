@@ -158,13 +158,6 @@ export const TagBlock = memo(function TagBlock({
                         }),
                     ]}
                     accessibilityRole="button"
-                    accessibilityLabel={
-                      mode === "include"
-                        ? "Убрать из включённых"
-                        : mode === "exclude"
-                        ? "Убрать из исключённых"
-                        : "Добавить в фильтр"
-                    }
                   >
                     <Feather
                       name={iconName as any}
