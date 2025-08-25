@@ -201,7 +201,7 @@ export default function HomeScreen() {
 import Svg, { Circle } from "react-native-svg";
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, width: "100%" },
 
   updateBanner: {
     flexDirection: "row",

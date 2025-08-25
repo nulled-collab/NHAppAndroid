@@ -1,24 +1,20 @@
+// components/book/Footer.tsx
 import type { Book, GalleryComment } from "@/api/nhentai";
+import { deleteCommentById, type ApiComment } from "@/api/online/comments";
 import BookList from "@/components/BookList";
+import CommentCard from "@/components/CommentCard";
+import CommentComposer from "@/components/CommentComposer";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
-import { MaterialIcons } from "@expo/vector-icons";
-import { format, Locale } from "date-fns";
-import { enUS, ja, ru, zhCN } from "date-fns/locale";
-import { Image as ExpoImage } from "expo-image";
 import { useRouter } from "expo-router";
-import { franc } from "franc-min";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
-  Easing,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { timeAgo } from "../../utils/book/timeAgo";
 
 const s = StyleSheet.create({
   sectionHead: {
@@ -39,360 +35,21 @@ const s = StyleSheet.create({
   },
   showMoreTxt: { fontWeight: "700", fontSize: 14, letterSpacing: 0.3 },
   sectionBookList: { marginHorizontal: -16 },
-
-  translateButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    alignSelf: "flex-start",
-  },
-  translateText: { fontWeight: "600", fontSize: 12, marginLeft: 6 },
-
-  commentHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  timeSeparator: { fontSize: 12, marginHorizontal: 6 },
-  loadingContainer: { flexDirection: "row", alignItems: "center", gap: 6 },
 });
 
-/** UNIX seconds → number | null (защита от миллисекунд) */
-function toUnixSeconds(raw: unknown): number | null {
-  let n =
-    typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
-  if (!Number.isFinite(n) || n <= 0) return null;
-  if (n > 1e12) n = Math.floor(n / 1000);
-  return Math.floor(n);
-}
-
-/** ISO-639-3 → MyMemory */
-function mapIso3ToMyMemory(iso3: string, text: string): string {
-  const m: Record<string, string> = {
-    eng: "en",
-    rus: "ru",
-    zho: "zh-CN",
-    cmn: "zh-CN",
-    jpn: "ja",
-    kor: "ko",
-    spa: "es",
-    por: "pt",
-    fra: "fr",
-    deu: "de",
-    ita: "it",
-    ukr: "uk",
-    bel: "be",
-    pol: "pl",
-    nld: "nl",
-    swe: "sv",
-    fin: "fi",
-    dan: "da",
-    nor: "no",
-    ces: "cs",
-    slk: "sk",
-    slv: "sl",
-    hrv: "hr",
-    srp: "sr",
-    bul: "bg",
-    ron: "ro",
-    hun: "hu",
-    tur: "tr",
-    vie: "vi",
-    tha: "th",
-    ara: "ar",
-    heb: "he",
-    hin: "hi",
-    ind: "id",
-    fil: "tl",
-    tgl: "tl",
-    cat: "ca",
-    glg: "gl",
-    epo: "eo",
-  };
-  if (m[iso3]) return m[iso3];
-  const mostlyAscii =
-    text && /[\x00-\x7F]/g.test(text) && !/[^\x00-\x7F]/.test(text);
-  return mostlyAscii ? "en" : "en";
-}
-
-/** Спиннер */
-const LoadingSpinner = ({ color }: { color: string }) => {
-  const spinValue = React.useRef(new Animated.Value(0)).current;
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.timing(spinValue, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-  }, [spinValue]);
-  const spin = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
-  });
-  return (
-    <Animated.View style={{ transform: [{ rotate: spin }] }}>
-      <MaterialIcons name="autorenew" size={16} color={color} />
-    </Animated.View>
-  );
-};
-
-function CommentItem({
-  c,
-  colors,
-  dateLocale,
-  resolved,
-  t,
-}: {
-  c: GalleryComment;
-  colors: any;
-  dateLocale: Locale;
-  resolved: "en" | "ru" | "zh" | "ja";
-  t: (key: string, vars?: any) => string;
-}) {
-  const ui = {
-    text: colors.txt,
-    metaText: colors.txt,
-    cardBg: colors.related,
-    border: colors.page,
-    avatarBg: colors.page,
-    accent: colors.accent,
-    pillBg: colors.tagBg,
-    pillDisabledBg: colors.page,
-    pillText: colors.accent,
-  };
-
-  const [translated, setTranslated] = useState<string | null>(null);
-  const [showOriginal, setShowOriginal] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const target = resolved === "zh" ? "zh-CN" : resolved;
-  const detected3 = franc(c.body || "", { minLength: 3 });
-  const src = mapIso3ToMyMemory(detected3, c.body || "");
-  const needsTranslation =
-    !!c.body && src.toLowerCase() !== (target as string).toLowerCase();
-
-  async function translateText(text: string) {
-    const chunk = (str: string, max = 450) => {
-      const parts: string[] = [];
-      let s = str;
-      while (s.length > max) {
-        let cut = s.lastIndexOf(" ", max);
-        if (cut === -1) cut = max;
-        parts.push(s.slice(0, cut));
-        s = s.slice(cut).trimStart();
-      }
-      if (s) parts.push(s);
-      return parts;
-    };
-    try {
-      setLoading(true);
-      const pieces = chunk(text);
-      const out: string[] = [];
-      for (const p of pieces) {
-        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
-          p
-        )}&langpair=${encodeURIComponent(src)}|${encodeURIComponent(target)}`;
-        const resp = await fetch(url);
-        const data = await resp.json();
-        const tt = data?.responseData?.translatedText;
-        out.push(typeof tt === "string" && tt.length ? tt : p);
-        await new Promise((r) => setTimeout(r, 300));
-      }
-      setTranslated(out.join(" "));
-      setShowOriginal(false);
-    } catch {
-      setTranslated(null);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const tsSec = toUnixSeconds(c.post_date);
-  const absPart =
-    tsSec != null
-      ? format(new Date(tsSec * 1000), "d MMM yyyy, HH:mm", {
-          locale: dateLocale,
-        })
-      : "";
-  const relPart = tsSec == null ? timeAgo(c.post_date, resolved) : "";
-
-  return (
-    <View
-      style={{
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: ui.border,
-        backgroundColor: ui.cardBg,
-        padding: 14,
-      }}
-    >
-      <View style={s.commentHeader}>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-            flex: 1,
-          }}
-        >
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              overflow: "hidden",
-              backgroundColor: ui.avatarBg,
-              borderWidth: 1,
-              borderColor: ui.border,
-            }}
-          >
-            {!!c.avatar && (
-              <ExpoImage
-                source={{ uri: c.avatar }}
-                style={{ width: "100%", height: "100%" }}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-              />
-            )}
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text
-              numberOfLines={1}
-              style={{
-                color: ui.text,
-                fontWeight: "700",
-                fontSize: 14,
-                marginBottom: 2,
-              }}
-            >
-              {c.poster?.username || t("anonymous")}
-            </Text>
-
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              {!!absPart && (
-                <Text
-                  style={{
-                    color: ui.metaText,
-                    opacity: 0.64,
-                    fontSize: 12,
-                    fontWeight: "500",
-                  }}
-                >
-                  {absPart}
-                </Text>
-              )}
-              {!!absPart && !!relPart && (
-                <Text
-                  style={[
-                    s.timeSeparator,
-                    { color: ui.metaText, opacity: 0.64 },
-                  ]}
-                >
-                  •
-                </Text>
-              )}
-              {!!relPart && (
-                <Text
-                  style={{
-                    color: ui.metaText,
-                    opacity: 0.64,
-                    fontSize: 12,
-                    fontWeight: "500",
-                  }}
-                >
-                  {relPart}
-                </Text>
-              )}
-            </View>
-          </View>
-        </View>
-      </View>
-
-      <Text
-        style={{
-          color: ui.text,
-          fontSize: 14,
-          lineHeight: 20,
-          marginBottom: needsTranslation || translated ? 8 : 0,
-        }}
-      >
-        {translated && !showOriginal ? translated : c.body}
-      </Text>
-
-      {(needsTranslation || translated) && (
-        <View
-          style={{
-            borderTopWidth: 1,
-            borderTopColor: ui.border,
-            paddingTop: 8,
-            marginTop: 4,
-            gap: 8,
-          }}
-        >
-          {needsTranslation && !translated && (
-            <Pressable
-              disabled={loading}
-              onPress={() => translateText(c.body)}
-              style={[
-                s.translateButton,
-                {
-                  backgroundColor: loading ? ui.pillDisabledBg : ui.pillBg,
-                  opacity: loading ? 0.8 : 1,
-                },
-              ]}
-              android_ripple={{ color: `${ui.accent}22` }}
-            >
-              {loading ? (
-                <View style={s.loadingContainer}>
-                  <LoadingSpinner color={ui.pillText} />
-                  <Text style={[s.translateText, { color: ui.pillText }]}>
-                    {t("translating")}
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  <MaterialIcons
-                    name="translate"
-                    size={16}
-                    color={ui.pillText}
-                  />
-                  <Text style={[s.translateText, { color: ui.pillText }]}>
-                    {t("translate")}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          )}
-
-          {translated && (
-            <Pressable
-              onPress={() => setShowOriginal((v) => !v)}
-              style={[s.translateButton, { backgroundColor: ui.pillBg }]}
-              android_ripple={{ color: `${ui.accent}22` }}
-            >
-              <MaterialIcons
-                name={showOriginal ? "translate" : "description"}
-                size={16}
-                color={ui.pillText}
-              />
-              <Text style={[s.translateText, { color: ui.pillText }]}>
-                {showOriginal ? t("showTranslated") : t("showOriginal")}
-              </Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-    </View>
-  );
+// на всякий — нормализатор URL (если вдруг прилетит относительный путь)
+function absUrl(u?: string | null): string | undefined {
+  if (!u) return undefined;
+  const s = String(u).trim();
+  if (!s) return undefined;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith("//")) return "https:" + s;
+  if (s.startsWith("/")) return "https://nhentai.net" + s;
+  return s;
 }
 
 export default function Footer({
+  galleryId,
   related,
   relLoading,
   refetchRelated,
@@ -404,7 +61,13 @@ export default function Footer({
   setVisibleCount,
   cmtLoading,
   innerPadding,
+  myUserId,
+  myAvatarUrl,
+  myUsername,
+  // не обязателен, но круто иметь
+  refetchComments,
 }: {
+  galleryId: number;
   related: Book[];
   relLoading: boolean;
   refetchRelated: () => Promise<void>;
@@ -416,19 +79,14 @@ export default function Footer({
   setVisibleCount: React.Dispatch<React.SetStateAction<number>>;
   cmtLoading: boolean;
   innerPadding: number;
+  myUserId?: number;
+  myAvatarUrl?: string;
+  myUsername?: string;
+  refetchComments?: () => Promise<void>;
 }) {
   const { colors } = useTheme();
-  const { t, resolved } = useI18n();
+  const { t } = useI18n();
   const router = useRouter();
-
-  const dateLocale: Locale =
-    resolved === "ru"
-      ? ru
-      : resolved === "zh"
-      ? zhCN
-      : resolved === "ja"
-      ? ja
-      : enUS;
 
   const ui = { text: colors.txt, accent: colors.accent };
 
@@ -443,20 +101,136 @@ export default function Footer({
     [baseGrid, related.length, innerPadding]
   );
 
-  const visibleComments = allComments.slice(0, visibleCount);
-  const hasMore = visibleCount < allComments.length;
+  // ===== локальные «свежие» комментарии + скрытые =====
+  const [localNew, setLocalNew] = useState<GalleryComment[]>([]);
+  const [hiddenIds, setHiddenIds] = useState<Set<number>>(new Set());
+
+  const makeKey = (c: GalleryComment) => {
+    const id = c.id as number | undefined;
+    if (id) return `id:${id}`;
+    const uid =
+      (c.poster as any)?.id ??
+      (c.poster as any)?.username ??
+      (c.poster as any)?.slug ??
+      "u";
+    const ts =
+      typeof c.post_date === "number"
+        ? c.post_date
+        : Date.parse(String(c.post_date ?? "")) || 0;
+    const bodyHead = (c.body || "").slice(0, 48);
+    return `tmp:${uid}|${ts}|${bodyHead}`;
+  };
+
+  const mergeUnique = (a: GalleryComment[], b: GalleryComment[]) => {
+    const seen = new Set<string>();
+    const out: GalleryComment[] = [];
+    for (const c of [...a, ...b]) {
+      if (!c) continue;
+      const key = makeKey(c);
+      if (seen.has(key)) continue;
+      const id = c.id as number | undefined;
+      if (id && hiddenIds.has(id)) continue;
+      out.push(c);
+      seen.add(key);
+    }
+    return out;
+  };
+
+  const mergedComments = useMemo(
+    () => mergeUnique(localNew, allComments),
+    [localNew, allComments, hiddenIds]
+  );
+
+  const totalCount = mergedComments.length;
+  const visibleComments = mergedComments.slice(0, visibleCount);
+  const hasMore = visibleCount < totalCount;
+
+  // ⬇️ НОРМАЛИЗАТОР только что отправленного комментария (подставляем мой аватар/ник)
+  const toGalleryComment = (c: ApiComment): GalleryComment => {
+    const poster = (c.poster as any) || {};
+    const avatar =
+      absUrl(poster.avatar_url || poster.avatar) ||
+      absUrl(myAvatarUrl) ||
+      ""; // даём фоллбек на мой аватар
+
+    const username =
+      poster.username ||
+      myUsername ||
+      "user";
+
+    const uid =
+      poster.id ??
+      myUserId;
+
+    return {
+      id: c.id,
+      gallery_id: c.gallery_id,
+      body: c.body,
+      post_date: c.post_date,
+      poster: { ...poster, id: uid, username, avatar_url: avatar } as any,
+      // продублируем для удобства рендера
+      avatar,
+    };
+  };
+
+  // Пользователь отправил — сразу покажем локально с моим аватаром
+  const handleSubmitted = async (c: ApiComment) => {
+    setLocalNew((prev) => [toGalleryComment(c), ...prev]);
+    setVisibleCount((n) => Math.max(n, 1));
+    try {
+      await refetchComments?.();
+      // setLocalNew([]); // можно очистить, если сверху пришёл апдейт
+    } catch {}
+  };
+
+  // Удаление
+  const handleDelete = async (id?: number) => {
+    if (!id) return;
+    await deleteCommentById(id);
+    setHiddenIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    try { await refetchComments?.(); } catch {}
+  };
+
+  // ✅ Если мой аватар/ник загрузились ПОСЛЕ отправки — дотянем их в уже добавленные локальные комменты
+  useEffect(() => {
+    if (!myAvatarUrl && !myUsername && !myUserId) return;
+    setLocalNew((prev) =>
+      prev.map((c) => {
+        const hasAvatar =
+          (c as any).avatar ||
+          (c.poster as any)?.avatar_url ||
+          (c.poster as any)?.avatar;
+        // обновим только те, у кого аватар пустой (это наши свежие локальные)
+        if (!hasAvatar) {
+          const poster = {
+            ...(c.poster as any),
+            id: (c.poster as any)?.id ?? myUserId,
+            username: (c.poster as any)?.username ?? myUsername,
+            avatar_url: absUrl((c.poster as any)?.avatar_url) ?? absUrl(myAvatarUrl),
+          };
+          return {
+            ...c,
+            poster,
+            avatar: absUrl((c as any).avatar) ?? absUrl(myAvatarUrl),
+          } as any;
+        }
+        return c;
+      })
+    );
+  }, [myAvatarUrl, myUsername, myUserId]);
 
   return (
     <View style={{ paddingTop: 24 }}>
+      {/* Related */}
       <View style={s.sectionHead}>
         <Text
           style={[
             s.galleryLabel,
-            {
-              paddingHorizontal: innerPadding,
-              paddingBottom: 16,
-              color: ui.text,
-            },
+            { paddingHorizontal: innerPadding, paddingBottom: 16, color: ui.text },
           ]}
         >
           {t("related")}
@@ -485,21 +259,30 @@ export default function Footer({
         />
       </View>
 
+      {/* Comments header */}
       <View style={[s.sectionHead, { marginTop: 32 }]}>
         <Text
           style={[
             s.galleryLabel,
-            {
-              paddingHorizontal: innerPadding,
-              paddingBottom: 16,
-              color: ui.text,
-            },
+            { paddingHorizontal: innerPadding, paddingBottom: 10, color: ui.text },
           ]}
         >
-          {t("comments")} ({allComments.length})
+          {t("comments")} ({totalCount})
         </Text>
       </View>
 
+      {/* Composer — показываем только авторизованным */}
+      {!!myUserId && (
+        <View style={{ paddingHorizontal: innerPadding, marginBottom: 12 }}>
+          <CommentComposer
+            galleryId={galleryId}
+            placeholder="Написать комментарий…"
+            onSubmitted={handleSubmitted}
+          />
+        </View>
+      )}
+
+      {/* List */}
       {cmtLoading ? (
         <View
           style={{
@@ -511,39 +294,59 @@ export default function Footer({
           <ActivityIndicator size="large" color={ui.accent} />
         </View>
       ) : (
-        <View
-          style={{ paddingHorizontal: innerPadding, gap: 8, paddingBottom: 24 }}
-        >
-          {visibleComments.map((c) => (
-            <CommentItem
-              key={c.id ?? `${c.post_date}-${c.poster?.username ?? "u"}`}
-              c={c}
-              colors={colors}
-              dateLocale={dateLocale}
-              resolved={resolved as "en" | "ru" | "zh" | "ja"}
-              t={t}
-            />
-          ))}
+        <View style={{ paddingHorizontal: innerPadding, gap: 8, paddingBottom: 24 }}>
+          {visibleComments.map((c) => {
+            const pid = Number(c?.poster?.id);
+            const isMine =
+              Number.isFinite(pid) &&
+              Number.isFinite(myUserId as number) &&
+              pid === myUserId;
+
+            return (
+              <CommentCard
+                key={c.id ?? `${c.post_date}-${c.poster?.username ?? "u"}`}
+                id={c.id}
+                body={c.body}
+                post_date={c.post_date}
+                poster={c.poster as any}
+                avatar={(c as any).avatar}
+                highlight={isMine}
+                mineLabel={isMine ? "Ваш комментарий" : undefined}
+                onPress={() => {
+                  if (!c?.poster?.id) return;
+                  const slug =
+                    (c.poster as any).slug ||
+                    (c.poster as any).username ||
+                    "user";
+                  router.push({
+                    pathname: "/profile/[id]/[slug]",
+                    params: {
+                      id: String((c.poster as any).id),
+                      slug: String(slug),
+                    },
+                  });
+                }}
+                onDelete={handleDelete}
+              />
+            );
+          })}
 
           {hasMore && (
             <Pressable
-              onPress={() =>
-                setVisibleCount((n) => Math.min(n + 20, allComments.length))
-              }
+              onPress={() => setVisibleCount((n) => Math.min(n + 20, totalCount))}
               style={[
                 s.showMoreBtn,
-                { borderColor: ui.accent, backgroundColor: "transparent" },
+                {
+                  borderColor: ui.accent,
+                  backgroundColor: "transparent",
+                  borderRadius: 18,
+                  overflow: "hidden",
+                },
               ]}
-              android_ripple={{
-                color: `${ui.accent}22`,
-                borderless: false,
-                radius: 18,
-              }}
+              android_ripple={{ color: `${ui.accent}22`, borderless: false, foreground: true }}
             >
               <Text style={[s.showMoreTxt, { color: ui.accent }]}>
-                {t("showMore", {
-                  count: Math.min(20, allComments.length - visibleCount),
-                })}
+                {t("showMore", { count: Math.min(20, totalCount - visibleCount) })}
               </Text>
             </Pressable>
           )}

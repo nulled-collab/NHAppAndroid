@@ -49,7 +49,7 @@ export default function FavoritesScreen() {
         const ordered = pageIds
           .slice()
           .reverse()
-          .map((id) => fetched.find((b) => b.id === id))
+          .map((id) => fetched.find((b: { id: number; }) => b.id === id))
           .filter((b): b is Book => !!b);
         setBooks((prev) => (pageNum === 1 ? ordered : [...prev, ...ordered]));
         setTotalPages(tp);

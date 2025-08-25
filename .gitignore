@@ -4,8 +4,11 @@
 node_modules/*
 
 api/*
+!api/online
 !api/nhentai-tags.json
 !api/nhentai.ts
+!api/nhentaiOnline.ts
+!api/auth.ts
 !api/RuTags.json
 !api/EnTags.json
 

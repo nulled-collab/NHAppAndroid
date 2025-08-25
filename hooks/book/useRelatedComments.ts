@@ -56,5 +56,6 @@ export const useRelatedComments = (book: Book | null) => {
     visibleCount,
     setVisibleCount,
     cmtLoading,
+    refetchComments,
   };
 };

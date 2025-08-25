@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 
+import { getMe } from "@/api/nhentaiOnline";
 import { useBookData } from "@/hooks/book/useBookData";
 import { useColumns } from "@/hooks/book/useColumns";
 import { useDownload } from "@/hooks/book/useDownload";
@@ -30,7 +31,14 @@ import PageItem, { GAP } from "@/components/book/PageItem";
 import { useI18n } from "@/lib/i18n/I18nContext";
 
 export default function BookScreen() {
-  const { id, random } = useLocalSearchParams<{ id: string; random?: string }>();
+  const { id, random } = useLocalSearchParams<{
+    id: string;
+    random?: string;
+  }>();
+  const [myUserId, setMyUserId] = useState<number | undefined>(undefined);
+  const [myAvatarUrl, setMyAvatarUrl] = useState<string | undefined>(undefined);
+  const [myUsername, setMyUsername] = useState<string | undefined>(undefined);
+
   const idNum = Number(id);
   const fromRandom = random === "1";
 
@@ -52,6 +60,7 @@ export default function BookScreen() {
     visibleCount,
     setVisibleCount,
     cmtLoading,
+    refetchComments,
   } = useRelatedComments(book);
   const { favorites, toggleFav, liked, toggleLike } = useFavorites(idNum);
   const { dl, pr, handleDownloadOrDelete, cancel } = useDownload(
@@ -88,6 +97,21 @@ export default function BookScreen() {
       router.setParams({ title: book.title.pretty });
     }
   }, [book?.title?.pretty]);
+
+  useEffect(() => {
+    let alive = true;
+    getMe()
+      .then((me) => {
+        if (!alive) return;
+        setMyUserId(me?.id ?? undefined);
+        setMyAvatarUrl(me?.avatar_url ?? undefined);
+        setMyUsername(me?.username ?? undefined);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const headerEl = useMemo(() => {
     if (!book) return null;
@@ -138,6 +162,7 @@ export default function BookScreen() {
   const footerEl = useMemo(() => {
     return (
       <Footer
+        galleryId={book?.id ?? idNum}
         related={related}
         relLoading={relLoading}
         refetchRelated={refetchRelated}
@@ -149,6 +174,10 @@ export default function BookScreen() {
         setVisibleCount={setVisibleCount}
         cmtLoading={cmtLoading}
         innerPadding={innerPadding}
+        myUserId={myUserId}
+        myAvatarUrl={myAvatarUrl}
+        myUsername={myUsername}
+        refetchComments={refetchComments}
       />
     );
   }, [
@@ -163,6 +192,12 @@ export default function BookScreen() {
     setVisibleCount,
     cmtLoading,
     innerPadding,
+    myUserId,
+    myAvatarUrl,
+    myUsername,
+    book?.id,
+    idNum,
+    refetchComments,
   ]);
 
   const horizPad = Math.max(0, innerPadding - GAP / 2);
@@ -270,12 +305,7 @@ export default function BookScreen() {
       </Animated.View>
 
       {fromRandom && (
-        <View
-          style={[
-            styles.tryWrap,
-            { bottom: 40 },
-          ]}
-        >
+        <View style={[styles.tryWrap, { bottom: 40 }]}>
           <View style={styles.tryRounded}>
             <Pressable
               disabled={rndLoading}

@@ -1,7 +1,6 @@
 import raw from "@/api/nhentai-tags.json";
 import ru from "@/api/RuTags.json";
 import { useFilterTags } from "@/context/TagFilterContext";
-import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import { FlashList, ListRenderItem } from "@shopify/flash-list";
@@ -53,123 +52,73 @@ const useResponsive = () => {
   const scr = Dimensions.get("screen");
   const shortestScreen = Math.min(scr.width, scr.height);
   const isTablet = scr.width >= 900 || shortestScreen >= 600;
-  const gridCols = Math.max(
-    1,
-    Math.min(5, Math.floor((isTablet ? win.width - 320 : win.width) / 260))
-  );
-  return {
-    width: win.width,
-    height: win.height,
-    isTablet,
-    gridCols: gridCols || 1,
-  };
+  const gridCols = Math.max(1, Math.min(5, Math.floor((isTablet ? win.width - 320 : win.width) / 260)));
+  return { width: win.width, height: win.height, isTablet, gridCols: gridCols || 1 };
 };
 
 type Lens = "all" | TagKind;
-
-const useTf = () => {
-  const { t } = useI18n();
-  return useCallback(
-    (key: string, fallback: string) => {
-      const v = t(key);
-      return v && v !== key ? v : fallback;
-    },
-    [t]
-  );
-};
+const LENSES: { key: Lens; title: string }[] = [
+  { key: "all", title: "ВСЕ" },
+  { key: "tags", title: "ТЕГИ" },
+  { key: "artists", title: "ХУДОЖНИКИ" },
+  { key: "characters", title: "ПЕРСОНАЖИ" },
+  { key: "parodies", title: "ПАРОДИИ" },
+  { key: "groups", title: "ГРУППЫ" },
+];
 
 interface ChipProps {
   tag: TagEntry;
   mode?: "include" | "exclude";
   onToggle: () => void;
-  showRu: boolean;
 }
 
 const TagChip = memo<ChipProps>(
-  ({ tag, mode, onToggle, showRu }) => {
+  ({ tag, mode, onToggle }) => {
     const { colors } = useTheme();
-    const bg =
-      mode === "include"
-        ? colors.incBg
-        : mode === "exclude"
-        ? colors.excBg
-        : colors.tagBg;
-    const fg =
-      mode === "include"
-        ? colors.incTxt
-        : mode === "exclude"
-        ? colors.excTxt
-        : colors.tagText;
-
+    const bg = mode === "include" ? colors.incBg : mode === "exclude" ? colors.excBg : colors.tagBg;
+    const fg = mode === "include" ? colors.incTxt : mode === "exclude" ? colors.excTxt : colors.tagText;
     return (
-      <Pressable
-        onPress={onToggle}
-        style={[styles.chip, { backgroundColor: bg }]}
-      >
+      <Pressable onPress={onToggle} style={[styles.chip, { backgroundColor: bg }]}>
         <View style={styles.chipIcon}>
           {mode === "include" && <Feather name="check" size={16} color={fg} />}
           {mode === "exclude" && <Feather name="minus" size={16} color={fg} />}
           {!mode && <Feather name="plus" size={16} color={fg} />}
         </View>
         <View style={styles.chipTextWrap}>
-          <Text numberOfLines={1} style={[styles.chipTitle, { color: fg }]}>
-            {tag.name}
-          </Text>
-          {showRu && (
-            <Text numberOfLines={1} style={[styles.chipSub, { color: fg }]}>
-              {rusOf(tag.name)}
-            </Text>
-          )}
+          <Text numberOfLines={1} style={[styles.chipTitle, { color: fg }]}>{tag.name}</Text>
+          <Text numberOfLines={1} style={[styles.chipSub, { color: fg }]}>{rusOf(tag.name)}</Text>
         </View>
         <Text style={[styles.chipCount, { color: fg }]}>{tag.count}</Text>
       </Pressable>
     );
   },
-  (p, n) => p.tag.id === n.tag.id && p.mode === n.mode && p.showRu === n.showRu
+  (p, n) => p.tag.id === n.tag.id && p.mode === n.mode
 );
 
 function SelectedPanel({
   visible,
   onClose,
   isTablet,
-  showRu,
 }: {
   visible: boolean;
   onClose: () => void;
   isTablet: boolean;
-  showRu: boolean;
 }) {
   const { colors } = useTheme();
-  const { t } = useI18n();
-  const tf = useTf();
   const { filters, cycle, clear } = useFilterTags();
   const included = filters.filter((f) => f.mode === "include");
   const excluded = filters.filter((f) => f.mode === "exclude");
 
-  const Section = ({
-    title,
-    data,
-  }: {
-    title: string;
-    data: typeof filters;
-  }) => (
+  const Section = ({ title, data }: { title: string; data: typeof filters }) => (
     <View style={styles.selSection}>
       <Text style={[styles.selTitle, { color: colors.title }]}>{title}</Text>
       {data.length === 0 ? (
-        <Text style={[styles.selEmpty, { color: colors.sub }]}>
-          {tf("tags.empty", "empty")}
-        </Text>
+        <Text style={[styles.selEmpty, { color: colors.sub }]}>пусто</Text>
       ) : (
         data.map((f) => (
-          <View
-            key={keyOf(f)}
-            style={[styles.selRow, { borderColor: colors.page }]}
-          >
-            <Text
-              numberOfLines={1}
-              style={[styles.selText, { color: colors.txt }]}
-            >
-              {showRu ? `${f.name} · ${rusOf(f.name)}` : f.name}
+          <View key={keyOf(f)} style={[styles.selRow, { borderColor: colors.page }]}>
+            <Text numberOfLines={1} style={[styles.selText, { color: colors.txt }]}>
+              {f.name} · {rusOf(f.name)}
             </Text>
             <Pressable onPress={() => cycle(f)} style={styles.selBtn}>
               <Feather name="x" size={16} color={colors.sub} />
@@ -184,55 +133,36 @@ function SelectedPanel({
     return (
       <View style={[styles.sidebar, { backgroundColor: colors.menuBg }]}>
         <View style={styles.sidebarHeader}>
-          <Text style={[styles.sidebarTitle, { color: colors.menuTxt }]}>
-            {tf("tags.selected", "Selected")}
-          </Text>
-          <Pressable
-            onPress={clear}
-            style={[styles.sidebarClear, { backgroundColor: colors.accent }]}
-          >
-            <Text style={[styles.sidebarClearTxt, { color: colors.bg }]}>
-              {tf("tags.reset", "Reset")}
-            </Text>
+          <Text style={[styles.sidebarTitle, { color: colors.menuTxt }]}>Выбранные</Text>
+          <Pressable onPress={clear} style={[styles.sidebarClear, { backgroundColor: colors.accent }]}>
+            <Text style={[styles.sidebarClearTxt, { color: colors.bg }]}>Сбросить</Text>
           </Pressable>
         </View>
         <View style={styles.sidebarScroll}>
-          <Section title={tf("tags.included", "Included")} data={included} />
-          <Section title={tf("tags.excluded", "Excluded")} data={excluded} />
+          <Section title="Включены" data={included} />
+          <Section title="Исключены" data={excluded} />
         </View>
       </View>
     );
   }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalSheet, { backgroundColor: colors.page }]}>
           <View style={styles.sheetHeader}>
-            <Text style={[styles.sheetTitle, { color: colors.txt }]}>
-              {tf("tags.selected", "Selected")}
-            </Text>
+            <Text style={[styles.sheetTitle, { color: colors.txt }]}>Выбранные</Text>
             <Pressable onPress={onClose} style={styles.sheetClose}>
               <Feather name="chevron-down" size={20} color={colors.sub} />
             </Pressable>
           </View>
           <View style={styles.sheetBody}>
-            <Section title={tf("tags.included", "Included")} data={included} />
-            <Section title={tf("tags.excluded", "Excluded")} data={excluded} />
+            <Section title="Включены" data={included} />
+            <Section title="Исключены" data={excluded} />
           </View>
           <View style={styles.sheetFooter}>
-            <Pressable
-              onPress={clear}
-              style={[styles.sheetClear, { backgroundColor: colors.accent }]}
-            >
-              <Text style={[styles.sheetClearTxt, { color: colors.bg }]}>
-                {tf("tags.reset", "Reset")}
-              </Text>
+            <Pressable onPress={clear} style={[styles.sheetClear, { backgroundColor: colors.accent }]}>
+              <Text style={[styles.sheetClearTxt, { color: colors.bg }]}>Сбросить</Text>
             </Pressable>
           </View>
         </View>
@@ -243,10 +173,6 @@ function SelectedPanel({
 
 export default function TagsScreen() {
   const { colors } = useTheme();
-  const { t, resolved } = useI18n();
-  const tf = useTf();
-  const showRu = resolved === "ru";
-
   const { filters, cycle, clear, filtersReady } = useFilterTags();
   const { width, isTablet, gridCols } = useResponsive();
 
@@ -267,27 +193,11 @@ export default function TagsScreen() {
     filters.forEach((f) => m.set(keyOf(f), f.mode));
     return m;
   }, [filters]);
-  const getMode = useCallback(
-    (t: TagEntry) => filterMap.get(keyOf(t)),
-    [filterMap]
-  );
-
-  const lensItems = useMemo(
-    () => [
-      { key: "all" as Lens, title: tf("tags.all", "All") },
-      { key: "tags" as Lens, title: t("tags.tags") },
-      { key: "artists" as Lens, title: t("tags.artists") },
-      { key: "characters" as Lens, title: t("tags.characters") },
-      { key: "parodies" as Lens, title: t("tags.parodies") },
-      { key: "groups" as Lens, title: t("tags.groups") },
-    ],
-    [t, tf]
-  );
+  const getMode = useCallback((t: TagEntry) => filterMap.get(keyOf(t)), [filterMap]);
 
   const data = useMemo(() => {
     if (!filtersReady) return [] as TagEntry[];
-
-    const baseAll: TagEntry[] =
+    const base: TagEntry[] =
       lens === "all"
         ? [
             ...PRE_SORTED.tags,
@@ -297,67 +207,35 @@ export default function TagsScreen() {
             ...PRE_SORTED.groups,
           ]
         : PRE_SORTED[lens];
-
-    const excludeCyr = resolved !== "ru";
-    const hasCyr = (s: string) => /[\u0400-\u04FF]/.test(s);
-
-    const base = excludeCyr ? baseAll.filter((t) => !hasCyr(t.name)) : baseAll;
-
     const needle = search.toLowerCase();
     const match = (t: TagEntry) => {
       if (!needle) return true;
       const en = t.name.toLowerCase();
-      if (en.includes(needle)) return true;
-      if (showRu) {
-        const ru = rusOf(t.name).toLowerCase();
-        if (ru.includes(needle)) return true;
-      }
-      return false;
+      const ru = rusOf(t.name).toLowerCase();
+      return en.includes(needle) || ru.includes(needle);
     };
-
     const filtered = base.filter(match);
-    if (sort === "az")
-      return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === "az") return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
     return [...filtered].sort((a, b) => b.count - a.count);
-  }, [lens, search, sort, filtersReady, resolved, showRu]);
+  }, [lens, search, sort, filtersReady]);
 
   const onToggleTag = useCallback((t: TagEntry) => cycle(t), [cycle]);
 
   const renderItem: ListRenderItem<TagEntry> = ({ item }) => (
-    <TagChip
-      tag={item}
-      mode={getMode(item)}
-      onToggle={() => onToggleTag(item)}
-      showRu={showRu}
-    />
+    <TagChip tag={item} mode={getMode(item)} onToggle={() => onToggleTag(item)} />
   );
-
-  const searchPlaceholder = showRu
-    ? tf("tags.searchPlaceholder", "Search tag (EN/RU)…")
-    : tf("tags.searchPlaceholder", "Search tag…");
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <View style={styles.body}>
-        {isTablet && (
-          <SelectedPanel
-            visible={false}
-            onClose={() => {}}
-            isTablet
-            showRu={showRu}
-          />
-        )}
-        <View
-          style={[styles.gridWrap, { width: isTablet ? width - 320 : width }]}
-        >
+        {isTablet && <SelectedPanel visible={false} onClose={() => {}} isTablet />}
+        <View style={[styles.gridWrap, { width: isTablet ? width - 320 : width }]}>
           <View style={styles.header}>
-            <View
-              style={[styles.searchBox, { backgroundColor: colors.searchBg }]}
-            >
+            <View style={[styles.searchBox, { backgroundColor: colors.searchBg }]}>
               <Feather name="search" size={16} color={colors.searchTxt} />
               <TextInput
                 ref={inputRef}
-                placeholder={searchPlaceholder}
+                placeholder="Найти тег (EN/RU)…"
                 placeholderTextColor={colors.sub}
                 value={draft}
                 onChangeText={setDraft}
@@ -386,7 +264,7 @@ export default function TagsScreen() {
             </View>
 
             <View style={styles.lensesRow}>
-              {lensItems.map((l) => {
+              {LENSES.map((l) => {
                 const active = lens === l.key;
                 return (
                   <Pressable
@@ -416,46 +294,25 @@ export default function TagsScreen() {
             <View style={[styles.sortBar, { backgroundColor: colors.menuBg }]}>
               <Pressable
                 onPress={() => setSort("popular")}
-                style={[
-                  styles.sortBtn,
-                  sort === "popular" && { backgroundColor: colors.accent },
-                ]}
+                style={[styles.sortBtn, sort === "popular" && { backgroundColor: colors.accent }]}
               >
-                <Text
-                  style={[
-                    styles.sortBtnTxt,
-                    { color: sort === "popular" ? colors.bg : colors.menuTxt },
-                  ]}
-                >
-                  {tf("tags.sort.popular", "Popular")}
+                <Text style={[styles.sortBtnTxt, { color: sort === "popular" ? colors.bg : colors.menuTxt }]}>
+                  Популярные
                 </Text>
               </Pressable>
               <Pressable
                 onPress={() => setSort("az")}
-                style={[
-                  styles.sortBtn,
-                  sort === "az" && { backgroundColor: colors.accent },
-                ]}
+                style={[styles.sortBtn, sort === "az" && { backgroundColor: colors.accent }]}
               >
-                <Text
-                  style={[
-                    styles.sortBtnTxt,
-                    { color: sort === "az" ? colors.bg : colors.menuTxt },
-                  ]}
-                >
-                  {tf("tags.sort.az", "A–Z")}
+                <Text style={[styles.sortBtnTxt, { color: sort === "az" ? colors.bg : colors.menuTxt }]}>
+                  A–Z
                 </Text>
               </Pressable>
               {!isTablet && (
-                <Pressable
-                  onPress={() => setShowSelected(true)}
-                  style={[styles.selectedBtn, { borderColor: colors.accent }]}
-                >
+                <Pressable onPress={() => setShowSelected(true)} style={[styles.selectedBtn, { borderColor: colors.accent }]}>
                   <Feather name="list" size={16} color={colors.accent} />
-                  <Text
-                    style={[styles.selectedBtnTxt, { color: colors.accent }]}
-                  >
-                    {tf("tags.selected", "Selected")} ({filters.length})
+                  <Text style={[styles.selectedBtnTxt, { color: colors.accent }]}>
+                    Выбранные ({filters.length})
                   </Text>
                 </Pressable>
               )}
@@ -479,22 +336,12 @@ export default function TagsScreen() {
       </View>
 
       {!isTablet && (
-        <SelectedPanel
-          visible={showSelected}
-          onClose={() => setShowSelected(false)}
-          isTablet={false}
-          showRu={showRu}
-        />
+        <SelectedPanel visible={showSelected} onClose={() => setShowSelected(false)} isTablet={false} />
       )}
 
-      <Pressable
-        onPress={clear}
-        style={[styles.fabClear, { backgroundColor: colors.accent }]}
-      >
+      <Pressable onPress={clear} style={[styles.fabClear, { backgroundColor: colors.accent }]}>
         <Feather name="refresh-ccw" size={18} color={colors.bg} />
-        <Text style={[styles.fabClearTxt, { color: colors.bg }]}>
-          {tf("tags.reset", "Reset")}
-        </Text>
+        <Text style={[styles.fabClearTxt, { color: colors.bg }]}>Сбросить</Text>
       </Pressable>
     </View>
   );
@@ -504,7 +351,10 @@ const GAP = 8;
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  body: { flex: 1, flexDirection: "row" },
+  body: {
+    flex: 1,
+    flexDirection: "row",
+  },
   sidebar: {
     width: 320,
     borderRightWidth: StyleSheet.hairlineWidth,
@@ -517,7 +367,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sidebarTitle: { fontSize: 16, fontWeight: "700" },
-  sidebarClear: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+  sidebarClear: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
   sidebarClearTxt: { fontSize: 12, fontWeight: "700" },
   sidebarScroll: { flex: 1 },
   selSection: { marginTop: 12 },
@@ -568,7 +422,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  sortBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+  sortBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
   sortBtnTxt: { fontSize: 12, fontWeight: "700" },
   selectedBtn: {
     marginLeft: "auto",
@@ -608,7 +466,11 @@ const styles = StyleSheet.create({
     padding: 12,
     maxHeight: "75%",
   },
-  sheetHeader: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
   sheetTitle: { fontSize: 16, fontWeight: "700" },
   sheetClose: { padding: 6 },
   sheetBody: { paddingBottom: 8 },

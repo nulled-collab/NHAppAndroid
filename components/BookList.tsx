@@ -1,5 +1,13 @@
 import { Book } from "@/api/nhentai";
-import React, { ReactElement, ReactNode, useMemo, useRef } from "react";
+import { useTheme } from "@/lib/ThemeContext";
+import React, {
+  ReactElement,
+  ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,8 +18,6 @@ import {
   useWindowDimensions,
 } from "react-native";
 import Animated, { FadeOut } from "react-native-reanimated";
-
-import { useTheme } from "@/lib/ThemeContext";
 import BookCard from "./BookCard";
 
 export interface GridConfig {
@@ -42,6 +48,10 @@ export interface BookListProps<T extends Book = Book> {
     default?: GridConfig;
   };
   horizontal?: boolean;
+
+  /** Авто-высота контейнера (актуально для horizontal) */
+  autoRowHeight?: boolean;
+
   getScore?: (book: T) => number | undefined;
   columnWrapperStyle?: any;
   children?: ReactNode;
@@ -62,6 +72,7 @@ export default function BookList<T extends Book = Book>({
   renderItem,
   gridConfig,
   horizontal = false,
+  autoRowHeight = false,
   getScore,
   columnWrapperStyle,
   children,
@@ -93,12 +104,7 @@ export default function BookList<T extends Book = Book>({
       const visibleCols = Math.max(1, base.numColumns);
       let w = (avail - gap * (visibleCols - 1)) / visibleCols;
       w = Math.max(minW, w);
-      return {
-        cols: 1,
-        cardWidth: w,
-        columnGap: gap,
-        paddingHorizontal: padH,
-      };
+      return { cols: 1, cardWidth: w, columnGap: gap, paddingHorizontal: padH };
     }
 
     const maxCols = Math.max(
@@ -115,11 +121,18 @@ export default function BookList<T extends Book = Book>({
     };
   }, [width, base, horizontal]);
 
+  // ---- авто-высота для горизонтальной ленты ----
+  const [rowH, setRowH] = useState<number | null>(null);
+
+  // Сбросить замер при изменениях (ориентация, ширина, паддинги, состав данных)
+  useEffect(() => {
+    if (horizontal && autoRowHeight) setRowH(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [horizontal, autoRowHeight, cardWidth, columnGap, paddingHorizontal, data.length]);
+
   const uniqueData = useMemo(() => {
     const seen = new Set<number>();
-    return data.filter((b) =>
-      seen.has(b.id) ? false : (seen.add(b.id), true)
-    );
+    return data.filter((b) => (seen.has(b.id) ? false : (seen.add(b.id), true)));
   }, [data]);
 
   const isSingleCol = !horizontal && cols === 1;
@@ -170,8 +183,48 @@ export default function BookList<T extends Book = Book>({
       })
     : undefined;
 
+  // Паддинги контента для горизонтальной ленты (они участвуют в общей высоте)
+  const topPad = horizontal ? paddingHorizontal : paddingHorizontal / 2;
+  const bottomPad = horizontal ? paddingHorizontal : 0;
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.page }]}>
+    <View
+      style={[
+        horizontal ? styles.rowContainer : styles.container,
+        { backgroundColor: colors.page },
+        horizontal && autoRowHeight ? { height: rowH ?? 1 } : undefined, // 1px до замера
+      ]}
+    >
+      {/* Невидимый измеритель с ТЕМИ ЖЕ паддингами, что и у FlatList */}
+      {horizontal && autoRowHeight && !rowH && uniqueData.length > 0 && (
+        <View
+          style={{
+            position: "absolute",
+            opacity: 0,
+            pointerEvents: "none",
+            left: 0,
+            right: 0,
+            paddingHorizontal,
+            paddingTop: topPad,
+            paddingBottom: bottomPad,
+          }}
+          onLayout={(e) => setRowH(Math.ceil(e.nativeEvent.layout.height))}
+        >
+          <View style={{ width: cardWidth, alignSelf: "flex-start" }}>
+            <BookCard
+              book={uniqueData[0]}
+              cardWidth={cardWidth}
+              isSingleCol={false}
+              contentScale={0.65}
+              isFavorite={isFavorite?.(uniqueData[0].id) ?? false}
+              onToggleFavorite={onToggleFavorite}
+              onPress={() => onPress?.(uniqueData[0].id)}
+              score={getScore?.(uniqueData[0])}
+            />
+          </View>
+        </View>
+      )}
+
       {uniqueData.length === 0 && !loading ? (
         (ListEmptyComponent as ReactElement) ?? <Empty />
       ) : (
@@ -185,29 +238,21 @@ export default function BookList<T extends Book = Book>({
           data={uniqueData}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem ?? defaultRender}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           contentContainerStyle={{
-            paddingHorizontal: paddingHorizontal,
-            paddingTop: horizontal ? paddingHorizontal : paddingHorizontal / 2,
-            paddingBottom: horizontal ? paddingHorizontal : null,
+            paddingHorizontal,
+            paddingTop: topPad,
+            paddingBottom: bottomPad || undefined,
           }}
           onEndReached={onEndReached}
           onEndReachedThreshold={0.4}
           ListFooterComponent={
-            loading ? (
-              <ActivityIndicator style={styles.loader} />
-            ) : (
-              ListFooterComponent
-            )
+            loading ? <ActivityIndicator style={styles.loader} /> : ListFooterComponent
           }
           ListHeaderComponent={ListHeaderComponent}
           numColumns={horizontal ? undefined : cols}
           columnWrapperStyle={
-            !horizontal && cols > 1
-              ? [{ justifyContent: "center" }, columnWrapperStyle]
-              : undefined
+            !horizontal && cols > 1 ? [{ justifyContent: "center" }, columnWrapperStyle] : undefined
           }
           getItemLayout={getItemLayout}
         />
@@ -219,6 +264,7 @@ export default function BookList<T extends Book = Book>({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  rowContainer: { flexGrow: 0 },
   empty: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyText: { color: "#888", fontSize: 16 },
   loader: { marginVertical: 16 },

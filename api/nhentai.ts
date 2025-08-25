@@ -64,13 +64,14 @@ export interface ApiUser {
   avatar_url: string;
   is_superuser: boolean;
   is_staff: boolean;
+  avatar?: string;
 }
 
 export interface GalleryComment {
   id: number;
   gallery_id: number;
   poster: ApiUser;
-  post_date: string;
+  post_date: number;
   body: string;
   avatar: string;
 }
@@ -83,14 +84,22 @@ const absolutizeAvatar = (u?: string): string => {
   return AVATAR_BASE + u.replace(/^\/+/, "");
 };
 
-const mapComment = (c: any): GalleryComment => ({
-  id: c.id,
-  gallery_id: c.gallery_id,
-  poster: c.poster,
-  post_date: new Date((c.post_date ?? 0) * 1000).toISOString(),
-  body: String(c.body ?? ""),
-  avatar: absolutizeAvatar(c.poster?.avatar_url),
-});
+const mapComment = (c: any): GalleryComment => {
+  const epochSec = Number(c?.post_date ?? 0); // из API приходит в секундах
+  const poster: ApiUser = {
+    ...(c.poster || {}),
+    avatar: absolutizeAvatar(c.poster?.avatar_url), // <— alias
+  };
+
+  return {
+    id: c.id,
+    gallery_id: c.gallery_id,
+    poster,
+    post_date: epochSec * 1000, // <— теперь ms-таймстамп
+    body: String(c.body ?? ""),
+    avatar: absolutizeAvatar(c.poster?.avatar_url),
+  };
+};
 
 export const getComments = async (id: number): Promise<GalleryComment[]> => {
   if (!id) throw new Error("getComments: invalid gallery id");
