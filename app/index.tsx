@@ -5,6 +5,7 @@ import { useSort } from "@/context/SortContext";
 import { useFilterTags } from "@/context/TagFilterContext";
 import { useGridConfig } from "@/hooks/useGridConfig";
 import { useUpdateCheck } from "@/hooks/useUpdateCheck";
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -37,6 +38,8 @@ export default function HomeScreen() {
 
   const { update, progress, downloadAndInstall, checkUpdate } =
     useUpdateCheck();
+
+  const { t } = useI18n();
 
   const accent = colors.accent;
   const bannerBg = colors.accent + "40";
@@ -153,7 +156,7 @@ export default function HomeScreen() {
             {progress === null ? (
               <>
                 <Text style={[styles.updateTxt, { color: colors.txt }]}>
-                  Скачать обновление {update.versionName}
+                  {t("downloadUpdate")} {update.versionName}
                 </Text>
                 <Feather name="download" size={17} color={colors.txt} />
               </>
