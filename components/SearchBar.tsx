@@ -48,6 +48,8 @@ export function SearchBar() {
   const { openDrawer } = useDrawer();
   const { sort, setSort } = useSort();
   const portal = useOverlayPortal();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const { t } = useI18n();
 
@@ -59,13 +61,22 @@ export function SearchBar() {
     { key: "date", label: t("explore.sort.latest") },
   ];
 
-  const router = useRouter();
-  const pathname = usePathname();
   const params = useGlobalSearchParams<{
     query?: string | string[];
     id?: string | string[];
     title?: string | string[];
+    slug?: string | string[];
   }>();
+
+  const q = typeof params.query === "string" ? params.query : "";
+  const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const bookId = typeof rawId === "string" ? rawId : undefined;
+  const rawTitle = Array.isArray(params.title) ? params.title[0] : params.title;
+  const bookTitle = typeof rawTitle === "string" ? rawTitle : undefined;
+
+  const rawSlug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
+  const userName =
+    typeof rawSlug === "string" ? decodeURIComponent(rawSlug) : undefined;
 
   function getTitle(
     pathname: string | null | undefined,
@@ -79,7 +90,7 @@ export function SearchBar() {
     if (p === "/" || has("index")) return t("menu.home");
     if (has("explore"))
       return q ? t("search.results") + ": " + q : t("menu.explore");
-    if (has("favorites")) return t("menu.favorites");
+    if (has("favorites") || has("favoritesOnline")) return t("menu.favorites");
     if (has("downloaded")) return t("menu.downloaded");
     if (has("recommendations")) return t("menu.recommendations");
     if (has("history")) return t("menu.history");
@@ -88,16 +99,9 @@ export function SearchBar() {
     if (has("search"))
       return q ? t("menu.search") + ": " + q : t("menu.search");
     if (has("tags")) return t("menu.tags");
+    if (has("profile")) return `${t("menu.profile")}: ${userName}`;
     return "NH App";
   }
-
-  const q = typeof params.query === "string" ? params.query : "";
-
-  const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const bookId = typeof rawId === "string" ? rawId : undefined;
-
-  const rawTitle = Array.isArray(params.title) ? params.title[0] : params.title;
-  const bookTitle = typeof rawTitle === "string" ? rawTitle : undefined;
 
   const [sortOpen, setSortOpen] = useState(false);
   const [tempSort, setTmp] = useState<SortKey>(sort);
@@ -111,10 +115,14 @@ export function SearchBar() {
   );
   const showBack = pathname && pathname !== "/" && pathname !== "/index";
 
+  // скрываем кнопки справа на страницах, где они не нужны
   const hideRight =
     hasSeg(pathname, "settings") ||
     hasSeg(pathname, "tags") ||
-    hasSeg(pathname, "book");
+    hasSeg(pathname, "book") ||
+    hasSeg(pathname, "profile") ||
+    hasSeg(pathname, "favorites") ||
+    hasSeg(pathname, "favoritesOnline");
 
   const closeSort = () => {
     setSortOpen(false);
@@ -134,9 +142,6 @@ export function SearchBar() {
           <Text style={[styles.sheetTitle, { color: colors.searchTxt }]}>
             {t("explore.sortBy")}
           </Text>
-          <IconBtn onPress={closeSort}>
-            <Feather name="x" size={18} color={colors.sub} />
-          </IconBtn>
         </View>
 
         <ScrollView
@@ -194,22 +199,22 @@ export function SearchBar() {
     </View>
   );
 
-  function backOne() {
+  const backOne = () => {
     portal.hide();
     setBackOpen(false);
     router.back();
-  }
-  function backTwo() {
+  };
+  const backTwo = () => {
     portal.hide();
     setBackOpen(false);
     router.back();
     setTimeout(() => router.back(), 0);
-  }
-  function backHome() {
+  };
+  const backHome = () => {
     portal.hide();
     setBackOpen(false);
     router.replace("/");
-  }
+  };
 
   const renderBackSheet = () => (
     <View style={styles.sheetBackdrop} pointerEvents="auto">
@@ -305,57 +310,59 @@ export function SearchBar() {
   };
 
   return (
-    <Animated.View
-      style={[
-        styles.bar,
-        {
-          backgroundColor: colors.searchBg,
-          height: BAR_HEIGHT,
-          borderBottomColor: colors.page,
-        },
-      ]}
-    >
-      {showBack ? (
-        <IconBtn
-          onPress={() => router.back()}
-          onLongPress={() => setBackOpen(true)}
-        >
-          <Feather name="arrow-left" size={20} color={colors.searchTxt} />
-        </IconBtn>
-      ) : (
-        <IconBtn onPress={openDrawer}>
-          <Feather name="menu" size={22} color={colors.searchTxt} />
-        </IconBtn>
-      )}
-
-      <Text
-        numberOfLines={1}
-        style={[styles.title, { color: colors.searchTxt }]}
+    <View>
+      <Animated.View
+        style={[
+          styles.bar,
+          {
+            backgroundColor: colors.searchBg,
+            height: BAR_HEIGHT,
+            borderBottomColor: colors.page,
+          },
+        ]}
       >
-        {title}
-      </Text>
-
-      {!hideRight && (
-        <View style={styles.rightGroup}>
+        {showBack ? (
           <IconBtn
-            onPress={() =>
-              router.push({
-                pathname: "/search",
-                params: q ? { query: q } : {},
-              })
-            }
+            onPress={() => router.back()}
+            onLongPress={() => setBackOpen(true)}
           >
-            <Feather name="search" size={18} color={colors.searchTxt} />
+            <Feather name="arrow-left" size={20} color={colors.searchTxt} />
           </IconBtn>
-          <IconBtn onPress={openSort}>
-            <Feather name="filter" size={18} color={colors.accent} />
+        ) : (
+          <IconBtn onPress={openDrawer}>
+            <Feather name="menu" size={22} color={colors.searchTxt} />
           </IconBtn>
-          <IconBtn onPress={() => router.push("/tags")}>
-            <Feather name="tag" size={18} color={colors.accent} />
-          </IconBtn>
-        </View>
-      )}
-    </Animated.View>
+        )}
+
+        <Text
+          numberOfLines={1}
+          style={[styles.title, { color: colors.searchTxt }]}
+        >
+          {title}
+        </Text>
+
+        {!hideRight && (
+          <View style={styles.rightGroup}>
+            <IconBtn
+              onPress={() =>
+                router.push({
+                  pathname: "/search",
+                  params: q ? { query: q } : {},
+                })
+              }
+            >
+              <Feather name="search" size={18} color={colors.searchTxt} />
+            </IconBtn>
+            <IconBtn onPress={openSort}>
+              <Feather name="filter" size={18} color={colors.accent} />
+            </IconBtn>
+            <IconBtn onPress={() => router.push("/tags")}>
+              <Feather name="tag" size={18} color={colors.accent} />
+            </IconBtn>
+          </View>
+        )}
+      </Animated.View>
+    </View>
   );
 }
 
@@ -382,7 +389,6 @@ const styles = StyleSheet.create({
     gap: 2,
     marginLeft: 6,
   },
-  iconBtn: { padding: 8 },
   iconBtnRound: {
     width: BTN_SIDE,
     height: BTN_SIDE,
@@ -390,6 +396,17 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  infoBar: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "transparent",
+  },
+  infoText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 
   sheetBackdrop: {

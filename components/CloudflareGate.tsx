@@ -1,4 +1,4 @@
-// components/CloudflareGate.tsx
+import { useI18n } from "@/lib/i18n/I18nContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   useCallback,
@@ -104,6 +104,8 @@ export default function CloudflareGate({
   onPosted,
   colors,
 }: Props) {
+  const { t } = useI18n();
+
   const [loading, setLoading] = useState(true);
   const [tries, setTries] = useState(0);
   const [showWeb, setShowWeb] = useState(false);
@@ -300,7 +302,7 @@ export default function CloudflareGate({
           }
           // fallback: ищем в скриптах user: JSON.parse("...")
           var scripts = document.scripts||[];
-          for(var i=0;i<scripts.length;i++){
+          for(var i=0;i<i<scripts.length;i++){
             var t = scripts[i].textContent||"";
             var m = t.match(/user\\s*:\\s*JSON\\.parse\\((["'])(.*?)\\1\\)/i);
             if(m){
@@ -565,18 +567,10 @@ export default function CloudflareGate({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={[S.backdrop, { backgroundColor: colors.backdrop }]}>
         <View style={[S.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[S.title, { color: colors.text }]}>Проверка Cloudflare</Text>
+          <Text style={[S.title, { color: colors.text }]}>{t("cloudflare.title")}</Text>
 
           <Text style={[S.text, { color: colors.sub }]}>
-            {showWeb ? (
-              <>
-                Появился виджет Cloudflare —
-                <Text style={{ fontWeight: "700", color: colors.text }}> нажмите по чекбоксу</Text>,
-                затем комментарий отправится автоматически.
-              </>
-            ) : (
-              "Готовлю виджет капчи…"
-            )}
+            {showWeb ? t("cloudflare.caption.tap") : t("cloudflare.caption.preparing")}
           </Text>
 
           <Animated.View style={{ height: wrapHeight, borderRadius: 10, overflow: "hidden" }}>
@@ -584,7 +578,7 @@ export default function CloudflareGate({
               <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
                 <ActivityIndicator />
                 <Text style={{ marginTop: 8, color: colors.sub, fontSize: 12 }}>
-                  Запрашиваем капчу…
+                  {t("cloudflare.requesting")}
                 </Text>
               </View>
             )}
@@ -637,14 +631,16 @@ export default function CloudflareGate({
 
           <View style={S.row}>
             <Pressable onPress={reload} style={[S.btn, { backgroundColor: colors.border }]}>
-              <Text style={[S.btnTxt, { color: colors.text }]}>Обновить</Text>
+              <Text style={[S.btnTxt, { color: colors.text }]}>{t("cloudflare.actions.reload")}</Text>
             </Pressable>
             <Pressable onPress={onClose} style={[S.btn, { backgroundColor: colors.accent }]}>
-              <Text style={[S.btnTxt, { color: "#fff" }]}>Закрыть</Text>
+              <Text style={[S.btnTxt, { color: "#fff" }]}>{t("cloudflare.actions.close")}</Text>
             </Pressable>
           </View>
 
-          <Text style={[S.text, { color: colors.sub, marginTop: 8 }]}>Попыток: {tries}</Text>
+          <Text style={[S.text, { color: colors.sub, marginTop: 8 }]}>
+            {t("cloudflare.stats.attempts", { n: tries })}
+          </Text>
         </View>
       </View>
     </Modal>

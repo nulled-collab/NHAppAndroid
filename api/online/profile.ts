@@ -1,16 +1,16 @@
 import { NH_HOST } from "@/api/auth";
+import { parse } from "date-fns";
 import { getHtmlWithCookies, isBrowser } from "./http";
 import { normalizeNhUrl } from "./scrape";
 import type { Me, UserComment, UserOverview } from "./types";
 
-/** Универсальный декодер HTML-сущностей (включая &#123; и &#x7B;) */
 function decodeEntities(s: string): string {
   if (!s) return "";
   return s
-    // hex/dec числовые
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
-    .replace(/&#(\d+);/g,      (_, d) => String.fromCharCode(parseInt(d, 10)))
-    // именованные
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) =>
+      String.fromCharCode(parseInt(h, 16))
+    )
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(parseInt(d, 10)))
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&amp;/g, "&")
@@ -19,7 +19,6 @@ function decodeEntities(s: string): string {
     .replace(/&nbsp;/g, " ");
 }
 
-/** Очистка HTML в текст (поддержка <br>) */
 function htmlToText(s: string): string {
   return decodeEntities(
     s
@@ -31,7 +30,6 @@ function htmlToText(s: string): string {
   ).trim();
 }
 
-/** Заголовок профиля с самой страницы пользователя */
 function parseProfileHeader(
   html: string,
   id: number,
@@ -65,7 +63,52 @@ function parseProfileHeader(
   };
 }
 
-/** Быстрый профиль */
+function parseJoinedTextToTs(s?: string): number | undefined {
+  if (!s) return undefined;
+  const normalized = s
+    .replace(/\b([A-Za-z]{3})\./g, "$1") // Feb. → Feb
+    .replace(/\bp\.m\./gi, "PM")
+    .replace(/\ba\.m\./gi, "AM");
+  try {
+    const d = parse(normalized, "MMM d, yyyy, h:mm a", new Date());
+    return Number.isNaN(+d) ? undefined : d.getTime();
+  } catch {
+    return undefined;
+  }
+}
+
+function extractJoined(html: string): {
+  joinedAt?: number;
+  joinedText?: string;
+} {
+  const joinedBlock =
+    html.match(
+      /<b>\s*Joined:\s*<\/b>[\s\S]*?<time[^>]*?(?:\/>|>[\s\S]*?<\/time>)/i
+    )?.[0] || "";
+
+  const mISO = joinedBlock.match(/\bdatetime=["']([^"']+)["']/i);
+  if (mISO) {
+    const d = new Date(mISO[1]);
+    if (!Number.isNaN(+d))
+      return { joinedAt: d.getTime(), joinedText: undefined };
+  }
+
+  const mTitle = joinedBlock.match(/\btitle=["']([^"']+)["']/i);
+  if (mTitle) {
+    const d = parse(
+      decodeEntities(mTitle[1]),
+      "dd.MM.yyyy, HH:mm:ss",
+      new Date()
+    );
+    if (!Number.isNaN(+d))
+      return { joinedAt: d.getTime(), joinedText: undefined };
+  }
+
+  const inner = joinedBlock.match(/>([^<]+)<\/time>/i)?.[1]?.trim();
+  const fallbackTs = parseJoinedTextToTs(inner);
+  return { joinedAt: fallbackTs, joinedText: inner };
+}
+
 export async function getUserProfile(
   id: number,
   slug?: string
@@ -97,33 +140,23 @@ export async function getUserProfile(
   }
 }
 
-/** Обзор профиля: Joined + избранные + последние комментарии + favorite tags + about */
 export async function getUserOverview(
   id: number,
   slug?: string
 ): Promise<UserOverview | null> {
   if (!id || isBrowser) return null;
   const base = `${NH_HOST}/users/${id}/${encodeURIComponent(slug || "")}`;
-  const url = base.endsWith("/") ? base : base; // допускается без завершающего /
+  const url = base.endsWith("/") ? base : base;
   try {
     const html = await getHtmlWithCookies(url);
 
-    // user — из заголовка страницы
     const headerUser = parseProfileHeader(html, id, slug) || {
       id,
       username: slug || "",
     };
 
-    // joined
-    const mJoined =
-      html.match(
-        /<b>\s*Joined:\s*<\/b>\s*&nbsp;\s*<time[^>]*>([^<]+)<\/time>/i
-      ) ||
-      html.match(/Joined:\s*([^<]+)/i) ||
-      html.match(/Member\s+since:\s*([^<]+)/i);
-    const joinedText = mJoined ? decodeEntities(mJoined[1].trim()) : undefined;
+    const { joinedAt, joinedText } = extractJoined(html);
 
-    // Favorite tags
     let favoriteTags: string[] | undefined;
     let favoriteTagsText: string | undefined;
     const favP =
@@ -133,31 +166,27 @@ export async function getUserOverview(
 
     if (favP) {
       const inner = favP[1];
-      const aMatches = Array.from(
-        inner.matchAll(/<a[^>]*>([^<]+)<\/a>/gi)
-      ).map((m) => decodeEntities(m[1].trim()));
+      const aMatches = Array.from(inner.matchAll(/<a[^>]*>([^<]+)<\/a>/gi)).map(
+        (m) => decodeEntities(m[1].trim())
+      );
       if (aMatches.length) favoriteTags = aMatches.filter(Boolean);
       const rawText = htmlToText(inner);
       if (rawText) favoriteTagsText = rawText;
     }
 
-    // About
     let about: string | undefined;
     const aboutP =
-      html.match(
-        /<p[^>]*>\s*<b>\s*About:\s*<\/b>\s*([\s\S]*?)<\/p>/i
-      ) || html.match(/<b>\s*About:\s*<\/b>\s*([\s\S]*?)<\/p>/i);
+      html.match(/<p[^>]*>\s*<b>\s*About:\s*<\/b>\s*([\s\S]*?)<\/p>/i) ||
+      html.match(/<b>\s*About:\s*<\/b>\s*([\s\S]*?)<\/p>/i);
     if (aboutP) {
-      about = htmlToText(aboutP[1]); // уже декодировано
+      about = htmlToText(aboutP[1]);
     }
 
-    // recent favorites
     const ids = new Set<number>();
     const re = /href=["']\/g\/(\d+)\/["']/gi;
     let m: RegExpExecArray | null;
     while ((m = re.exec(html)) && ids.size < 48) ids.add(Number(m[1]));
 
-    // recent comments
     const commentRe =
       /<div[^>]*\bclass=["'][^"']*\bcomment\b[^"']*["'][^>]*\bdata-state=["']([\s\S]*?)["'][^>]*>/gi;
 
@@ -187,7 +216,6 @@ export async function getUserOverview(
         };
         if (c.id && c.gallery_id) recentComments.push(c);
       } catch {
-        // пропускаем невалидные JSON
       }
     }
 
@@ -200,6 +228,7 @@ export async function getUserOverview(
         profile_url: headerUser?.profile_url || url,
       },
       joinedText,
+      joinedAt,
       favoriteTags,
       favoriteTagsText,
       about,

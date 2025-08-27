@@ -1,23 +1,26 @@
 import { Book } from "@/api/nhentai";
 import { useTheme } from "@/lib/ThemeContext";
+import { LinearGradient } from "expo-linear-gradient";
 import React, {
   ReactElement,
   ReactNode,
-  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   ListRenderItem,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   RefreshControl,
   StyleSheet,
   View,
   useWindowDimensions,
 } from "react-native";
-import Animated, { FadeOut } from "react-native-reanimated";
+import AnimatedRe, { FadeOut } from "react-native-reanimated";
 import BookCard from "./BookCard";
 
 export interface GridConfig {
@@ -48,9 +51,7 @@ export interface BookListProps<T extends Book = Book> {
     default?: GridConfig;
   };
   horizontal?: boolean;
-
-  /** Авто-высота контейнера (актуально для horizontal) */
-  autoRowHeight?: boolean;
+  background?: string;
 
   getScore?: (book: T) => number | undefined;
   columnWrapperStyle?: any;
@@ -72,7 +73,7 @@ export default function BookList<T extends Book = Book>({
   renderItem,
   gridConfig,
   horizontal = false,
-  autoRowHeight = false,
+  background,
   getScore,
   columnWrapperStyle,
   children,
@@ -80,6 +81,13 @@ export default function BookList<T extends Book = Book>({
   const { colors } = useTheme();
   const listRef = useRef<FlatList<T>>(null);
   const { width, height } = useWindowDimensions();
+
+  const themeBg =
+    background ??
+    (colors as any).page ??
+    (colors as any).surfaceElevated ??
+    (colors as any).bg ??
+    "#1C1C1C";
 
   const base = useMemo<GridConfig>(() => {
     const isPortrait = height > width;
@@ -94,59 +102,100 @@ export default function BookList<T extends Book = Book>({
       : gridConfig?.phonePortrait ?? gridConfig?.default ?? { numColumns: 2 };
   }, [width, height, gridConfig]);
 
-  const { cols, cardWidth, columnGap, paddingHorizontal } = useMemo(() => {
-    const padH = base.paddingHorizontal ?? 0;
-    const gap = base.columnGap ?? 0;
-    const minW = base.minColumnWidth ?? 120;
-    const avail = width - padH * 2;
+  const { cols, cardWidth, columnGap, paddingHorizontal, uniqueData } =
+    useMemo(() => {
+      const padH = base.paddingHorizontal ?? 0;
+      const gap = base.columnGap ?? 0;
+      const minW = base.minColumnWidth ?? 160;
+      const avail = Math.max(0, width - padH * 2);
 
-    if (horizontal) {
-      const visibleCols = Math.max(1, base.numColumns);
-      let w = (avail - gap * (visibleCols - 1)) / visibleCols;
-      w = Math.max(minW, w);
-      return { cols: 1, cardWidth: w, columnGap: gap, paddingHorizontal: padH };
-    }
+      // уникальные книги
+      const uniq = (() => {
+        const seen = new Set<number>();
+        return data.filter((b) =>
+          seen.has(b.id) ? false : (seen.add(b.id), true)
+        );
+      })();
 
-    const maxCols = Math.max(
-      1,
-      Math.min(base.numColumns, Math.floor((avail + gap) / (minW + gap)))
-    );
-    const cardW = (avail - gap * (maxCols - 1)) / maxCols;
+      if (horizontal) {
+        const cap = width >= 1000 ? 260 : width >= 768 ? 240 : 210;
+        const visible = Math.max(1, base.numColumns || 3);
+        const w = (avail - gap * (visible - 1)) / visible;
+        return {
+          cols: 1,
+          cardWidth: Math.min(Math.max(minW, w), cap),
+          columnGap: gap,
+          paddingHorizontal: padH,
+          uniqueData: uniq,
+        };
+      }
 
-    return {
-      cols: maxCols,
-      cardWidth: cardW,
-      columnGap: gap,
-      paddingHorizontal: padH,
-    };
-  }, [width, base, horizontal]);
+      const maxCols = Math.max(
+        1,
+        Math.min(base.numColumns, Math.floor((avail + gap) / (minW + gap)))
+      );
+      const cardW = (avail - gap * (maxCols - 1)) / maxCols;
 
-  // ---- авто-высота для горизонтальной ленты ----
-  const [rowH, setRowH] = useState<number | null>(null);
-
-  // Сбросить замер при изменениях (ориентация, ширина, паддинги, состав данных)
-  useEffect(() => {
-    if (horizontal && autoRowHeight) setRowH(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [horizontal, autoRowHeight, cardWidth, columnGap, paddingHorizontal, data.length]);
-
-  const uniqueData = useMemo(() => {
-    const seen = new Set<number>();
-    return data.filter((b) => (seen.has(b.id) ? false : (seen.add(b.id), true)));
-  }, [data]);
+      return {
+        cols: maxCols,
+        cardWidth: cardW,
+        columnGap: gap,
+        paddingHorizontal: padH,
+        uniqueData: uniq,
+      };
+    }, [data, width, base, horizontal]);
 
   const isSingleCol = !horizontal && cols === 1;
   const contentScale = isSingleCol ? 0.45 : 0.65;
 
+  // edge fade
+  const [containerW, setContainerW] = useState(0);
+  const [contentW, setContentW] = useState(0);
+  const [scrollX, setScrollX] = useState(0);
+
+  const fadeLeft = useRef(new Animated.Value(0)).current;
+  const fadeRight = useRef(new Animated.Value(0)).current;
+
+  const updateFades = (x: number, cW: number, vW: number) => {
+    const canScroll = horizontal && cW > vW + 1;
+    const toLeft = canScroll ? Math.min(1, x / 24) : 0;
+    const toRight = canScroll ? Math.min(1, (cW - vW - x) / 24) : 0;
+    Animated.timing(fadeLeft, {
+      toValue: toLeft,
+      duration: 160,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(fadeRight, {
+      toValue: toRight,
+      duration: 160,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!horizontal) return;
+    const x = e.nativeEvent.contentOffset.x;
+    setScrollX(x);
+    updateFades(x, contentW, containerW);
+  };
+
+  // рендер карточки
   const defaultRender: ListRenderItem<T> = ({ item, index }) => {
     const isLastInRow = !horizontal && (index + 1) % cols === 0;
+    const isLastHoriz = horizontal && index === uniqueData.length - 1;
 
     return (
-      <Animated.View
+      <AnimatedRe.View
         exiting={FadeOut.duration(300)}
         style={{
           width: cardWidth,
-          marginRight: horizontal ? columnGap : isLastInRow ? 0 : columnGap,
+          marginRight: horizontal
+            ? isLastHoriz
+              ? 0
+              : columnGap
+            : isLastInRow
+            ? 0
+            : columnGap,
           marginBottom: horizontal ? 0 : columnGap,
           ...(isSingleCol && { alignSelf: "center" }),
         }}
@@ -161,15 +210,15 @@ export default function BookList<T extends Book = Book>({
           onPress={() => onPress?.(item.id)}
           score={getScore?.(item)}
         />
-      </Animated.View>
+      </AnimatedRe.View>
     );
   };
 
   const Empty = () => (
     <View style={styles.empty}>
-      <Animated.Text entering={FadeOut.duration(400)} style={styles.emptyText}>
+      <AnimatedRe.Text entering={FadeOut.duration(400)} style={styles.emptyText}>
         Ничего не найдено ¯\_(ツ)_/¯
-      </Animated.Text>
+      </AnimatedRe.Text>
     </View>
   );
 
@@ -183,79 +232,101 @@ export default function BookList<T extends Book = Book>({
       })
     : undefined;
 
-  // Паддинги контента для горизонтальной ленты (они участвуют в общей высоте)
-  const topPad = horizontal ? paddingHorizontal : paddingHorizontal / 2;
-  const bottomPad = horizontal ? paddingHorizontal : 0;
+  const topPad = paddingHorizontal / 2;
+  const bottomPad = paddingHorizontal / 2;
+  const fadeWidth = 36;
 
   return (
     <View
+      onLayout={(e) => setContainerW(e.nativeEvent.layout.width)}
       style={[
         horizontal ? styles.rowContainer : styles.container,
-        { backgroundColor: colors.page },
-        horizontal && autoRowHeight ? { height: rowH ?? 1 } : undefined, // 1px до замера
+        { backgroundColor: themeBg, position: "relative" },
       ]}
     >
-      {/* Невидимый измеритель с ТЕМИ ЖЕ паддингами, что и у FlatList */}
-      {horizontal && autoRowHeight && !rowH && uniqueData.length > 0 && (
-        <View
-          style={{
-            position: "absolute",
-            opacity: 0,
-            pointerEvents: "none",
-            left: 0,
-            right: 0,
-            paddingHorizontal,
-            paddingTop: topPad,
-            paddingBottom: bottomPad,
-          }}
-          onLayout={(e) => setRowH(Math.ceil(e.nativeEvent.layout.height))}
-        >
-          <View style={{ width: cardWidth, alignSelf: "flex-start" }}>
-            <BookCard
-              book={uniqueData[0]}
-              cardWidth={cardWidth}
-              isSingleCol={false}
-              contentScale={0.65}
-              isFavorite={isFavorite?.(uniqueData[0].id) ?? false}
-              onToggleFavorite={onToggleFavorite}
-              onPress={() => onPress?.(uniqueData[0].id)}
-              score={getScore?.(uniqueData[0])}
-            />
-          </View>
-        </View>
-      )}
-
       {uniqueData.length === 0 && !loading ? (
         (ListEmptyComponent as ReactElement) ?? <Empty />
       ) : (
-        <FlatList
-          ref={listRef}
-          key={listKey}
-          horizontal={horizontal}
-          showsHorizontalScrollIndicator={false}
-          decelerationRate={horizontal ? "fast" : undefined}
-          snapToAlignment={horizontal ? "start" : undefined}
-          data={uniqueData}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderItem ?? defaultRender}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          contentContainerStyle={{
-            paddingHorizontal,
-            paddingTop: topPad,
-            paddingBottom: bottomPad || undefined,
-          }}
-          onEndReached={onEndReached}
-          onEndReachedThreshold={0.4}
-          ListFooterComponent={
-            loading ? <ActivityIndicator style={styles.loader} /> : ListFooterComponent
-          }
-          ListHeaderComponent={ListHeaderComponent}
-          numColumns={horizontal ? undefined : cols}
-          columnWrapperStyle={
-            !horizontal && cols > 1 ? [{ justifyContent: "center" }, columnWrapperStyle] : undefined
-          }
-          getItemLayout={getItemLayout}
-        />
+        <>
+          <FlatList
+            ref={listRef}
+            key={listKey}
+            horizontal={horizontal}
+            showsHorizontalScrollIndicator={false}
+            decelerationRate={horizontal ? "fast" : undefined}
+            snapToAlignment={horizontal ? "start" : undefined}
+            data={uniqueData}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={renderItem ?? defaultRender}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            contentContainerStyle={{
+              paddingHorizontal,
+              paddingTop: topPad,
+              paddingBottom: bottomPad || undefined,
+            }}
+            onEndReached={onEndReached}
+            onEndReachedThreshold={0.4}
+            ListFooterComponent={
+              loading ? (
+                <ActivityIndicator style={styles.loader} />
+              ) : (
+                ListFooterComponent
+              )
+            }
+            ListHeaderComponent={ListHeaderComponent}
+            numColumns={horizontal ? undefined : cols}
+            columnWrapperStyle={
+              !horizontal && cols > 1
+                ? [{ justifyContent: "center" }, columnWrapperStyle]
+                : undefined
+            }
+            getItemLayout={getItemLayout}
+            onContentSizeChange={(w) => {
+              setContentW(w);
+              updateFades(scrollX, w, containerW);
+            }}
+            onScroll={horizontal ? onScroll : undefined}
+            scrollEventThrottle={16}
+            removeClippedSubviews={horizontal ? false : undefined}
+          />
+
+          {/* Edge fade — плавное появление/исчезновение */}
+          {horizontal && (
+            <>
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.fade,
+                  { left: 0, width: fadeWidth, top: 0, bottom: 0, opacity: fadeLeft },
+                ]}
+              >
+                <LinearGradient
+                  colors={[themeBg, "transparent"]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={StyleSheet.absoluteFill}
+                />
+              </Animated.View>
+
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.fade,
+                  { right: 0, width: fadeWidth, top: 0, bottom: 0, opacity: fadeRight },
+                ]}
+              >
+                <LinearGradient
+                  colors={["transparent", themeBg]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={StyleSheet.absoluteFill}
+                />
+              </Animated.View>
+            </>
+          )}
+        </>
       )}
       {children}
     </View>
@@ -268,4 +339,5 @@ const styles = StyleSheet.create({
   empty: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyText: { color: "#888", fontSize: 16 },
   loader: { marginVertical: 16 },
+  fade: { position: "absolute", zIndex: 5 },
 });

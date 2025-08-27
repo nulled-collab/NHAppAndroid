@@ -267,7 +267,7 @@ export default function Footer({
             { paddingHorizontal: innerPadding, paddingBottom: 10, color: ui.text },
           ]}
         >
-          {t("comments")} ({totalCount})
+          {t("comments.title")} ({totalCount})
         </Text>
       </View>
 

@@ -16,7 +16,46 @@
     "readAgain": "Читать снова",
     "removeDownload": "Удалить загрузку"
   },
-  "comments": "Комментарии",
+  "commentComposer": {
+    "placeholder": "Написать комментарий…",
+    "hint": {
+      "needMore": "Ещё {n} символов до отправки",
+      "captcha": "После нажатия откроется окно с капчей, затем комментарий отправится автоматически."
+    }
+  },
+  "cloudflare": {
+    "title": "Проверка Cloudflare",
+    "caption": {
+      "tap": "Появился виджет Cloudflare — нажмите по чекбоксу, затем комментарий отправится автоматически.",
+      "preparing": "Готовлю виджет капчи…"
+    },
+    "requesting": "Запрашиваем капчу…",
+    "actions": { "reload": "Обновить", "close": "Закрыть" },
+    "stats": { "attempts": "Попыток: {n}" }
+  },
+  "comments": {
+    "title": "Комментарии",
+    "menu": {
+      "translate": "Перевести комментарий",
+      "showOriginal": "Показать оригинал",
+      "showTranslation": "Показать перевод",
+      "copy": "Скопировать текст",
+      "delete": "Удалить"
+    },
+    "badge": { "translated": "Показан перевод" },
+    "mine": "Ваш комментарий",
+    "delete": {
+      "title": "Удалить комментарий?",
+      "cancel": "Отмена",
+      "confirm": "Удалить"
+    },
+    "error": {
+      "title": "Ошибка",
+      "translate": "Не удалось перевести комментарий.",
+      "delete": "Не удалось удалить комментарий."
+    },
+    "copied": "Скопировано"
+  },
   "common": {
     "back": "Назад",
     "cancel": "Отмена",
@@ -47,7 +86,17 @@
     "recommendations": "Рекомендации",
     "search": "Поиск",
     "settings": "Настройки",
-    "tags": "Теги"
+    "tags": "Теги",
+    "profile": "Профиль",
+    "login": "Войти",
+    "section": { "account": "Аккаунт", "library": "Библиотека" },
+    "favoritesOnline": "Онлайн-избранное",
+    "brand": "NHAppAndroid",
+    "brandTag": "Неофициальное"
+  },
+  "login": {
+    "ready": "Готово",
+    "loading": "Загрузка…"
   },
   "reader": {
     "banner": {

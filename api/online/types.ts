@@ -19,6 +19,7 @@ export interface UserComment {
 export interface UserOverview {
   me: Me;
   joinedText?: string;
+  joinedAt?: number;
   favoriteTags?: string[];
   favoriteTagsText?: string;
   about?: string;

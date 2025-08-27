@@ -16,7 +16,46 @@
     "readAgain": "もう一度読む",
     "removeDownload": "ダウンロードを削除"
   },
-  "comments": "コメント",
+  "commentComposer": {
+    "placeholder": "コメントを書く…",
+    "hint": {
+      "needMore": "送信まであと{n}文字",
+      "captcha": "送信を押すとキャプチャ画面が開き、自動で送信されます。"
+    }
+  },
+  "cloudflare": {
+    "title": "Cloudflare 確認",
+    "caption": {
+      "tap": "Cloudflare のウィジェットが表示されました。チェックボックスをタップするとコメントが自動で送信されます。",
+      "preparing": "キャプチャウィジェットを準備中…"
+    },
+    "requesting": "キャプチャを取得中…",
+    "actions": { "reload": "再読み込み", "close": "閉じる" },
+    "stats": { "attempts": "試行回数: {n}" }
+  },
+  "comments": {
+    "title": "コメント",
+    "menu": {
+      "translate": "コメントを翻訳",
+      "showOriginal": "原文を表示",
+      "showTranslation": "翻訳を表示",
+      "copy": "テキストをコピー",
+      "delete": "削除"
+    },
+    "badge": { "translated": "翻訳を表示中" },
+    "mine": "あなたのコメント",
+    "delete": {
+      "title": "このコメントを削除しますか？",
+      "cancel": "キャンセル",
+      "confirm": "削除"
+    },
+    "error": {
+      "title": "エラー",
+      "translate": "コメントを翻訳できませんでした。",
+      "delete": "コメントを削除できませんでした。"
+    },
+    "copied": "コピーしました"
+  },
   "common": {
     "back": "戻る",
     "cancel": "キャンセル",
@@ -47,7 +86,17 @@
     "recommendations": "おすすめ",
     "search": "検索",
     "settings": "設定",
-    "tags": "タグ"
+    "tags": "タグ",
+    "profile": "プロフィール",
+    "login": "ログイン",
+    "section": { "account": "アカウント", "library": "ライブラリ" },
+    "favoritesOnline": "オンラインのお気に入り",
+    "brand": "NHAppAndroid",
+    "brandTag": "非公式"
+  },
+  "login": {
+    "ready": "準備完了",
+    "loading": "読み込み中…"
   },
   "reader": {
     "banner": {

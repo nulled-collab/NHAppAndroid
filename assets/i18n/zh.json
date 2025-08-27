@@ -16,7 +16,46 @@
     "readAgain": "再读一次",
     "removeDownload": "删除下载"
   },
-  "comments": "评论",
+  "commentComposer": {
+    "placeholder": "写评论…",
+    "hint": {
+      "needMore": "还差 {n} 个字符即可发送",
+      "captcha": "点击发送后会弹出验证码窗口，完成后评论会自动发送。"
+    }
+  },
+  "cloudflare": {
+    "title": "Cloudflare 验证",
+    "caption": {
+      "tap": "已显示 Cloudflare 小部件——勾选复选框后评论将自动发送。",
+      "preparing": "正在准备验证码小部件…"
+    },
+    "requesting": "正在请求验证码…",
+    "actions": { "reload": "重新加载", "close": "关闭" },
+    "stats": { "attempts": "尝试次数：{n}" }
+  },
+  "comments": {
+    "title": "评论",
+    "menu": {
+      "translate": "翻译评论",
+      "showOriginal": "显示原文",
+      "showTranslation": "显示翻译",
+      "copy": "复制文本",
+      "delete": "删除"
+    },
+    "badge": { "translated": "已显示翻译" },
+    "mine": "你的评论",
+    "delete": {
+      "title": "删除此评论？",
+      "cancel": "取消",
+      "confirm": "删除"
+    },
+    "error": {
+      "title": "错误",
+      "translate": "无法翻译评论。",
+      "delete": "无法删除评论。"
+    },
+    "copied": "已复制"
+  },
   "common": {
     "back": "返回",
     "cancel": "取消",
@@ -47,7 +86,17 @@
     "recommendations": "推荐",
     "search": "搜索",
     "settings": "设置",
-    "tags": "标签"
+    "tags": "标签",
+    "profile": "个人中心",
+    "login": "登录",
+    "section": { "account": "账户", "library": "库" },
+    "favoritesOnline": "在线收藏",
+    "brand": "NHAppAndroid",
+    "brandTag": "非官方"
+  },
+  "login": {
+    "ready": "就绪",
+    "loading": "正在加载…"
   },
   "reader": {
     "banner": {

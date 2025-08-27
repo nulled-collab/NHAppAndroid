@@ -1,7 +1,12 @@
 import type { ApiUser } from "@/api/nhentai";
 import { deleteCommentById } from "@/api/online/comments";
 import { useTheme } from "@/lib/ThemeContext";
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { MaterialIcons } from "@expo/vector-icons";
+import {
+  formatDistanceToNowStrict
+} from "date-fns";
+import { enUS, ja, ru, zhCN } from "date-fns/locale";
 import * as Clipboard from "expo-clipboard";
 import { franc } from "franc-min";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -23,14 +28,14 @@ import {
 type Props = {
   id?: number;
   body: string;
-  post_date?: number | string; // ms или ISO — обработаем оба
+  post_date?: number | string;
   poster?: Partial<ApiUser>;
   avatar?: string;
   avatar_url?: string;
 
-  highlight?: boolean; // обводка (и признак «мой» для кнопки "Удалить")
-  mineLabel?: string; // текст «Ваш комментарий»
-  onPress?: () => void; // действие по тапу на комментарий
+  highlight?: boolean;
+  mineLabel?: string;
+  onPress?: () => void;
   onDelete?: (id?: number) => Promise<void> | void;
 };
 
@@ -53,15 +58,14 @@ const R = StyleSheet.create({
   time: { fontSize: 12 },
   badge: {
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 3,
     marginLeft: 8,
   },
   body: { fontSize: 14, lineHeight: 20 },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#0002" },
+  avatar: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#0002" },
 
-  // Контекстное меню
   backdrop: { position: "absolute", left: 0, top: 0, right: 0, bottom: 0 },
   menu: {
     position: "absolute",
@@ -81,9 +85,8 @@ const R = StyleSheet.create({
     overflow: "hidden",
     marginVertical: 2,
   },
-  optsBtn: { padding: 6, marginLeft: 8, borderRadius: 999 },
+  optsBtn: { padding: 6, marginLeft: 8, borderRadius: 12 },
 
-  // ---- КАСТОМНАЯ МОДАЛКА УДАЛЕНИЯ ----
   delBackdrop: {
     flex: 1,
     backgroundColor: "#0008",
@@ -110,25 +113,49 @@ const R = StyleSheet.create({
   delBtnTxt: { fontWeight: "800" },
 });
 
-function fmtTime(ts?: number | string): string {
-  if (!ts) return "";
-  let ms = 0;
-  if (typeof ts === "number") ms = ts > 1e12 ? ts : ts * 1000;
-  else {
-    const t = Date.parse(ts);
-    ms = Number.isFinite(t) ? t : 0;
+function parseToMs(ts?: number | string): number {
+  if (!ts) return 0;
+
+  if (typeof ts === "number") return ts > 1e12 ? ts : ts * 1000;
+
+  let v = Date.parse(ts);
+  if (Number.isFinite(v)) return v;
+
+  const m =
+    /^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/.exec(
+      ts.trim()
+    );
+  if (m) {
+    const [, y, mo, d, h = "0", mi = "0", s = "0"] = m;
+    const dt = new Date(
+      Number(y),
+      Number(mo) - 1,
+      Number(d),
+      Number(h),
+      Number(mi),
+      Number(s)
+    );
+    if (!Number.isNaN(+dt)) return +dt;
   }
+
+  return 0;
+}
+function localeOf(lang: "en" | "ru" | "ja" | "zh") {
+  return lang === "ru" ? ru : lang === "ja" ? ja : lang === "zh" ? zhCN : enUS;
+}
+function fmtTimeLocalized(
+  ts?: number | string,
+  lang: "en" | "ru" | "ja" | "zh" = "en"
+): string {
+  const ms = parseToMs(ts);
   if (!ms) return "";
   const d = new Date(ms);
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mi = String(d.getMinutes()).padStart(2, "0");
-  return `${dd}.${mm}.${yyyy} ${hh}:${mi}`;
+  const loc = localeOf(lang);
+
+  return formatDistanceToNowStrict(d, { addSuffix: true, locale: loc });
+
 }
 
-// ---- перевод (MyMemory) ----
 function mapIso3ToMyMemory(iso3: string, text: string): string {
   const m: Record<string, string> = {
     eng: "en",
@@ -175,8 +202,7 @@ function mapIso3ToMyMemory(iso3: string, text: string): string {
   const ascii = text && /^[\x00-\x7F]+$/.test(text);
   return ascii ? "en" : "en";
 }
-
-async function translateViaMyMemory(text: string, to = "ru"): Promise<string> {
+async function translateViaMyMemory(text: string, to = "en"): Promise<string> {
   const iso3 = franc(text || "", { minLength: 3 });
   const src = mapIso3ToMyMemory(iso3, text);
   const chunk = (str: string, max = 450) => {
@@ -220,6 +246,8 @@ export default function CommentCard({
 }: Props) {
   const { colors } = useTheme();
   const { width: winW, height: winH } = useWindowDimensions();
+  const { t, resolved } = useI18n();
+  const lang = (resolved ?? "en") as "en" | "ru" | "ja" | "zh";
 
   const ui = useMemo(
     () => ({
@@ -244,21 +272,17 @@ export default function CommentCard({
     (poster?.avatar_url as string | undefined) ||
     "";
 
-  // ===== меню =====
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState({ x: 0, y: 0, w: 0, h: 0 });
   const btnRef = useRef<View>(null);
 
-  // ===== кастомная модалка удаления =====
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  // ===== перевод =====
   const [translated, setTranslated] = useState<string | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // при смене текста сбрасываем перевод
   useEffect(() => {
     setTranslated(null);
     setShowOriginal(false);
@@ -269,8 +293,10 @@ export default function CommentCard({
     [body]
   );
 
+  const targetLangMM = lang === "zh" ? "zh-CN" : lang;
+  const sourceMM = mapIso3ToMyMemory(detectedIso3, body);
   const canTranslateBase =
-    (body?.trim().length ?? 0) > 2 && detectedIso3 !== "rus";
+    (body?.trim().length ?? 0) > 2 && sourceMM !== targetLangMM;
 
   const displayBody = translated && !showOriginal ? translated : body;
 
@@ -292,11 +318,11 @@ export default function CommentCard({
   const doTranslate = async () => {
     try {
       setBusy(true);
-      const tr = await translateViaMyMemory(body, "ru");
+      const tr = await translateViaMyMemory(body, targetLangMM);
       setTranslated(tr);
       setShowOriginal(false);
     } catch {
-      Alert.alert("Ошибка", "Не удалось перевести комментарий.");
+      Alert.alert(t("comments.error.title"), t("comments.error.translate"));
     } finally {
       setBusy(false);
       setMenuOpen(false);
@@ -308,22 +334,18 @@ export default function CommentCard({
     setMenuOpen(false);
   };
 
-  // ---- копировать: без огромной плашки, на Android — Toast ----
   const doCopy = async () => {
     try {
       await Clipboard.setStringAsync(body || "");
       if (Platform.OS === "android") {
-        ToastAndroid.show("Скопировано", ToastAndroid.SHORT);
+        ToastAndroid.show(t("comments.copied"), ToastAndroid.SHORT);
       }
-      // на iOS — молча (или можно добавить лёгкую вибрацию/haptic)
     } catch {
-      // ignore
     } finally {
       setMenuOpen(false);
     }
   };
 
-  // ---- удалить: показать кастомную модалку с полной копией карточки ----
   const askDelete = () => {
     setMenuOpen(false);
     if (!id) return;
@@ -340,14 +362,13 @@ export default function CommentCard({
         await deleteCommentById(id);
       }
       setDeleteOpen(false);
-    } catch (e: any) {
-      Alert.alert("Ошибка", e?.message || "Не удалось удалить комментарий.");
+    } catch {
+      Alert.alert(t("comments.error.title"), t("comments.error.delete"));
     } finally {
       setDeleteBusy(false);
     }
   };
 
-  // Геометрия контекстного меню
   const estimatedMenuHeight = 48 * 3 + 12;
   const menuTop = Math.min(
     Math.max(8, menuAnchor.y + menuAnchor.h + 6),
@@ -381,9 +402,10 @@ export default function CommentCard({
     </Pressable>
   );
 
+  const timeLabel = fmtTimeLocalized(post_date, lang);
+
   return (
     <Animated.View>
-      {/* Карточка комментария */}
       <Pressable
         onPress={handleCardPress}
         onLongPress={openMenu}
@@ -402,7 +424,6 @@ export default function CommentCard({
           },
         ]}
       >
-        {/* Контекстное меню */}
         <Modal
           visible={menuOpen}
           transparent
@@ -424,7 +445,7 @@ export default function CommentCard({
             {canTranslateBase && !translated && (
               <MenuItem
                 icon="translate"
-                label="Перевести комментарий"
+                label={t("comments.menu.translate")}
                 onPress={doTranslate}
                 disabled={busy}
               />
@@ -433,20 +454,31 @@ export default function CommentCard({
             {translated && (
               <MenuItem
                 icon={showOriginal ? "translate" : "description"}
-                label={showOriginal ? "Показать перевод" : "Показать оригинал"}
+                label={
+                  showOriginal
+                    ? t("comments.menu.showTranslation")
+                    : t("comments.menu.showOriginal")
+                }
                 onPress={doToggleOriginal}
               />
             )}
 
-            <MenuItem icon="content-copy" label="Скопировать текст" onPress={doCopy} />
+            <MenuItem
+              icon="content-copy"
+              label={t("comments.menu.copy")}
+              onPress={doCopy}
+            />
 
             {highlight && (
-              <MenuItem icon="delete-outline" label="Удалить" onPress={askDelete} />
+              <MenuItem
+                icon="delete-outline"
+                label={t("comments.menu.delete")}
+                onPress={askDelete}
+              />
             )}
           </View>
         </Modal>
 
-        {/* Содержимое карточки */}
         <View style={R.header}>
           {avatarSrc ? (
             <Image source={{ uri: avatarSrc }} style={R.avatar} />
@@ -458,7 +490,7 @@ export default function CommentCard({
             <Text style={[R.name, { color: ui.text }]} numberOfLines={1}>
               {poster?.username || "user"}
             </Text>
-            <Text style={[R.time, { color: ui.sub }]}>{fmtTime(post_date)}</Text>
+            <Text style={[R.time, { color: ui.sub }]}>{timeLabel}</Text>
           </View>
 
           {translated && !showOriginal && (
@@ -468,8 +500,10 @@ export default function CommentCard({
                 { borderColor: ui.ripple, backgroundColor: ui.ripple + "12" },
               ]}
             >
-              <Text style={{ color: ui.accent, fontWeight: "800", fontSize: 12 }}>
-                Показан перевод
+              <Text
+                style={{ color: ui.accent, fontWeight: "800", fontSize: 12 }}
+              >
+                {t("comments.badge.translated")}
               </Text>
             </View>
           )}
@@ -481,8 +515,10 @@ export default function CommentCard({
                 { borderColor: ui.accent, backgroundColor: ui.accent + "12" },
               ]}
             >
-              <Text style={{ color: ui.accent, fontWeight: "800", fontSize: 12 }}>
-                {mineLabel || "Ваш комментарий"}
+              <Text
+                style={{ color: ui.accent, fontWeight: "800", fontSize: 12 }}
+              >
+                {mineLabel || t("comments.mine")}
               </Text>
             </View>
           )}
@@ -503,7 +539,6 @@ export default function CommentCard({
         </Text>
       </Pressable>
 
-      {/* ---- КАСТОМНАЯ МОДАЛКА ПОДТВЕРЖДЕНИЯ УДАЛЕНИЯ ---- */}
       <Modal
         visible={deleteOpen}
         transparent
@@ -511,7 +546,6 @@ export default function CommentCard({
         onRequestClose={() => setDeleteOpen(false)}
       >
         <Pressable style={R.delBackdrop} onPress={() => setDeleteOpen(false)}>
-          {/* stopPropagation для внутренней карточки */}
           <Pressable
             onPress={(e) => e.stopPropagation()}
             style={[
@@ -519,9 +553,10 @@ export default function CommentCard({
               { backgroundColor: ui.card, borderColor: ui.borderDim },
             ]}
           >
-            <Text style={[R.delTitle, { color: ui.text }]}>Удалить комментарий?</Text>
+            <Text style={[R.delTitle, { color: ui.text }]}>
+              {t("comments.delete.title")}
+            </Text>
 
-            {/* Превью — копия карточки */}
             <View
               style={[
                 R.delPreview,
@@ -538,32 +573,40 @@ export default function CommentCard({
                   <Text style={[R.name, { color: ui.text }]} numberOfLines={1}>
                     {poster?.username || "user"}
                   </Text>
-                  <Text style={[R.time, { color: ui.sub }]}>{fmtTime(post_date)}</Text>
+                  <Text style={[R.time, { color: ui.sub }]}>{timeLabel}</Text>
                 </View>
               </View>
-              <Text style={[R.body, { color: ui.text, marginTop: 8 }]}>{displayBody}</Text>
+              <Text style={[R.body, { color: ui.text, marginTop: 8 }]}>
+                {displayBody}
+              </Text>
             </View>
 
-            {/* Кнопки */}
             <View style={R.delRow}>
               <Pressable
                 onPress={() => setDeleteOpen(false)}
                 style={[R.delBtn, { backgroundColor: ui.borderDim }]}
                 android_ripple={{ color: ui.ripple, borderless: false }}
               >
-                <Text style={[R.delBtnTxt, { color: ui.text }]}>Отмена</Text>
+                <Text style={[R.delBtnTxt, { color: ui.text }]}>
+                  {t("comments.delete.cancel")}
+                </Text>
               </Pressable>
 
               <Pressable
                 disabled={deleteBusy}
                 onPress={confirmDelete}
-                style={[R.delBtn, { backgroundColor: ui.accent, opacity: deleteBusy ? 0.8 : 1 }]}
+                style={[
+                  R.delBtn,
+                  { backgroundColor: ui.accent, opacity: deleteBusy ? 0.8 : 1 },
+                ]}
                 android_ripple={{ color: "#ffffff22", borderless: false }}
               >
                 {deleteBusy ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={[R.delBtnTxt, { color: "#fff" }]}>Удалить</Text>
+                  <Text style={[R.delBtnTxt, { color: "#fff" }]}>
+                    {t("comments.delete.confirm")}
+                  </Text>
                 )}
               </Pressable>
             </View>

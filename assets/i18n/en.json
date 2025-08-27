@@ -16,7 +16,46 @@
     "readAgain": "Read again",
     "removeDownload": "Remove download"
   },
-  "comments": "Comments",
+  "commentComposer": {
+    "placeholder": "Write a comment…",
+    "hint": {
+      "needMore": "{n} more characters to send",
+      "captcha": "After pressing the button a captcha window will open, then your comment will be sent automatically."
+    }
+  },
+  "cloudflare": {
+    "title": "Cloudflare Check",
+    "caption": {
+      "tap": "The Cloudflare widget appeared — tap the checkbox and the comment will be sent automatically.",
+      "preparing": "Preparing the captcha widget…"
+    },
+    "requesting": "Requesting captcha…",
+    "actions": { "reload": "Reload", "close": "Close" },
+    "stats": { "attempts": "Attempts: {n}" }
+  },
+  "comments": {
+    "title": "Comments",
+    "menu": {
+      "translate": "Translate comment",
+      "showOriginal": "Show original",
+      "showTranslation": "Show translation",
+      "copy": "Copy text",
+      "delete": "Delete"
+    },
+    "badge": { "translated": "Translation shown" },
+    "mine": "Your comment",
+    "delete": {
+      "title": "Delete this comment?",
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    },
+    "error": {
+      "title": "Error",
+      "translate": "Couldn't translate the comment.",
+      "delete": "Couldn't delete the comment."
+    },
+    "copied": "Copied"
+  },
   "common": {
     "back": "Back",
     "cancel": "Cancel",
@@ -47,7 +86,17 @@
     "recommendations": "Recommendations",
     "search": "Search",
     "settings": "Settings",
-    "tags": "Tags"
+    "tags": "Tags",
+    "profile": "Profile",
+    "login": "Sign in",
+    "section": { "account": "Account", "library": "Library" },
+    "favoritesOnline": "Online favorites",
+    "brand": "NHAppAndroid",
+    "brandTag": "Unofficial"
+  },
+  "login": {
+    "ready": "Ready",
+    "loading": "Loading…"
   },
   "reader": {
     "banner": {

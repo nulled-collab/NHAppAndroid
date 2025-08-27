@@ -1,5 +1,6 @@
 import type { ApiComment } from "@/api/online/comments";
 import { useTheme } from "@/lib/ThemeContext";
+import { useI18n } from "@/lib/i18n/I18nContext";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useMemo, useRef, useState } from "react";
@@ -53,7 +54,6 @@ const S = StyleSheet.create({
   hint: { fontSize: 12, marginTop: 6 },
 });
 
-// Универсальный извлекатель комментария из любых форматов ответа
 function pickCommentFromResponse(
   json: any,
   galleryId: number,
@@ -93,10 +93,12 @@ function pickCommentFromResponse(
 
 export default function CommentComposer({
   galleryId,
-  placeholder = "Написать комментарий…",
+  placeholder,
   onSubmitted,
 }: Props) {
   const { colors } = useTheme();
+  const { t } = useI18n();
+
   const ui = useMemo(
     () => ({
       text: colors.txt,
@@ -138,7 +140,7 @@ export default function CommentComposer({
       >
         <TextInput
           style={[S.input, { color: ui.text }]}
-          placeholder={placeholder}
+          placeholder={t("commentComposer.placeholder")}
           placeholderTextColor={ui.sub}
           value={value}
           onChangeText={setValue}
@@ -172,8 +174,8 @@ export default function CommentComposer({
 
       <Text style={[S.hint, { color: ui.sub }]}>
         {value.trim().length < 10
-          ? `Ещё ${left} символов до отправки`
-          : "После нажатия откроется окно с капчей, затем комментарий отправится автоматически."}
+          ? t("commentComposer.hint.needMore", { n: left })
+          : t("commentComposer.hint.captcha")}
       </Text>
 
       <CloudflareGate
@@ -215,14 +217,12 @@ export default function CommentComposer({
           setGateVisible(false);
           setBusy(false);
 
-          // нормализуем ответ
           const normalized = pickCommentFromResponse(
             json,
             galleryId,
             pendingTextRef.current || value
           );
 
-          // если аватар всё ещё пустой — берём из кеша 'nh.me', который прислал CloudflareGate
           if (!normalized?.poster?.avatar_url) {
             try {
               const meStr = await AsyncStorage.getItem("nh.me");
@@ -239,7 +239,7 @@ export default function CommentComposer({
             } catch {}
           }
 
-          setValue(""); // очищаем поле только в конце
+          setValue("");
 
           try {
             onSubmitted?.(normalized);

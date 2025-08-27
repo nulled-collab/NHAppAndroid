@@ -1,4 +1,3 @@
-// components/SideMenu.tsx
 import {
   hasNativeCookieJar,
   loadTokens,
@@ -8,10 +7,11 @@ import {
   syncNativeCookiesFromJar,
 } from "@/api/auth";
 import { getRandomBook } from "@/api/nhentai";
-import { getMe, Me } from "@/api/nhentaiOnline";
+import { getMe, type Me } from "@/api/nhentaiOnline";
 import { useI18n } from "@/lib/i18n/I18nContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { Feather } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
 import { usePathname, useRouter } from "expo-router";
 import React from "react";
@@ -38,14 +38,18 @@ type MenuRoute =
   | "/tags"
   | "/settings";
 
-const MENU: {
+const LIBRARY_MENU: {
   labelKey: string;
   icon: keyof typeof Feather.glyphMap;
   route: MenuRoute;
 }[] = [
   { labelKey: "menu.downloaded", icon: "download", route: "/downloaded" },
   { labelKey: "menu.favorites", icon: "heart", route: "/favorites" },
-  { labelKey: "menu.favoritesOnline", icon: "heart", route: "/favoritesOnline" },
+  {
+    labelKey: "menu.favoritesOnline",
+    icon: "cloud",
+    route: "/favoritesOnline",
+  },
   { labelKey: "menu.history", icon: "clock", route: "/history" },
   { labelKey: "menu.recommendations", icon: "star", route: "/recommendations" },
   { labelKey: "menu.tags", icon: "tag", route: "/tags" },
@@ -54,7 +58,7 @@ const MENU: {
 
 function Rounded({
   children,
-  radius = 10,
+  radius = 12,
   rippleColor,
   style,
   onPress,
@@ -74,7 +78,9 @@ function Rounded({
       <Pressable
         disabled={disabled}
         onPress={onPress}
-        android_ripple={!disabled ? { color: rippleColor, borderless: false } : undefined}
+        android_ripple={
+          !disabled ? { color: rippleColor, borderless: false } : undefined
+        }
         style={({ pressed }) => [
           { borderRadius: radius },
           pressed &&
@@ -82,7 +88,7 @@ function Rounded({
             (pressedStyle ??
               (Platform.select({
                 android: { opacity: 0.94, transform: [{ scale: 0.99 }] },
-                ios: { opacity: 0.85 },
+                ios: { opacity: 0.86 },
               }) as any)),
         ]}
       >
@@ -104,20 +110,20 @@ export default function SideMenu({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
-  const [randomLoading, setRandomLoading] = React.useState(false);
 
-  // ---- Login UI state ----
+  const [randomLoading, setRandomLoading] = React.useState(false);
   const [loginVisible, setLoginVisible] = React.useState(false);
   const [wvBusy, setWvBusy] = React.useState(false);
   const [status, setStatus] = React.useState<string>("");
-  const [tokens, setTokens] = React.useState<{ csrftoken?: string; sessionid?: string }>({});
+  const [tokens, setTokens] = React.useState<{
+    csrftoken?: string;
+    sessionid?: string;
+  }>({});
   const [me, setMe] = React.useState<Me | null>(null);
-
-  // manual inputs
   const [csrfInput, setCsrfInput] = React.useState("");
   const [sessInput, setSessInput] = React.useState("");
-
   const webRef = React.useRef<WebView>(null);
+
   const canUseNativeJar = hasNativeCookieJar();
   const isExpoGo = Constants.appOwnership === "expo";
 
@@ -140,16 +146,16 @@ export default function SideMenu({
         const m = await getMe();
         if (m) {
           setMe(m);
-          setStatus(`signed in as ${m.username} (${why})`);
+          setStatus(t("login.status.signedAs", { user: m.username, why }));
           setLoginVisible(false);
         } else {
-          setStatus(`not signed yet (${why})`);
+          setStatus(t("login.status.notSigned", { why }));
         }
       } catch {
-        setStatus(`not signed yet (${why})`);
+        setStatus(t("login.status.notSigned", { why }));
       }
     },
-    []
+    [t]
   );
 
   const refreshTokensFromJar = React.useCallback(
@@ -160,14 +166,14 @@ export default function SideMenu({
         setTokens(synced);
         if (synced.csrftoken) setCsrfInput(synced.csrftoken);
         if (synced.sessionid) setSessInput(synced.sessionid);
-        setStatus(`cookies synced (${reason})`);
+        setStatus(t("login.status.cookiesSynced", { reason }));
         await fetchMeAndMaybeClose("cookies");
       } catch (e) {
-        setStatus(`cookies sync failed (${reason})`);
+        setStatus(t("login.status.cookiesFailed", { reason }));
         console.log("[auth] sync error:", e);
       }
     },
-    [canUseNativeJar, fetchMeAndMaybeClose]
+    [canUseNativeJar, fetchMeAndMaybeClose, t]
   );
 
   const goRandom = async () => {
@@ -185,7 +191,6 @@ export default function SideMenu({
     }
   };
 
-  // ---- WebView instrumentation ----
   const injected = `
     (function () {
       function getCookieMap() {
@@ -219,11 +224,6 @@ export default function SideMenu({
         setTimeout(tick, 700);
       }
       tick();
-      document.addEventListener("DOMContentLoaded", function () {
-        try {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: "log", msg: "domready" }));
-        } catch (e) {}
-      });
     })();
     true;
   `;
@@ -232,57 +232,51 @@ export default function SideMenu({
     async (ev: any) => {
       try {
         const data = JSON.parse(ev?.nativeEvent?.data);
-        if (data?.type === "log") {
-          console.log("[WebView]", data.msg);
-          return;
-        }
         if (data?.type === "cookies") {
           const cookies = data.cookies || {};
-          const csrf = typeof cookies.csrftoken === "string" ? cookies.csrftoken : undefined;
-
+          const csrf =
+            typeof cookies.csrftoken === "string"
+              ? cookies.csrftoken
+              : undefined;
           if (csrf) {
             await setManualTokens(csrf, undefined);
             const now = await loadTokens();
             setTokens(now);
             setCsrfInput(now.csrftoken ?? "");
           }
-
           if (canUseNativeJar) {
             await refreshTokensFromJar("wv-msg");
           } else {
             await fetchMeAndMaybeClose("webview");
           }
-        } else {
-          console.log("[WebView message]", data);
         }
-      } catch (e) {
-        console.log("[WebView raw msg]", ev?.nativeEvent?.data);
-      }
+      } catch {}
     },
     [canUseNativeJar, refreshTokensFromJar, fetchMeAndMaybeClose]
   );
 
   const handleNavChange = React.useCallback(
-    (navState: any) => {
-      console.log("[Login][nav]", navState.url);
-      setStatus("navigating…");
+    (_navState: any) => {
+      setStatus(t("login.status.navigating"));
       if (canUseNativeJar) refreshTokensFromJar("nav");
     },
-    [canUseNativeJar, refreshTokensFromJar]
+    [canUseNativeJar, refreshTokensFromJar, t]
   );
 
   const applyManual = React.useCallback(
     async (nextCsrf: string, nextSess: string) => {
-      await setManualTokens(nextCsrf?.trim() || undefined, nextSess?.trim() || undefined);
+      await setManualTokens(
+        nextCsrf?.trim() || undefined,
+        nextSess?.trim() || undefined
+      );
       const curr = await loadTokens();
       setTokens(curr);
-      setStatus("tokens saved (manual)");
+      setStatus(t("login.status.tokensSaved"));
       await fetchMeAndMaybeClose("manual");
     },
-    [fetchMeAndMaybeClose]
+    [fetchMeAndMaybeClose, t]
   );
 
-  // ---- logout ----
   const doLogout = React.useCallback(async () => {
     await logout();
     const curr = await loadTokens();
@@ -290,26 +284,53 @@ export default function SideMenu({
     setMe(null);
     setCsrfInput("");
     setSessInput("");
-    setStatus("logged out");
-    console.log("[auth] logged out");
-  }, []);
+    setStatus(t("login.status.loggedOut"));
+  }, [t]);
 
-  // ---- styles consts ----
-  const R = 12;
-  const PAD_V = 8;
-  const PAD_H = 10;
+  const R = 14;
+  const PAD_V = 10;
+  const PAD_H = 12;
   const ICON = 18;
-  const FS = 13;
-  const rippleItem = colors.accent + "2A";
+  const FS = 14;
+  const rippleItem = colors.accent + "24";
   const rippleLucky = "#ffffff22";
   const rippleLogin = colors.accent + "33";
   const dynamicTop = fullscreen ? 12 : Math.max(insets.top, 12);
-
-  const mask = (s?: string) => (s ? (s.length > 8 ? `${s.slice(0, 4)}…${s.slice(-4)}` : s) : "-");
-
   const loggedIn = Boolean(me);
+  const showManualInputs = !loggedIn && (!canUseNativeJar || isExpoGo);
 
-  // ======= UI =======
+  const mask = (s?: string) =>
+    s ? (s.length > 10 ? `${s.slice(0, 6)}…${s.slice(-4)}` : s) : "-";
+
+  const copy = async (text: string) => {
+    try {
+      await Clipboard.setStringAsync(text);
+    } catch {}
+  };
+
+  const Section = ({
+    title,
+    children,
+  }: {
+    title: string;
+    children: React.ReactNode;
+  }) => (
+    <View style={{ marginVertical: 12 }}>
+      <Text
+        style={{
+          color: colors.sub,
+          fontSize: 12,
+          fontWeight: "800",
+          letterSpacing: 0.6,
+          marginBottom: 6,
+        }}
+      >
+        {title}
+      </Text>
+      {children}
+    </View>
+  );
+
   return (
     <View
       style={[
@@ -321,128 +342,58 @@ export default function SideMenu({
         },
       ]}
     >
-      {/* AUTH BLOCK */}
-      {loggedIn ? (
-        <Rounded
-          rippleColor={rippleLogin}
-          radius={R}
-          onPress={() => {
-            if (!me) return;
-            const slug = me.slug || me.username || String(me.id || "");
-            router.push({
-              pathname: "/profile/[id]/[slug]",
-              params: { id: String(me.id ?? ""), slug },
-            });
-          }}
-          style={{ marginBottom: 10 }}
+      <View style={{ marginBottom: 10 }}>
+        <Text
+          style={{ color: colors.menuTxt, fontWeight: "900", fontSize: 16 }}
         >
-          <View
-            style={[
-              styles.profileCard,
-              {
-                borderColor: colors.accent,
-                backgroundColor: colors.accent + "12",
-              },
-            ]}
-          >
-            {me?.avatar_url ? (
-              <Image
-                source={{ uri: me.avatar_url }}
-                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: "#0002" }}
-              />
-            ) : (
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: colors.accent + "22",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Feather name="user" size={18} color={colors.accent} />
-              </View>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.menuTxt, fontWeight: "900" }} numberOfLines={1}>
-                {me?.username}
-              </Text>
-              {!!me?.profile_url && (
-                <Text style={{ color: colors.sub, fontSize: 11 }} numberOfLines={1}>
-                  {me.profile_url}
-                </Text>
-              )}
-            </View>
-            <Feather name="external-link" size={18} color={colors.accent} />
-          </View>
-        </Rounded>
-      ) : (
-        <Rounded
-          rippleColor={rippleLogin}
-          radius={R}
-          onPress={() => setLoginVisible(true)}
-          style={{ marginBottom: 10 }}
-        >
-          <View
-            style={[
-              styles.loginBtn,
-              {
-                borderRadius: R,
-                borderColor: colors.accent,
-                backgroundColor: colors.accent + "10",
-              },
-            ]}
-          >
-            <Feather
-              name="log-in"
-              size={ICON}
-              color={colors.accent}
-              style={{ width: 22, textAlign: "center", marginRight: 6 }}
-            />
-            <Text style={[styles.loginTxt, { color: colors.accent }]}>
-              {t("menu.login") ?? "Sign in"}
-            </Text>
-          </View>
-        </Rounded>
-      )}
+          {t("menu.brand")}
+        </Text>
+        <Text style={{ color: colors.sub, fontSize: 11 }}>
+          {t("menu.brandTag")}
+        </Text>
+      </View>
 
-      {/* Lucky button */}
-      <Rounded rippleColor={rippleLucky} radius={R} onPress={goRandom} disabled={randomLoading}>
+      <Rounded
+        rippleColor={rippleLucky}
+        radius={R}
+        onPress={goRandom}
+        disabled={randomLoading}
+      >
         <View
           style={[
             styles.luckyBtn,
-            {
-              borderRadius: R,
-              backgroundColor: colors.accent,
-            },
+            { borderRadius: R, backgroundColor: colors.accent },
           ]}
         >
           {randomLoading ? (
-            <ActivityIndicator size="small" style={[styles.luckyTxt]} color={colors.bg} />
+            <ActivityIndicator
+              size="small"
+              style={[styles.luckySpinner]}
+              color={colors.bg}
+            />
           ) : (
             <>
               <Feather
                 name="shuffle"
                 size={ICON}
-                style={{ width: 22, textAlign: "center", marginRight: 6 }}
+                style={{ width: 22, textAlign: "center", }}
                 color={colors.bg}
               />
-              <Text style={[styles.luckyTxt, { color: colors.bg }]}>{t("menu.random")}</Text>
+              <Text style={[styles.luckyTxt, { color: colors.bg }]}>
+                {t("menu.random")}
+              </Text>
             </>
           )}
         </View>
       </Rounded>
 
-      {/* menu items */}
-      <View style={{ marginTop: 6 }}>
-        {MENU.map((item) => {
+      <Section title={t("menu.section.library")}>
+        {LIBRARY_MENU.map((item) => {
           const active = pathname?.startsWith(item.route);
           const disabled = !loggedIn && item.route === "/favoritesOnline";
           const baseTint = active ? colors.accent : colors.menuTxt;
           const tint = disabled ? colors.sub : baseTint;
-          const bg = active ? colors.accent + "15" : "transparent";
-
+          const bg = active ? colors.accent + "14" : colors.menuBg;
           return (
             <Rounded
               key={item.route}
@@ -454,6 +405,7 @@ export default function SideMenu({
                 router.push(item.route);
               }}
               disabled={disabled}
+              style={{ marginBottom: 4 }}
             >
               <View
                 style={[
@@ -463,19 +415,21 @@ export default function SideMenu({
                     borderRadius: R,
                     paddingVertical: PAD_V - 1,
                     paddingHorizontal: PAD_H - 2,
-                    opacity: disabled ? 0.5 : 1,
+                    opacity: disabled ? 0.55 : 1,
+                    borderWidth: active ? StyleSheet.hairlineWidth : 0,
+                    borderColor: active ? colors.accent + "55" : "transparent",
                   },
                 ]}
               >
-                {active && <View style={[styles.activeBar, { backgroundColor: tint }]} />}
-
+                {active && (
+                  <View style={[styles.activeBar, { backgroundColor: tint }]} />
+                )}
                 <Feather
                   name={item.icon}
                   size={ICON}
                   color={tint}
-                  style={{ width: 22, textAlign: "center", marginRight: 6 }}
+                  style={{ width: 22, textAlign: "center", marginRight: 12 }}
                 />
-
                 <Text
                   style={[
                     styles.itemTxt,
@@ -484,7 +438,6 @@ export default function SideMenu({
                 >
                   {t(item.labelKey)}
                 </Text>
-
                 {disabled && (
                   <Feather
                     name="lock"
@@ -497,89 +450,138 @@ export default function SideMenu({
             </Rounded>
           );
         })}
-      </View>
+      </Section>
 
       <View style={{ flex: 1 }} />
 
-      {/* bottom actions + status + brand */}
-      <View style={{ marginBottom: Math.max(insets.bottom, 12) }}>
-        {/* logout button (only when logged in) */}
-        {loggedIn && (
+      <Section title={t("menu.section.account")}>
+        {loggedIn ? (
+          <View style={{ gap: 8 }}>
+            <Rounded
+              rippleColor={rippleLogin}
+              radius={R}
+              onPress={() => {
+                if (!me) return;
+                const slug = me.slug || me.username || String(me.id || "");
+                router.push({
+                  pathname: "/profile/[id]/[slug]",
+                  params: { id: String(me.id ?? ""), slug },
+                });
+                closeDrawer();
+              }}
+            >
+              <View
+                style={[
+                  styles.profileCard,
+                  {
+                    borderColor: colors.accent,
+                    backgroundColor: colors.accent + "12",
+                    borderRadius: R,
+                  },
+                ]}
+              >
+                {me?.avatar_url ? (
+                  <Image
+                    source={{ uri: me.avatar_url }}
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: "#0002",
+                    }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: colors.accent + "22",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Feather name="user" size={18} color={colors.accent} />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{ color: colors.menuTxt, fontWeight: "900" }}
+                    numberOfLines={1}
+                  >
+                    {me?.username}
+                  </Text>
+                  {!!me?.profile_url && (
+                    <Text
+                      style={{ color: colors.sub, fontSize: 11 }}
+                      numberOfLines={1}
+                    >
+                      {me.profile_url}
+                    </Text>
+                  )}
+                </View>
+                <Pressable
+                  onPress={doLogout}
+                  android_ripple={{ color: "#fff2" }}
+                  style={{ padding: 8, borderRadius: 10, marginRight: 4 }}
+                >
+                  <Feather name="log-out" size={18} color={colors.accent} />
+                </Pressable>
+              </View>
+            </Rounded>
+          </View>
+        ) : (
           <Rounded
-            rippleColor={rippleItem}
+            rippleColor={rippleLogin}
             radius={R}
-            onPress={async () => {
-              await doLogout();
-              // можно закрыть меню после логаута, если нужно:
-              // closeDrawer();
-            }}
-            style={{ marginBottom: 10 }}
+            onPress={() => setLoginVisible(true)}
           >
             <View
               style={[
-                styles.logoutBtn,
+                styles.loginBtn,
                 {
                   borderRadius: R,
                   borderColor: colors.accent,
+                  backgroundColor: colors.accent + "10",
                 },
               ]}
             >
               <Feather
-                name="log-out"
+                name="log-in"
                 size={ICON}
                 color={colors.accent}
                 style={{ width: 22, textAlign: "center", marginRight: 6 }}
               />
-              <Text style={[styles.logoutTxt, { color: colors.accent }]}>
-                {t("menu.logout") ?? "Log out"}
+              <Text style={[styles.loginTxt, { color: colors.accent }]}>
+                {t("menu.login")}
               </Text>
             </View>
           </Rounded>
         )}
+      </Section>
 
-        {/* auth status */}
-        <Text style={{ color: colors.sub, fontSize: 11 }}>
-          csrf: {mask(tokens.csrftoken)} • session: {tokens.sessionid ? mask(tokens.sessionid) : "HttpOnly (auto)"}
-        </Text>
-        {!!status && (
-          <Text style={{ color: colors.sub, fontSize: 11, marginTop: 2 }}>{status}</Text>
-        )}
-
-        {/* brand */}
-        <Text style={{ color: colors.menuTxt, fontWeight: "900", marginTop: 10 }}>
-          NHAppAndroid
-        </Text>
-        <Text style={{ color: colors.sub, fontSize: 11, marginTop: 1 }}>Unofficial</Text>
-      </View>
-
-      {/* LOGIN MODAL */}
       <Modal
         visible={loginVisible}
         animationType="slide"
         onRequestClose={() => setLoginVisible(false)}
       >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: colors.page,
-            paddingTop: Math.max(insets.top, 10),
-          }}
-        >
-          {/* header */}
+        <View style={{ flex: 1, backgroundColor: colors.page, paddingTop: 10 }}>
           <View
             style={{
               paddingHorizontal: 10,
-              paddingBottom: 8,
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
             }}
           >
-            <Text style={{ color: colors.title, fontWeight: "900", fontSize: 16 }}>
-              {t("menu.login") ?? "Sign in"}
+            <Text
+              style={{ color: colors.title, fontWeight: "900", fontSize: 16 }}
+            >
+              {t("menu.login")}
             </Text>
-
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
               {canUseNativeJar && (
                 <Pressable
                   onPress={() => refreshTokensFromJar("manual")}
@@ -589,7 +591,6 @@ export default function SideMenu({
                   <Feather name="download" size={18} color={colors.title} />
                 </Pressable>
               )}
-
               <Pressable
                 onPress={() => setLoginVisible(false)}
                 android_ripple={{ color: "#fff2" }}
@@ -600,82 +601,83 @@ export default function SideMenu({
             </View>
           </View>
 
-          {/* manual tokens */}
           <View style={{ paddingHorizontal: 10, gap: 8 }}>
-            <Text style={{ color: colors.sub, fontSize: 12, marginBottom: 2 }}>
-              {isExpoGo
-                ? "Expo Go: войдите в WebView — токены сохранятся автоматически."
-                : "sessionid — HttpOnly и берётся из нативного cookie-джара; вводить его обычно не нужно."}
-            </Text>
-
-            <TextInput
-              placeholder="csrftoken"
-              value={csrfInput}
-              onChangeText={setCsrfInput}
-              onEndEditing={() => applyManual(csrfInput, sessInput)}
-              autoCapitalize="none"
-              style={[
-                styles.input,
-                { borderColor: colors.accent + "55", color: colors.title },
-              ]}
-              placeholderTextColor={colors.sub}
-            />
-
-            {/* на случай редких прошивок, где sessionid виден */}
-            {!(tokens.csrftoken || me) && (
-              <TextInput
-                placeholder="sessionid (обычно HttpOnly — скрыт)"
-                value={sessInput}
-                onChangeText={setSessInput}
-                onEndEditing={() => applyManual(csrfInput, sessInput)}
-                autoCapitalize="none"
-                style={[
-                  styles.input,
-                  { borderColor: colors.accent + "55", color: colors.title },
-                ]}
-                placeholderTextColor={colors.sub}
-              />
+            {!showManualInputs && (
+              <>
+                <Text
+                  style={{ color: colors.sub, fontSize: 12, marginBottom: 2 }}
+                >
+                  {isExpoGo ? t("login.hint.expo") : t("login.hint.native")}
+                </Text>
+                <TextInput
+                  placeholder="csrftoken"
+                  value={csrfInput}
+                  onChangeText={setCsrfInput}
+                  onEndEditing={() => applyManual(csrfInput, sessInput)}
+                  autoCapitalize="none"
+                  style={[
+                    styles.input,
+                    { borderColor: colors.accent + "55", color: colors.title },
+                  ]}
+                  placeholderTextColor={colors.sub}
+                />
+                {!canUseNativeJar && (
+                  <TextInput
+                    placeholder="sessionid"
+                    value={sessInput}
+                    onChangeText={setSessInput}
+                    onEndEditing={() => applyManual(csrfInput, sessInput)}
+                    autoCapitalize="none"
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: colors.accent + "55",
+                        color: colors.title,
+                      },
+                    ]}
+                    placeholderTextColor={colors.sub}
+                  />
+                )}
+              </>
             )}
           </View>
 
-          {/* WebView */}
-          <>
-            <View style={{ height: 10 }} />
-            <WebView
-              ref={webRef}
-              originWhitelist={["*"]}
-              source={{ uri: LOGIN_URL }}
-              onLoadStart={() => setWvBusy(true)}
-              onLoadEnd={async () => {
-                setWvBusy(false);
-                if (canUseNativeJar) await refreshTokensFromJar("loadEnd");
-                await fetchMeAndMaybeClose("loadEnd");
-              }}
-              onLoadProgress={(e) => {
-                if (canUseNativeJar && e?.nativeEvent?.progress >= 0.6) {
-                  refreshTokensFromJar("progress");
-                }
-              }}
-              onNavigationStateChange={handleNavChange}
-              onMessage={onWvMessage}
-              injectedJavaScript={injected}
-              sharedCookiesEnabled
-              thirdPartyCookiesEnabled
-              startInLoadingState
-              renderLoading={() => (
-                <View style={{ padding: 8 }}>
-                  <ActivityIndicator />
-                </View>
-              )}
-              allowsBackForwardNavigationGestures
-              style={{ flex: 1 }}
-            />
-          </>
+          <View style={{ height: 10 }} />
+          <WebView
+            ref={webRef}
+            originWhitelist={["*"]}
+            source={{ uri: LOGIN_URL }}
+            onLoadStart={() => setWvBusy(true)}
+            onLoadEnd={async () => {
+              setWvBusy(false);
+              if (canUseNativeJar) await refreshTokensFromJar("loadEnd");
+              await fetchMeAndMaybeClose("loadEnd");
+            }}
+            onLoadProgress={(e) => {
+              if (canUseNativeJar && e?.nativeEvent?.progress >= 0.6) {
+                refreshTokensFromJar("progress");
+              }
+            }}
+            onNavigationStateChange={handleNavChange}
+            onMessage={onWvMessage}
+            injectedJavaScript={injected}
+            sharedCookiesEnabled
+            thirdPartyCookiesEnabled
+            startInLoadingState
+            renderLoading={() => (
+              <View style={{ padding: 8 }}>
+                <ActivityIndicator />
+              </View>
+            )}
+            allowsBackForwardNavigationGestures
+            style={{ flex: 1 }}
+          />
 
-          {/* footer status */}
           <View style={{ padding: 8 }}>
-            <Text style={{ color: colors.sub, fontSize: 12, textAlign: "center" }}>
-              {wvBusy ? "Loading…" : "Ready"}
+            <Text
+              style={{ color: colors.sub, fontSize: 12, textAlign: "center" }}
+            >
+              {wvBusy ? t("login.loading") : t("login.ready")}
             </Text>
           </View>
         </View>
@@ -686,52 +688,39 @@ export default function SideMenu({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-
-  // профиль / логин в одном месте сверху
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     paddingVertical: 10,
     paddingHorizontal: 10,
-    borderRadius: 12,
     borderWidth: 1,
   },
-
   luckyBtn: {
-    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     marginVertical: 2,
     minHeight: 44,
     width: "100%",
   },
   luckyTxt: {
-    fontSize: 12,
-    width: "100%",
+    fontSize: 13,
     fontWeight: "900",
     letterSpacing: 0.2,
+    textAlign: "center",
   },
-
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 2,
-    minHeight: 44,
+  luckySpinner: { alignSelf: "center", },
+  row: { flexDirection: "row", alignItems: "center", minHeight: 44 },
+  activeBar: { width: 3, height: "70%", borderRadius: 2, marginRight: 8 },
+  itemTxt: {
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+    textAlign: "center",
   },
-
-  activeBar: {
-    width: 3,
-    height: "70%",
-    borderRadius: 2,
-    marginRight: 8,
-  },
-  itemTxt: { fontWeight: "700" },
-
-  // Login button
   loginBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -739,29 +728,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderWidth: 1,
   },
-  loginTxt: {
-    fontWeight: "900",
-    fontSize: 13,
-    letterSpacing: 0.2,
-  },
-
-  // Logout button
-  logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-  },
-  logoutTxt: {
-    fontWeight: "900",
-    fontSize: 13,
-    letterSpacing: 0.2,
-  },
-
+  loginTxt: { fontWeight: "900", fontSize: 13, letterSpacing: 0.2 },
   input: {
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 14,
