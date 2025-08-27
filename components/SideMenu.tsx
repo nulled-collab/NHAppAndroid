@@ -74,10 +74,11 @@ function Rounded({
       <Pressable
         disabled={disabled}
         onPress={onPress}
-        android_ripple={{ color: rippleColor, borderless: false }}
+        android_ripple={!disabled ? { color: rippleColor, borderless: false } : undefined}
         style={({ pressed }) => [
           { borderRadius: radius },
           pressed &&
+            !disabled &&
             (pressedStyle ??
               (Platform.select({
                 android: { opacity: 0.94, transform: [{ scale: 0.99 }] },
@@ -320,7 +321,7 @@ export default function SideMenu({
         },
       ]}
     >
-      {/* AUTH BLOCK (единственное место: либо профиль, либо кнопка входа) */}
+      {/* AUTH BLOCK */}
       {loggedIn ? (
         <Rounded
           rippleColor={rippleLogin}
@@ -437,7 +438,9 @@ export default function SideMenu({
       <View style={{ marginTop: 6 }}>
         {MENU.map((item) => {
           const active = pathname?.startsWith(item.route);
-          const tint = active ? colors.accent : colors.menuTxt;
+          const disabled = !loggedIn && item.route === "/favoritesOnline";
+          const baseTint = active ? colors.accent : colors.menuTxt;
+          const tint = disabled ? colors.sub : baseTint;
           const bg = active ? colors.accent + "15" : "transparent";
 
           return (
@@ -446,9 +449,11 @@ export default function SideMenu({
               radius={R}
               rippleColor={rippleItem}
               onPress={() => {
+                if (disabled) return;
                 closeDrawer();
                 router.push(item.route);
               }}
+              disabled={disabled}
             >
               <View
                 style={[
@@ -458,6 +463,7 @@ export default function SideMenu({
                     borderRadius: R,
                     paddingVertical: PAD_V - 1,
                     paddingHorizontal: PAD_H - 2,
+                    opacity: disabled ? 0.5 : 1,
                   },
                 ]}
               >
@@ -478,6 +484,15 @@ export default function SideMenu({
                 >
                   {t(item.labelKey)}
                 </Text>
+
+                {disabled && (
+                  <Feather
+                    name="lock"
+                    size={14}
+                    color={colors.sub}
+                    style={{ marginLeft: 6 }}
+                  />
+                )}
               </View>
             </Rounded>
           );
@@ -486,8 +501,42 @@ export default function SideMenu({
 
       <View style={{ flex: 1 }} />
 
-      {/* bottom status + brand */}
+      {/* bottom actions + status + brand */}
       <View style={{ marginBottom: Math.max(insets.bottom, 12) }}>
+        {/* logout button (only when logged in) */}
+        {loggedIn && (
+          <Rounded
+            rippleColor={rippleItem}
+            radius={R}
+            onPress={async () => {
+              await doLogout();
+              // можно закрыть меню после логаута, если нужно:
+              // closeDrawer();
+            }}
+            style={{ marginBottom: 10 }}
+          >
+            <View
+              style={[
+                styles.logoutBtn,
+                {
+                  borderRadius: R,
+                  borderColor: colors.accent,
+                },
+              ]}
+            >
+              <Feather
+                name="log-out"
+                size={ICON}
+                color={colors.accent}
+                style={{ width: 22, textAlign: "center", marginRight: 6 }}
+              />
+              <Text style={[styles.logoutTxt, { color: colors.accent }]}>
+                {t("menu.logout") ?? "Log out"}
+              </Text>
+            </View>
+          </Rounded>
+        )}
+
         {/* auth status */}
         <Text style={{ color: colors.sub, fontSize: 11 }}>
           csrf: {mask(tokens.csrftoken)} • session: {tokens.sessionid ? mask(tokens.sessionid) : "HttpOnly (auto)"}
@@ -496,7 +545,7 @@ export default function SideMenu({
           <Text style={{ color: colors.sub, fontSize: 11, marginTop: 2 }}>{status}</Text>
         )}
 
-        {/* brand moved to bottom */}
+        {/* brand */}
         <Text style={{ color: colors.menuTxt, fontWeight: "900", marginTop: 10 }}>
           NHAppAndroid
         </Text>
@@ -691,6 +740,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   loginTxt: {
+    fontWeight: "900",
+    fontSize: 13,
+    letterSpacing: 0.2,
+  },
+
+  // Logout button
+  logoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+  },
+  logoutTxt: {
     fontWeight: "900",
     fontSize: 13,
     letterSpacing: 0.2,

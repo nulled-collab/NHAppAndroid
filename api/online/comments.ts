@@ -1,3 +1,9 @@
+// api/comments.ts
+import {
+  cookieHeaderString, // вернёт "" на нативе, чтобы не перетирать HttpOnly
+  loadTokens, // достанем актуальный csrftoken
+  syncNativeCookiesFromJar,
+} from "@/api/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
@@ -55,7 +61,8 @@ function buildCookieHeader(c: AuthCookies) {
 function getCsrfFromCookie(): string | undefined {
   try {
     // @ts-ignore
-    const c: string = typeof document !== "undefined" ? document.cookie || "" : "";
+    const c: string =
+      typeof document !== "undefined" ? document.cookie || "" : "";
     const m = c.match(/(?:^|;\\s*)csrftoken=([^;]+)/i);
     return m ? decodeURIComponent(m[1]) : undefined;
   } catch {
@@ -111,7 +118,9 @@ export async function submitComment(
 
   const raw = await res.text();
   let j: any = null;
-  try { j = raw ? JSON.parse(raw) : null; } catch {}
+  try {
+    j = raw ? JSON.parse(raw) : null;
+  } catch {}
 
   if (res.status === 403) {
     const key =
@@ -126,7 +135,11 @@ export async function submitComment(
     throw new Error(msg || "Forbidden");
   }
 
-  if (/timeout|duplicate|invalid[-_\\s]?input|captcha/i.test(JSON.stringify(j ?? raw))) {
+  if (
+    /timeout|duplicate|invalid[-_\\s]?input|captcha/i.test(
+      JSON.stringify(j ?? raw)
+    )
+  ) {
     throw new Error(
       j?.error ||
         j?.detail ||
@@ -137,7 +150,27 @@ export async function submitComment(
   throw new Error(j?.error || j?.detail || raw || `HTTP ${res.status}`);
 }
 
-/** Удалить комментарий */
+function commonHeaders(opts: {
+  cookie: string;
+  referer: string;
+  csrf?: string; // если хочешь явно слать
+}) {
+  const h: Record<string, string> = {
+    Accept: "application/json",
+    "Accept-Language": "ru-RU,ru;q=0.9",
+    "X-Requested-With": "XMLHttpRequest",
+    Origin: NH_HOST,
+    Referer: opts.referer,
+    Cookie: opts.cookie,
+    "User-Agent":
+      Platform.OS === "ios"
+        ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
+        : "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36",
+  };
+  if (opts.csrf) h["X-CSRFToken"] = opts.csrf; // должно совпадать с cookie csrftoken
+  return h;
+}
+
 export async function deleteComment(
   commentId: number
 ): Promise<{ success: boolean }> {
@@ -147,27 +180,77 @@ export async function deleteComment(
   const res = await fetch(`${NH_HOST}/api/comments/${commentId}/delete`, {
     method: "POST",
     headers: {
-      Accept: "application/json",
-      "X-Requested-With": "XMLHttpRequest",
-      Origin: NH_HOST,
-      Referer: `${NH_HOST}/`,
-      Cookie: cookieHeader,
-      "User-Agent":
-        Platform.OS === "ios"
-          ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
-          : "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36",
-      ...(cookies.csrftoken ? { "X-CSRFToken": cookies.csrftoken } : {}),
+      ...commonHeaders({
+        cookie: cookieHeader,
+        referer: `${NH_HOST}/`,
+        csrf: cookies.csrftoken,
+      }),
     },
   });
 
   const text = await res.text();
   let json: any = null;
-  try { json = JSON.parse(text); } catch {}
+  try {
+    json = JSON.parse(text);
+  } catch {}
 
   if (!res.ok) {
-    throw new Error(`Delete failed: ${res.status} ${res.statusText}. ${text.slice(0, 400)}`);
+    throw new Error(
+      `Delete failed: ${res.status} ${res.statusText}. ${text.slice(0, 400)}`
+    );
   }
   return (json ?? { success: true }) as { success: boolean };
 }
 
-export const deleteCommentById = deleteComment;
+export async function deleteCommentById(
+  commentId: number,
+  opts?: { galleryId?: number }
+): Promise<{ success: boolean }> {
+  const url = `${NH_HOST}/api/comments/${commentId}/delete`;
+
+  const buildHeaders = async () => {
+    const cookieHeader = await cookieHeaderString(); // "" на нативе, строка на Expo/web
+    const { csrftoken } = await loadTokens();
+
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "X-Requested-With": "XMLHttpRequest",
+      Origin: NH_HOST,
+      Referer: opts?.galleryId ? `${NH_HOST}/g/${opts.galleryId}/` : `${NH_HOST}/`,
+      "User-Agent":
+        Platform.OS === "ios"
+          ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
+          : "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36",
+    };
+    if (cookieHeader) headers["Cookie"] = cookieHeader;
+    if (csrftoken) {
+      headers["X-CSRFToken"] = csrftoken;   // должен совпадать с кукой csrftoken
+      headers["X-Csrftoken"] = csrftoken;   // на всякий
+    }
+    return headers;
+  };
+
+  const tryOnce = async () => {
+    const res = await fetch(url, { method: "POST", headers: await buildHeaders() });
+    const text = await res.text();
+    if (!res.ok) {
+      const err = new Error(`Delete failed: ${res.status} ${res.statusText} ${text.slice(0, 400)}`);
+      // @ts-ignore
+      err.body = text;
+      throw err;
+    }
+    return text ? JSON.parse(text) : { success: true };
+  };
+
+  try {
+    return await tryOnce();
+  } catch (e: any) {
+    const msg = String(e?.body || e?.message || "");
+    // Cloudflare/CSRF? Синхронизируем нативные куки и повторяем один раз
+    if (/403|csrf|cloudflare|1020|access was denied/i.test(msg)) {
+      try { await syncNativeCookiesFromJar(); } catch {}
+      return await tryOnce();
+    }
+    throw e;
+  }
+}

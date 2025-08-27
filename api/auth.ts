@@ -1,4 +1,3 @@
-// api/auth.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
@@ -16,6 +15,14 @@ const STORAGE_KEY = "@auth.tokens.v1";
 
 // Доп. ключи, которые мы сохраняли из WebView/скрейперов:
 const EXTRA_AUTH_KEYS = ["nh.csrf", "nh.session", "nh.cf_clearance", "nh.me"];
+
+const COOKIE_NAMES = [
+  "csrftoken",
+  "sessionid",
+  "cf_clearance",
+  "__cf_bm",
+  "csrftoken_legacy",
+];
 
 // -------- CookieManager (лениво и безопасно для Expo Go) ----------
 let CookieManager: any = null;
@@ -47,19 +54,24 @@ export function buildCookieHeader(tokens: AuthTokens): string {
   return parts.join("; ");
 }
 
-// ------ native cookie set/clear ------
-const COOKIE_HOSTS = [
+const HOST_VARIANTS = [
   "https://nhentai.net",
   "http://nhentai.net",
   "https://www.nhentai.net",
   "http://www.nhentai.net",
+];
+const DOMAIN_VARIANTS = [
+  "nhentai.net",
+  ".nhentai.net",
+  "www.nhentai.net",
+  ".www.nhentai.net",
 ];
 
 async function applyTokensToNativeJar(tokens: AuthTokens): Promise<void> {
   if (!CookieManager) return;
   try {
     const ops: Promise<any>[] = [];
-    for (const h of COOKIE_HOSTS) {
+    for (const h of HOST_VARIANTS) {
       if (tokens.csrftoken) {
         ops.push(
           CookieManager.set(h, {
@@ -138,7 +150,7 @@ export async function syncNativeCookiesFromJar(): Promise<AuthTokens> {
   }
 
   let found: AuthTokens = {};
-  for (const h of COOKIE_HOSTS) {
+  for (const h of HOST_VARIANTS) {
     try {
       const jar = await CookieManager.get(h);
       if (!found.csrftoken) found.csrftoken = pickCookieValue(jar, "csrftoken");
@@ -172,7 +184,7 @@ export async function hasValidTokens(): Promise<boolean> {
   if (CookieManager) {
     try {
       if (Platform.OS === "android") await CookieManager.flush?.();
-      for (const h of COOKIE_HOSTS) {
+      for (const h of HOST_VARIANTS) {
         const jar = await CookieManager.get(h);
         const sess = pickCookieValue(jar, "sessionid");
         if (sess) return true;
@@ -186,13 +198,18 @@ export async function hasValidTokens(): Promise<boolean> {
 export type NHFetchInit = RequestInit & {
   csrf?: boolean;
   withAuth?: boolean;
+  noCache?: boolean;
 };
 
 export async function nhFetch(
   path: string,
   init: NHFetchInit = {}
 ): Promise<Response> {
-  const url = path.startsWith("http") ? path : `${NH_HOST}${path}`;
+  const urlBase = path.startsWith("http") ? path : `${NH_HOST}${path}`;
+  const url =
+    init.noCache === true
+      ? `${urlBase}${urlBase.includes("?") ? "&" : "?"}ts=${Date.now()}`
+      : urlBase;
 
   const withAuth = init.withAuth !== false;
   const headers = new Headers(init.headers || {});
@@ -216,7 +233,69 @@ export async function nhFetch(
   return fetch(url, { ...init, headers });
 }
 
+export function nhFetchPublic(
+  path: string,
+  init: NHFetchInit = {}
+): Promise<Response> {
+  return nhFetch(path, { ...init, withAuth: false });
+}
+
 /* ================== LOGOUT ================== */
+
+async function deepCookiePurge(): Promise<void> {
+  // 1) Native (RN)
+  if (CookieManager) {
+    try {
+      if (typeof CookieManager.clearByName === "function") {
+        for (const host of HOST_VARIANTS) {
+          for (const name of COOKIE_NAMES) {
+            try {
+              await CookieManager.clearByName(host, name);
+            } catch {}
+          }
+        }
+      } else {
+        // Фолбэк через «просрочку»
+        const expired = "1970-01-01T00:00:00.000Z";
+        for (const host of HOST_VARIANTS) {
+          for (const name of COOKIE_NAMES) {
+            try {
+              await CookieManager.set(host, {
+                name,
+                value: "",
+                path: "/",
+                expires: expired,
+              });
+            } catch {}
+          }
+        }
+      }
+
+      // На Android обязательно flush
+      if (Platform.OS === "android") await CookieManager.flush?.();
+
+      // И «последний шанс»
+      try {
+        await CookieManager.clearAll?.();
+      } catch {}
+    } catch {}
+  }
+
+  // 2) Web (если Expo web): удалим то, что доступно текущему домену
+  if (Platform.OS === "web") {
+    try {
+      const expire = "Thu, 01 Jan 1970 00:00:00 GMT";
+      for (const name of COOKIE_NAMES) {
+        // Текущий хост
+        document.cookie = `${name}=; expires=${expire}; path=/`;
+        // Варианты домена (если совпадает с текущим — сработает)
+        for (const d of DOMAIN_VARIANTS) {
+          document.cookie = `${name}=; expires=${expire}; path=/; domain=${d}`;
+        }
+      }
+    } catch {}
+  }
+}
 
 async function tryRemoteLogout(): Promise<boolean> {
   try {
@@ -224,6 +303,7 @@ async function tryRemoteLogout(): Promise<boolean> {
       method: "POST",
       csrf: true,
       withAuth: true,
+      noCache: true,
     });
     if (res.status >= 200 && res.status < 400) return true;
   } catch {}
@@ -231,93 +311,37 @@ async function tryRemoteLogout(): Promise<boolean> {
     const res2 = await nhFetch("/logout/?next=/", {
       method: "GET",
       withAuth: true,
+      noCache: true,
     });
     if (res2.status >= 200 && res2.status < 400) return true;
   } catch {}
   return false;
 }
 
-async function clearNativeCookies(): Promise<void> {
-  if (!CookieManager) return;
-
-  // чистим все возможные варианты хостов
-  const hosts = [
-    "https://nhentai.net",
-    "http://nhentai.net",
-    "https://www.nhentai.net",
-    "http://www.nhentai.net",
-  ];
-
-  try {
-    if (typeof CookieManager.clearByName === "function") {
-      for (const h of hosts) {
-        await CookieManager.clearByName(h, "csrftoken");
-        await CookieManager.clearByName(h, "sessionid");
-        // заодно почистим cf_clearance на всякий, если вдруг мешает
-        try {
-          await CookieManager.clearByName(h, "cf_clearance");
-        } catch {}
-      }
-    } else {
-      // фолбэк через "просрочку"
-      const expired = "1970-01-01T00:00:00.000Z";
-      for (const h of hosts) {
-        await CookieManager.set(h, {
-          name: "csrftoken",
-          value: "",
-          path: "/",
-          expires: expired,
-        });
-        await CookieManager.set(h, {
-          name: "sessionid",
-          value: "",
-          path: "/",
-          expires: expired,
-        });
-        try {
-          await CookieManager.set(h, {
-            name: "cf_clearance",
-            value: "",
-            path: "/",
-            expires: expired,
-          });
-        } catch {}
-      }
-    }
-
-    // на Android обязательно flush
-    if (Platform.OS === "android") await CookieManager.flush?.();
-
-    // как «последний шанс» — try clearAll (если есть)
-    try {
-      await CookieManager.clearAll?.();
-    } catch {}
-  } catch {}
-}
-
 export async function logout(): Promise<void> {
+  // Попробовать сообщить серверу
   try {
     await tryRemoteLogout();
   } catch {}
 
-  // 1) Жёстко чистим куки из нативного джара
-  await clearNativeCookies();
+  await deepCookiePurge();
 
-  // 2) Чистим наши локальные токены
   await clearTokens();
 
-  // 3) Удаляем любые вспомогательные ключи (кэш «me», вспомогательные от CloudflareGate)
   try {
     await AsyncStorage.multiRemove([
       "nh.csrf",
       "nh.session",
       "nh.cf_clearance",
       "nh.me",
+      "comments.cache",
+      "profile.me",
     ]);
   } catch {}
+
+  await new Promise((r) => setTimeout(r, 120));
 }
 
-/* ========= ДОП. УТИЛИТЫ ========= */
 
 export async function getAuthCookies(): Promise<AuthTokens> {
   try {

@@ -24,7 +24,6 @@ export async function fetchHtml(url: string): Promise<{
   const useNativeJar = hasNativeCookieJar();
   const headers = baseHeaders();
 
-  // В сборках нативный cookie-джар сам приложит sessionid; в Expo — подставим Cookie хедер.
   if (!useNativeJar) {
     const cookie = await cookieHeaderString({ preferNative: false });
     if (cookie) headers.Cookie = cookie;
