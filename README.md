@@ -8,6 +8,18 @@
   A modern, lightweight Android client for <a href="https://nhentai.net">nhentai</a> built with React Native&nbsp;(Expo).
 </p>
 
+<p align="center">
+  <a href="https://discord.gg/VnxH7yfPqf" target="_blank">
+    <img
+      width="383"
+      height="108"
+      alt="Join Discord"
+      src="https://github.com/user-attachments/assets/9a0e3a8f-498e-4b2e-900a-96381f642d3c"
+    />
+  </a>
+</p>
+
+
 --- 
 
 ## Disclaimer
