@@ -19,7 +19,6 @@ import {
   ActivityIndicator,
   Image,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -56,45 +55,104 @@ const LIBRARY_MENU: {
   { labelKey: "menu.settings", icon: "settings", route: "/settings" },
 ];
 
-function Rounded({
+function CardPressable({
   children,
-  radius = 12,
-  rippleColor,
-  style,
+  radius = 14,
   onPress,
+  onLongPress,
+  delayLongPress,
+  style,
   disabled,
-  pressedStyle,
+  ripple,
+  overlayColor,
+  hitSlop,
 }: {
   children: React.ReactNode;
   radius?: number;
-  rippleColor: string;
-  style?: any;
   onPress?: () => void;
+  onLongPress?: () => void;
+  delayLongPress?: number;
+  style?: any;
   disabled?: boolean;
-  pressedStyle?: any;
+  ripple: string;
+  overlayColor?: string;
+  hitSlop?:
+    | number
+    | { top?: number; right?: number; bottom?: number; left?: number };
 }) {
+  const overlay = overlayColor ?? "rgba(255,255,255,0.10)";
   return (
     <View style={[{ borderRadius: radius, overflow: "hidden" }, style]}>
       <Pressable
         disabled={disabled}
         onPress={onPress}
+        onLongPress={onLongPress}
+        delayLongPress={delayLongPress ?? 350}
         android_ripple={
-          !disabled ? { color: rippleColor, borderless: false } : undefined
+          !disabled ? { color: ripple, borderless: false } : undefined
         }
-        style={({ pressed }) => [
-          { borderRadius: radius },
-          pressed &&
-            !disabled &&
-            (pressedStyle ??
-              (Platform.select({
-                android: { opacity: 0.94, transform: [{ scale: 0.99 }] },
-                ios: { opacity: 0.86 },
-              }) as any)),
-        ]}
+        hitSlop={hitSlop}
       >
-        {children}
+        {({ pressed }) => (
+          <View style={[{ borderRadius: radius }]}>
+            {children}
+            <View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFillObject,
+                {
+                  backgroundColor: overlay,
+                  opacity: pressed && !disabled ? 1 : 0,
+                },
+              ]}
+            />
+          </View>
+        )}
       </Pressable>
     </View>
+  );
+}
+
+function IconBtn({
+  onPress,
+  onLongPress,
+  children,
+  ripple,
+  overlayColor,
+  size = 36,
+  radius = 10,
+  hitSlop = 6,
+}: {
+  onPress?: () => void;
+  onLongPress?: () => void;
+  children: React.ReactNode;
+  ripple: string;
+  overlayColor?: string;
+  size?: number;
+  radius?: number;
+  hitSlop?: number;
+}) {
+  return (
+    <CardPressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      ripple={ripple}
+      overlayColor={overlayColor}
+      radius={radius}
+      hitSlop={hitSlop}
+      style={{ width: size, height: size }}
+    >
+      <View
+        style={{
+          width: size,
+          height: size,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {children}
+      </View>
+    </CardPressable>
   );
 }
 
@@ -288,16 +346,16 @@ export default function SideMenu({
   }, [t]);
 
   const R = 14;
-  const PAD_V = 10;
-  const PAD_H = 12;
   const ICON = 18;
-  const FS = 14;
-  const rippleItem = colors.accent + "24";
-  const rippleLucky = "#ffffff22";
-  const rippleLogin = colors.accent + "33";
   const dynamicTop = fullscreen ? 12 : Math.max(insets.top, 12);
   const loggedIn = Boolean(me);
   const showManualInputs = !loggedIn && (!canUseNativeJar || isExpoGo);
+
+  const ripplePrimary = "#FFFFFF33";
+  const rippleItem = colors.accent + "33";
+  const rippleSubtle = colors.accent + "22";
+  const overlayStrong = "rgba(255,255,255,0.12)";
+  const overlaySoft = "rgba(255,255,255,0.08)";
 
   const mask = (s?: string) =>
     s ? (s.length > 10 ? `${s.slice(0, 6)}…${s.slice(-4)}` : s) : "-";
@@ -342,197 +400,183 @@ export default function SideMenu({
         },
       ]}
     >
-      <View style={{ marginBottom: 10 }}>
-        <Text
-          style={{ color: colors.menuTxt, fontWeight: "900", fontSize: 16 }}
-        >
-          {t("menu.brand")}
-        </Text>
-        <Text style={{ color: colors.sub, fontSize: 11 }}>
-          {t("menu.brandTag")}
-        </Text>
+      <View style={styles.headerRow}>
+        <View>
+          <Text
+            style={{ color: colors.menuTxt, fontWeight: "900", fontSize: 16 }}
+          >
+            {t("menu.brand")}
+          </Text>
+          <Text style={{ color: colors.sub, fontSize: 11 }}>
+            {t("menu.brandTag")}
+          </Text>
+        </View>
       </View>
 
-      <Rounded
-        rippleColor={rippleLucky}
+      <CardPressable
+        ripple={ripplePrimary}
+        overlayColor={overlayStrong}
         radius={R}
         onPress={goRandom}
         disabled={randomLoading}
       >
-        <View
-          style={[
-            styles.luckyBtn,
-            { borderRadius: R, backgroundColor: colors.accent },
-          ]}
-        >
+        <View style={[styles.primaryBtn, { backgroundColor: colors.accent }]}>
           {randomLoading ? (
-            <ActivityIndicator
-              size="small"
-              style={[styles.luckySpinner]}
-              color={colors.bg}
-            />
+            <ActivityIndicator size="small" color={colors.bg} />
           ) : (
             <>
-              <Feather
-                name="shuffle"
-                size={ICON}
-                style={{ width: 22, textAlign: "center", }}
-                color={colors.bg}
-              />
-              <Text style={[styles.luckyTxt, { color: colors.bg }]}>
+              <Feather name="shuffle" size={ICON} color={colors.bg} />
+              <Text style={[styles.primaryBtnTxt, { color: colors.bg }]}>
                 {t("menu.random")}
               </Text>
             </>
           )}
         </View>
-      </Rounded>
+      </CardPressable>
 
       <Section title={t("menu.section.library")}>
-        {LIBRARY_MENU.map((item) => {
-          const active = pathname?.startsWith(item.route);
-          const disabled = !loggedIn && item.route === "/favoritesOnline";
-          const baseTint = active ? colors.accent : colors.menuTxt;
-          const tint = disabled ? colors.sub : baseTint;
-          const bg = active ? colors.accent + "14" : colors.menuBg;
-          return (
-            <Rounded
-              key={item.route}
-              radius={R}
-              rippleColor={rippleItem}
-              onPress={() => {
-                if (disabled) return;
-                closeDrawer();
-                router.push(item.route);
-              }}
-              disabled={disabled}
-              style={{ marginBottom: 4 }}
-            >
-              <View
-                style={[
-                  styles.row,
-                  {
-                    backgroundColor: bg,
-                    borderRadius: R,
-                    paddingVertical: PAD_V - 1,
-                    paddingHorizontal: PAD_H - 2,
-                    opacity: disabled ? 0.55 : 1,
-                    borderWidth: active ? StyleSheet.hairlineWidth : 0,
-                    borderColor: active ? colors.accent + "55" : "transparent",
-                  },
-                ]}
+        <View style={{ gap: 6 }}>
+          {LIBRARY_MENU.map((item) => {
+            const active = pathname?.startsWith(item.route);
+            const disabled = !loggedIn && item.route === "/favoritesOnline";
+            const tint = disabled
+              ? colors.sub
+              : active
+              ? colors.accent
+              : colors.menuTxt;
+            const bg = active ? colors.accent + "14" : colors.tagBg;
+
+            return (
+              <CardPressable
+                key={item.route}
+                ripple={rippleItem}
+                overlayColor={overlaySoft}
+                radius={R}
+                onPress={() => {
+                  if (disabled) return;
+                  closeDrawer();
+                  router.push(item.route);
+                }}
+                disabled={disabled}
               >
-                {active && (
-                  <View style={[styles.activeBar, { backgroundColor: tint }]} />
-                )}
-                <Feather
-                  name={item.icon}
-                  size={ICON}
-                  color={tint}
-                  style={{ width: 22, textAlign: "center", marginRight: 12 }}
-                />
-                <Text
+                <View
                   style={[
-                    styles.itemTxt,
-                    { color: tint, fontSize: FS, flexShrink: 1 },
+                    styles.menuRow,
+                    {
+                      backgroundColor: bg,
+                      borderColor: active ? colors.accent + "55" : colors.page,
+                    },
                   ]}
                 >
-                  {t(item.labelKey)}
-                </Text>
-                {disabled && (
+                  {active && (
+                    <View
+                      style={[styles.activeBar, { backgroundColor: tint }]}
+                    />
+                  )}
                   <Feather
-                    name="lock"
-                    size={14}
-                    color={colors.sub}
-                    style={{ marginLeft: 6 }}
+                    name={item.icon}
+                    size={ICON}
+                    color={tint}
+                    style={{ width: 22, textAlign: "center", marginRight: 12 }}
                   />
-                )}
-              </View>
-            </Rounded>
-          );
-        })}
+                  <Text
+                    style={[styles.itemTxt, { color: tint, flex: 1 }]}
+                    numberOfLines={1}
+                  >
+                    {t(item.labelKey)}
+                  </Text>
+                  {disabled && (
+                    <Feather name="lock" size={14} color={colors.sub} />
+                  )}
+                </View>
+              </CardPressable>
+            );
+          })}
+        </View>
       </Section>
 
       <View style={{ flex: 1 }} />
 
       <Section title={t("menu.section.account")}>
         {loggedIn ? (
-          <View style={{ gap: 8 }}>
-            <Rounded
-              rippleColor={rippleLogin}
-              radius={R}
-              onPress={() => {
-                if (!me) return;
-                const slug = me.slug || me.username || String(me.id || "");
-                router.push({
-                  pathname: "/profile/[id]/[slug]",
-                  params: { id: String(me.id ?? ""), slug },
-                });
-                closeDrawer();
-              }}
+          <CardPressable
+            ripple={rippleSubtle}
+            overlayColor={overlaySoft}
+            radius={R}
+            onPress={() => {
+              if (!me) return;
+              const slug = me.slug || me.username || String(me.id || "");
+              router.push({
+                pathname: "/profile/[id]/[slug]",
+                params: { id: String(me.id ?? ""), slug },
+              });
+              closeDrawer();
+            }}
+          >
+            <View
+              style={[
+                styles.profileCard,
+                {
+                  borderColor: colors.accent,
+                  backgroundColor: colors.accent + "12",
+                },
+              ]}
             >
-              <View
-                style={[
-                  styles.profileCard,
-                  {
-                    borderColor: colors.accent,
-                    backgroundColor: colors.accent + "12",
-                    borderRadius: R,
-                  },
-                ]}
-              >
-                {me?.avatar_url ? (
-                  <Image
-                    source={{ uri: me.avatar_url }}
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 19,
-                      backgroundColor: "#0002",
-                    }}
-                  />
-                ) : (
-                  <View
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 19,
-                      backgroundColor: colors.accent + "22",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Feather name="user" size={18} color={colors.accent} />
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
+              {me?.avatar_url ? (
+                <Image
+                  source={{ uri: me.avatar_url }}
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 19,
+                    backgroundColor: "#0002",
+                  }}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 19,
+                    backgroundColor: colors.accent + "22",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Feather name="user" size={18} color={colors.accent} />
+                </View>
+              )}
+
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{ color: colors.menuTxt, fontWeight: "900" }}
+                  numberOfLines={1}
+                >
+                  {me?.username}
+                </Text>
+                {!!me?.profile_url && (
                   <Text
-                    style={{ color: colors.menuTxt, fontWeight: "900" }}
+                    style={{ color: colors.sub, fontSize: 11 }}
                     numberOfLines={1}
                   >
-                    {me?.username}
+                    {me.profile_url}
                   </Text>
-                  {!!me?.profile_url && (
-                    <Text
-                      style={{ color: colors.sub, fontSize: 11 }}
-                      numberOfLines={1}
-                    >
-                      {me.profile_url}
-                    </Text>
-                  )}
-                </View>
-                <Pressable
-                  onPress={doLogout}
-                  android_ripple={{ color: "#fff2" }}
-                  style={{ padding: 8, borderRadius: 10, marginRight: 4 }}
-                >
-                  <Feather name="log-out" size={18} color={colors.accent} />
-                </Pressable>
+                )}
               </View>
-            </Rounded>
-          </View>
+
+              <IconBtn
+                ripple={rippleSubtle}
+                overlayColor={overlaySoft}
+                onPress={doLogout}
+              >
+                <Feather name="log-out" size={18} color={colors.accent} />
+              </IconBtn>
+            </View>
+          </CardPressable>
         ) : (
-          <Rounded
-            rippleColor={rippleLogin}
+          <CardPressable
+            ripple={rippleSubtle}
+            overlayColor={overlaySoft}
             radius={R}
             onPress={() => setLoginVisible(true)}
           >
@@ -540,7 +584,6 @@ export default function SideMenu({
               style={[
                 styles.loginBtn,
                 {
-                  borderRadius: R,
                   borderColor: colors.accent,
                   backgroundColor: colors.accent + "10",
                 },
@@ -550,13 +593,13 @@ export default function SideMenu({
                 name="log-in"
                 size={ICON}
                 color={colors.accent}
-                style={{ width: 22, textAlign: "center", marginRight: 6 }}
+                style={{ marginRight: 8 }}
               />
               <Text style={[styles.loginTxt, { color: colors.accent }]}>
                 {t("menu.login")}
               </Text>
             </View>
-          </Rounded>
+          </CardPressable>
         )}
       </Section>
 
@@ -583,21 +626,23 @@ export default function SideMenu({
               style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
             >
               {canUseNativeJar && (
-                <Pressable
+                <IconBtn
+                  ripple={"#fff2"}
+                  overlayColor={"rgba(255,255,255,0.12)"}
                   onPress={() => refreshTokensFromJar("manual")}
-                  android_ripple={{ color: "#fff2" }}
-                  style={{ padding: 8, borderRadius: 8 }}
+                  size={36}
                 >
                   <Feather name="download" size={18} color={colors.title} />
-                </Pressable>
+                </IconBtn>
               )}
-              <Pressable
+              <IconBtn
+                ripple={"#fff2"}
+                overlayColor={"rgba(255,255,255,0.12)"}
                 onPress={() => setLoginVisible(false)}
-                android_ripple={{ color: "#fff2" }}
-                style={{ padding: 8, borderRadius: 8 }}
+                size={36}
               >
                 <Feather name="x" size={20} color={colors.title} />
-              </Pressable>
+              </IconBtn>
             </View>
           </View>
 
@@ -688,6 +733,46 @@ export default function SideMenu({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  headerRow: {
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  primaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    minHeight: 44,
+    width: "100%",
+  },
+  primaryBtnTxt: {
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+    textAlign: "center",
+  },
+
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 46,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+  },
+  activeBar: { width: 3, height: "70%", borderRadius: 2, marginRight: 8 },
+
+  itemTxt: {
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+  },
+
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -695,31 +780,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 10,
     borderWidth: 1,
-  },
-  luckyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginVertical: 2,
-    minHeight: 44,
-    width: "100%",
-  },
-  luckyTxt: {
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 0.2,
-    textAlign: "center",
-  },
-  luckySpinner: { alignSelf: "center", },
-  row: { flexDirection: "row", alignItems: "center", minHeight: 44 },
-  activeBar: { width: 3, height: "70%", borderRadius: 2, marginRight: 8 },
-  itemTxt: {
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 0.2,
-    textAlign: "center",
+    borderRadius: 14,
   },
   loginBtn: {
     flexDirection: "row",
@@ -727,8 +788,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderWidth: 1,
+    borderRadius: 14,
   },
   loginTxt: { fontWeight: "900", fontSize: 13, letterSpacing: 0.2 },
+
   input: {
     borderWidth: 1,
     borderRadius: 10,

@@ -3,14 +3,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Keyboard,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 import { Book, searchBooks } from "@/api/nhentai";
@@ -25,7 +25,6 @@ const KEY_HISTORY = "searchHistory";
 const BAR_H = 52;
 const BTN_SIDE = 40;
 
-/** Кнопка-иконка с круглым «pressed» фоном, без android_ripple */
 function IconBtn({
   onPress,
   onLongPress,
@@ -50,7 +49,6 @@ function IconBtn({
   );
 }
 
-/** Ряд списка с мягкой подсветкой по нажатию */
 function RowPress({
   onPress,
   children,
@@ -152,7 +150,6 @@ export default function SearchScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* top bar */}
       <View
         style={[
           styles.topBar,

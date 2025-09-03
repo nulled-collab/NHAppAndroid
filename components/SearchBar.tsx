@@ -1,3 +1,4 @@
+// components/SearchBar.tsx
 import { Feather } from "@expo/vector-icons";
 import { useGlobalSearchParams, usePathname, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -5,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 
 import { useDrawer } from "@/components/DrawerContext";
-import { useOverlayPortal } from "@/components/OverlayPortal";
+import NhModal from "@/components/nhModal";
 import { SortKey, useSort } from "@/context/SortContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { useI18n } from "@/lib/i18n/I18nContext";
@@ -47,7 +48,6 @@ export function SearchBar() {
   const { colors } = useTheme();
   const { openDrawer } = useDrawer();
   const { sort, setSort } = useSort();
-  const portal = useOverlayPortal();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -124,189 +124,24 @@ export function SearchBar() {
     hasSeg(pathname, "favorites") ||
     hasSeg(pathname, "favoritesOnline");
 
-  const closeSort = () => {
-    setSortOpen(false);
-    portal.hide();
+  const closeSort = () => setSortOpen(false);
+  const openSort = () => {
+    setTmp(sort);
+    setSortOpen(true);
   };
 
-  const renderSortSheet = () => (
-    <View style={styles.sheetBackdrop} pointerEvents="auto">
-      <Pressable style={StyleSheet.absoluteFill} onPress={closeSort} />
-      <View
-        style={[
-          styles.sheet,
-          { backgroundColor: colors.searchBg, borderColor: colors.page },
-        ]}
-      >
-        <View style={styles.sheetHeader}>
-          <Text style={[styles.sheetTitle, { color: colors.searchTxt }]}>
-            {t("explore.sortBy")}
-          </Text>
-        </View>
-
-        <ScrollView
-          style={styles.sheetScroll}
-          contentContainerStyle={{ paddingVertical: 4 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {SORT_OPTIONS.map(({ key, label }) => (
-            <Pressable
-              key={key}
-              style={[styles.sortRow, styles.rounded]}
-              onPress={() => setTmp(key)}
-              android_ripple={{
-                color: colors.accent + "22",
-                borderless: false,
-              }}
-            >
-              <Text
-                style={[
-                  styles.sortTxt,
-                  {
-                    color: key === tempSort ? colors.accent : colors.searchTxt,
-                    fontWeight: key === tempSort ? "700" : "500",
-                  },
-                ]}
-              >
-                {label}
-              </Text>
-              {key === tempSort && (
-                <Feather name="check" size={16} color={colors.accent} />
-              )}
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        <View style={styles.sheetFooter}>
-          <Pressable
-            style={[
-              styles.footerBtn,
-              styles.rounded,
-              { backgroundColor: colors.accent },
-            ]}
-            android_ripple={{ color: "#ffffff22", borderless: false }}
-            onPress={() => {
-              setSort(tempSort);
-              closeSort();
-            }}
-          >
-            <Text style={[styles.footerBtnTxt, { color: colors.bg }]}>
-              {t("common.ok")}
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-    </View>
-  );
-
   const backOne = () => {
-    portal.hide();
     setBackOpen(false);
     router.back();
   };
   const backTwo = () => {
-    portal.hide();
     setBackOpen(false);
     router.back();
     setTimeout(() => router.back(), 0);
   };
   const backHome = () => {
-    portal.hide();
     setBackOpen(false);
     router.replace("/");
-  };
-
-  const renderBackSheet = () => (
-    <View style={styles.sheetBackdrop} pointerEvents="auto">
-      <Pressable
-        style={StyleSheet.absoluteFill}
-        onPress={() => {
-          setBackOpen(false);
-          portal.hide();
-        }}
-      />
-      <View
-        style={[
-          styles.sheet,
-          { backgroundColor: colors.searchBg, borderColor: colors.page },
-        ]}
-      >
-        <View style={styles.sheetHeader}>
-          <Text style={[styles.sheetTitle, { color: colors.searchTxt }]}>
-            {t("common.back")}
-          </Text>
-          <IconBtn
-            onPress={() => {
-              setBackOpen(false);
-              portal.hide();
-            }}
-          >
-            <Feather name="x" size={18} color={colors.sub} />
-          </IconBtn>
-        </View>
-
-        <ScrollView
-          style={styles.sheetScroll}
-          contentContainerStyle={{ paddingVertical: 4 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <Pressable
-            style={[styles.sortRow, styles.rounded]}
-            onPress={backOne}
-            android_ripple={{ color: colors.accent + "22", borderless: false }}
-          >
-            <Text style={[styles.sortTxt, { color: colors.searchTxt }]}>
-              {t("searchBar.backOne")}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.sortRow, styles.rounded]}
-            onPress={backTwo}
-            android_ripple={{ color: colors.accent + "22", borderless: false }}
-          >
-            <Text style={[styles.sortTxt, { color: colors.searchTxt }]}>
-              {t("searchBar.backTwo")}
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.sortRow, styles.rounded]}
-            onPress={backHome}
-            android_ripple={{ color: colors.accent + "22", borderless: false }}
-          >
-            <Text style={[styles.sortTxt, { color: colors.searchTxt }]}>
-              {t("searchBar.backHome")}
-            </Text>
-          </Pressable>
-        </ScrollView>
-      </View>
-    </View>
-  );
-
-  useEffect(() => {
-    if (sortOpen) portal.show(renderSortSheet());
-  }, [
-    sortOpen,
-    tempSort,
-    colors.searchBg,
-    colors.page,
-    colors.searchTxt,
-    colors.accent,
-    colors.sub,
-  ]);
-  useEffect(() => {
-    if (backOpen) portal.show(renderBackSheet());
-  }, [
-    backOpen,
-    colors.searchBg,
-    colors.page,
-    colors.searchTxt,
-    colors.accent,
-    colors.sub,
-  ]);
-
-  const openSort = () => {
-    setTmp(sort);
-    setSortOpen(true);
   };
 
   return (
@@ -334,10 +169,7 @@ export function SearchBar() {
           </IconBtn>
         )}
 
-        <Text
-          numberOfLines={1}
-          style={[styles.title, { color: colors.searchTxt }]}
-        >
+        <Text numberOfLines={1} style={[styles.title, { color: colors.searchTxt }]}>
           {title}
         </Text>
 
@@ -362,6 +194,79 @@ export function SearchBar() {
           </View>
         )}
       </Animated.View>
+
+      {/* Sort modal */}
+      <NhModal
+        visible={sortOpen}
+        onClose={closeSort}
+        dimBackground
+        sheetStyle={{ backgroundColor: colors.searchBg, borderColor: colors.page }}
+        title={t("explore.sortBy")}
+        hint={t("common.chooseOption") /* есть в i18n? если нет — можно убрать */}
+      >
+        <ScrollView
+          style={styles.sheetScroll}
+          contentContainerStyle={{ paddingVertical: 4, paddingHorizontal: 8 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {SORT_OPTIONS.map(({ key, label }) => (
+            <Pressable
+              key={key}
+              style={[styles.sortRow, styles.rounded]}
+              onPress={() => setTmp(key)}
+            >
+              <Text
+                style={[
+                  styles.sortTxt,
+                  {
+                    color: key === tempSort ? colors.accent : colors.searchTxt,
+                    fontWeight: key === tempSort ? "700" : "500",
+                  },
+                ]}
+              >
+                {label}
+              </Text>
+              {key === tempSort && <Feather name="check" size={16} color={colors.accent} />}
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        <View style={styles.sheetFooter}>
+          <Pressable
+            style={[styles.footerBtn, styles.rounded, { backgroundColor: colors.accent }]}
+            onPress={() => {
+              setSort(tempSort);
+              closeSort();
+            }}
+          >
+            <Text style={[styles.footerBtnTxt, { color: colors.bg }]}>{t("common.ok")}</Text>
+          </Pressable>
+        </View>
+      </NhModal>
+
+      {/* Back modal */}
+      <NhModal
+        visible={backOpen}
+        onClose={() => setBackOpen(false)}
+        sheetStyle={{ backgroundColor: colors.searchBg, borderColor: colors.page }}
+        title={t("common.back")}
+      >
+        <ScrollView
+          style={styles.sheetScroll}
+          contentContainerStyle={{ paddingVertical: 4, paddingHorizontal: 8 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <Pressable style={[styles.sortRow, styles.rounded]} onPress={backOne}>
+            <Text style={[styles.sortTxt, { color: colors.searchTxt }]}>{t("searchBar.backOne")}</Text>
+          </Pressable>
+          <Pressable style={[styles.sortRow, styles.rounded]} onPress={backTwo}>
+            <Text style={[styles.sortTxt, { color: colors.searchTxt }]}>{t("searchBar.backTwo")}</Text>
+          </Pressable>
+          <Pressable style={[styles.sortRow, styles.rounded]} onPress={backHome}>
+            <Text style={[styles.sortTxt, { color: colors.searchTxt }]}>{t("searchBar.backHome")}</Text>
+          </Pressable>
+        </ScrollView>
+      </NhModal>
     </View>
   );
 }
@@ -398,41 +303,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  infoBar: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "transparent",
-  },
-  infoText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-
-  sheetBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    zIndex: 60,
-    elevation: 12,
-  },
-  sheet: {
-    width: "100%",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingTop: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    elevation: 10,
-    maxHeight: 560,
-  },
-  sheetHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingBottom: 6,
-  },
-  sheetTitle: { fontSize: 16, fontWeight: "700", flex: 1 },
-  sheetScroll: { paddingHorizontal: 8 },
+  sheetScroll: { },
   sortRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -458,5 +329,4 @@ const styles = StyleSheet.create({
   },
   footerBtnTxt: { fontSize: 15, fontWeight: "800", letterSpacing: 0.3 },
 });
-
 export default SearchBar;

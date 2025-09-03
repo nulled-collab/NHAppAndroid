@@ -58,13 +58,16 @@
     "copied": "コピーしました"
   },
   "common": {
+    "reset": "リセット",
     "back": "戻る",
     "cancel": "キャンセル",
     "nextPage": "次へ",
     "ok": "OK",
     "save": "保存",
     "tapHere": "ここをタップ",
-    "yes": "はい"
+    "yes": "はい",
+    "chooseOption": "オプションを選択",
+    "nothingFound": "見つかりませんでした。"
   },
   "explore": {
     "sort": {
@@ -226,6 +229,9 @@
     "title": "デバイスストレージ"
   },
   "tags": {
+    "collectionsTab": "コレクション",
+    "favs": "お気に入り",
+    "searchCollectionPlaceholder": "コレクションを検索…",
     "artists": "アーティスト",
     "categories": "カテゴリ",
     "characters": "キャラクター",
@@ -233,19 +239,51 @@
     "languages": "言語",
     "parodies": "パロディ",
     "tags": "タグ",
-
     "all": "すべて",
     "searchPlaceholder": "タグを検索…",
     "selected": "選択済み",
-    "included": "含む",
+    "included": "含める",
     "excluded": "除外",
     "reset": "リセット",
     "empty": "空",
     "sort": {
       "popular": "人気",
       "az": "A–Z"
+    },
+    "tabs": {
+      "all": "すべて",
+      "favs": "お気に入り"
     }
   },
   "translate": "翻訳",
-  "translating": "翻訳中…"
+  "translating": "翻訳中…",
+  "collections": {
+    "newTitle": "新しいコレクション",
+    "editTitle": "コレクションを編集",
+    "hint": "タグをタップすると「含める/除外」を切り替えます。×で削除。",
+    "namePlaceholder": "コレクション名",
+    "createFromSelected": "選択から作成",
+    "itemsCount": "{count} 件",
+    "filter": {
+      "all": "すべて",
+      "include": "含める",
+      "exclude": "除外"
+    },
+    "counters": {
+      "included": "✓ 含める: {count}",
+      "excluded": "− 除外: {count}"
+    },
+    "defaultName": "新しいコレクション",
+    "empty": "空です。",
+    "reset": "リセット",
+    "fromSelected": "「選択済み」から",
+    "save": "保存",
+    "untitled": "無題",
+    "list": {
+      "empty": "コレクションはまだありません。",
+      "apply": "適用",
+      "edit": "編集",
+      "delete": "削除"
+    }
+  }
 }

@@ -1,8 +1,16 @@
 import { Tag } from "@/api/nhentai";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-const KEY = "globalTagFilter";
+const KEY = "globalTagFilter.v3";
 
 export type TagMode = "include" | "exclude";
 export interface FilterItem {
@@ -10,6 +18,7 @@ export interface FilterItem {
   name: string;
   mode: TagMode;
 }
+type ModeMap = Record<string, TagMode>;
 
 interface Ctx {
   filters: FilterItem[];
@@ -18,6 +27,9 @@ interface Ctx {
   includes: FilterItem[];
   excludes: FilterItem[];
   filtersReady: boolean;
+  lastChangedKey: string | null;
+  epoch: number;
+  modeOf: (type: string, name: string) => TagMode | undefined;
 }
 
 const TagCtx = createContext<Ctx>({
@@ -27,50 +39,104 @@ const TagCtx = createContext<Ctx>({
   includes: [],
   excludes: [],
   filtersReady: false,
+  lastChangedKey: null,
+  epoch: 0,
+  modeOf: () => undefined,
 });
 
 export function useFilterTags() {
   return useContext(TagCtx);
 }
 
+const keyOf = (t: { type: string; name: string }) => `${t.type}:${t.name}`;
+
 export function TagProvider({ children }: { children: React.ReactNode }) {
   const [filters, setFilters] = useState<FilterItem[]>([]);
   const [filtersReady, setFiltersReady] = useState(false);
+  const [lastChangedKey, setLastChangedKey] = useState<string | null>(null);
+  const [epoch, setEpoch] = useState(0);
 
-  /* Pre-compute includes and excludes to avoid filtering on every render */
-  const includes = useMemo(() => filters.filter(f => f.mode === "include"), [filters]);
-  const excludes = useMemo(() => filters.filter(f => f.mode === "exclude"), [filters]);
+  const [modeMap, setModeMap] = useState<ModeMap>({});
+  const modeMapRef = useRef(modeMap);
+  useEffect(() => {
+    modeMapRef.current = modeMap;
+  }, [modeMap]);
 
-  /* Load filters from AsyncStorage */
+  const includes = useMemo(
+    () => filters.filter((f) => f.mode === "include"),
+    [filters]
+  );
+  const excludes = useMemo(
+    () => filters.filter((f) => f.mode === "exclude"),
+    [filters]
+  );
+
   useEffect(() => {
     AsyncStorage.getItem(KEY)
-      .then((j) => j && setFilters(JSON.parse(j)))
+      .then((j) => {
+        if (!j) return;
+        const arr = JSON.parse(j) as FilterItem[];
+        setFilters(arr);
+        const mm: ModeMap = {};
+        for (const f of arr) mm[keyOf(f)] = f.mode;
+        setModeMap(mm);
+      })
       .finally(() => setFiltersReady(true));
   }, []);
 
-  /* Save filters to AsyncStorage */
+  const saveTimer = useRef<ReturnType<typeof global.setTimeout> | null>(null);
   useEffect(() => {
-    if (filtersReady) {
-      AsyncStorage.setItem(KEY, JSON.stringify(filters));
-    }
+    if (!filtersReady) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = global.setTimeout(() => {
+      AsyncStorage.setItem(KEY, JSON.stringify(filters)).catch(() => {});
+    }, 150);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
   }, [filters, filtersReady]);
 
-  /* Optimized cycle function */
+  const modeOf = useCallback(
+    (type: string, name: string) => modeMapRef.current[`${type}:${name}`],
+    []
+  );
+
   const cycle = useCallback((t: { type: string; name: string }) => {
+    const k = keyOf(t);
+
+    setEpoch((e) => e + 1);
+    setLastChangedKey(`${k}:${Date.now()}`);
+
     setFilters((prev) => {
-      const idx = prev.findIndex(x => x.type === t.type && x.name === t.name);
+      const idx = prev.findIndex((x) => x.type === t.type && x.name === t.name);
       if (idx === -1) {
+        setModeMap((m) => ({ ...m, [k]: "include" }));
         return [...prev, { ...t, mode: "include" }];
       }
-      const item = prev[idx];
-      if (item.mode === "include") {
-        return prev.map((x, i) => (i === idx ? { ...x, mode: "exclude" } : x));
+      const cur = prev[idx];
+      if (cur.mode === "include") {
+        setModeMap((m) => ({ ...m, [k]: "exclude" }));
+        const next = prev.slice();
+        next[idx] = { ...cur, mode: "exclude" };
+        return next;
       }
-      return prev.filter((_, i) => i !== idx);
+      setModeMap((m) => {
+        const n = { ...m };
+        delete n[k];
+        return n;
+      });
+      const cp = prev.slice();
+      cp.splice(idx, 1);
+      return cp;
     });
   }, []);
 
-  const clear = useCallback(() => setFilters([]), []);
+  const clear = useCallback(() => {
+    setFilters([]);
+    setModeMap({});
+    setEpoch((e) => e + 1);
+    setLastChangedKey(null);
+  }, []);
 
   return (
     <TagCtx.Provider
@@ -81,6 +147,9 @@ export function TagProvider({ children }: { children: React.ReactNode }) {
         includes,
         excludes,
         filtersReady,
+        lastChangedKey,
+        epoch,
+        modeOf,
       }}
     >
       {children}

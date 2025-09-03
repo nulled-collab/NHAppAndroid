@@ -18,6 +18,7 @@ import SideMenu from "@/components/SideMenu";
 import { getGridConfigMap } from "@/config/gridConfig";
 import { SortProvider } from "@/context/SortContext";
 import { TagProvider } from "@/context/TagFilterContext";
+import { TagLibraryProvider } from "@/context/TagLibraryContext";
 import { ThemeProvider, useTheme } from "@/lib/ThemeContext";
 import { I18nProvider } from "@/lib/i18n/I18nContext";
 
@@ -33,17 +34,20 @@ const TopChrome = React.memo(function TopChrome({ bg }: { bg: string }) {
 
 const StatusBarController = React.memo(function StatusBarController({
   fullscreen,
+  hasDimModal,
   bg,
 }: {
   fullscreen: boolean;
+  hasDimModal: boolean;
   bg: string;
 }) {
+  const effectiveBg = fullscreen || hasDimModal ? "transparent" : bg;
   return (
     <StatusBar
       hidden={fullscreen}
       translucent
       style="light"
-      backgroundColor={fullscreen ? "transparent" : bg}
+      backgroundColor={effectiveBg}
     />
   );
 });
@@ -63,6 +67,7 @@ export default function RootLayout() {
 function AppContent() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState<boolean>(false);
+  const [hasDimModal, setHasDimModal] = useState(false);
   const [gridReady, setGridReady] = useState(false);
 
   const pathname = usePathname();
@@ -74,8 +79,10 @@ function AppContent() {
 
   useEffect(() => {
     (globalThis as any).__setFullscreen = (v: boolean) => setFullscreen(v);
+    (globalThis as any).__setHasDimModal = (v: boolean) => setHasDimModal(v);
     return () => {
       delete (globalThis as any).__setFullscreen;
+      delete (globalThis as any).__setHasDimModal;
     };
   }, []);
 
@@ -134,13 +141,22 @@ function AppContent() {
     [closeDrawer, fullscreen]
   );
 
+  const drawerContentEl = useMemo(
+    () => <SideMenu closeDrawer={closeDrawer} fullscreen={fullscreen} />,
+    [closeDrawer, fullscreen]
+  );
+
   if (!gridReady) {
     return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBarController fullscreen={fullscreen} bg={colors.searchBg} />
+      <StatusBarController
+        fullscreen={fullscreen}
+        hasDimModal={hasDimModal}
+        bg={colors.searchBg}
+      />
 
       <SafeAreaView
         edges={fullscreen ? [] : ["bottom"]}
@@ -154,44 +170,48 @@ function AppContent() {
           drawerStyle={{ width: 260, backgroundColor: colors.menuBg }}
           drawerType="front"
           swipeEnabled={false}
-          renderDrawerContent={renderDrawer}
+          renderDrawerContent={() => drawerContentEl}
         >
+          {!fullscreen && (
+            <TopChrome bg={hasDimModal ? "transparent" : colors.searchBg} />
+          )}
+
           <DrawerContext.Provider value={drawerCtxValue}>
             <SortProvider>
-              <TagProvider>
-                <OverlayPortalProvider>
-                  {!fullscreen && <TopChrome bg={colors.searchBg} />}
+              <TagLibraryProvider>
+                <TagProvider>
+                  <OverlayPortalProvider>
+                    {showSearchBar ? (
+                      <View style={{ backgroundColor: colors.searchBg }}>
+                        <SearchBar />
+                      </View>
+                    ) : null}
 
-                  {showSearchBar ? (
-                    <View style={{ backgroundColor: colors.searchBg }}>
-                      <SearchBar />
-                    </View>
-                  ) : null}
-
-                  <Stack
-                    screenOptions={{
-                      headerShown: false,
-                      contentStyle: { backgroundColor: colors.bg },
-                      animation: "none",
-                      freezeOnBlur: true,
-                    }}
-                  >
-                    <Stack.Screen name="index" />
-                    <Stack.Screen name="search" />
-                    <Stack.Screen name="favorites" />
-                    <Stack.Screen name="favoritesOnline" />
-                    <Stack.Screen name="explore" />
-                    <Stack.Screen name="book/[id]" />
-                    <Stack.Screen name="profile/[id]/[slug]" />
-                    <Stack.Screen name="read" />
-                    <Stack.Screen name="downloaded" />
-                    <Stack.Screen name="recommendations" />
-                    <Stack.Screen name="tags" />
-                    <Stack.Screen name="settings/index" />
-                    <Stack.Screen name="+not-found" />
-                  </Stack>
-                </OverlayPortalProvider>
-              </TagProvider>
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        contentStyle: { backgroundColor: colors.bg },
+                        animation: "simple_push",
+                        freezeOnBlur: true,
+                      }}
+                    >
+                      <Stack.Screen name="index" />
+                      <Stack.Screen name="search" />
+                      <Stack.Screen name="favorites" />
+                      <Stack.Screen name="favoritesOnline" />
+                      <Stack.Screen name="explore" />
+                      <Stack.Screen name="book/[id]" />
+                      <Stack.Screen name="profile/[id]/[slug]" />
+                      <Stack.Screen name="read" />
+                      <Stack.Screen name="downloaded" />
+                      <Stack.Screen name="recommendations" />
+                      <Stack.Screen name="tags/index" />
+                      <Stack.Screen name="settings/index" />
+                      <Stack.Screen name="+not-found" />
+                    </Stack>
+                  </OverlayPortalProvider>
+                </TagProvider>
+              </TagLibraryProvider>
             </SortProvider>
           </DrawerContext.Provider>
         </Drawer>

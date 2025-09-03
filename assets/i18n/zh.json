@@ -58,13 +58,16 @@
     "copied": "已复制"
   },
   "common": {
+    "reset": "重置",
     "back": "返回",
     "cancel": "取消",
     "nextPage": "下一页",
     "ok": "确定",
     "save": "保存",
     "tapHere": "点这里",
-    "yes": "是"
+    "yes": "是",
+    "chooseOption": "选择一个选项",
+    "nothingFound": "未找到内容。"
   },
   "explore": {
     "sort": {
@@ -226,26 +229,61 @@
     "title": "设备存储"
   },
   "tags": {
-    "artists": "作者",
+    "collectionsTab": "合集",
+    "favs": "收藏",
+    "searchCollectionPlaceholder": "搜索合集…",
+    "artists": "艺术家",
     "categories": "分类",
     "characters": "角色",
     "groups": "社团",
     "languages": "语言",
     "parodies": "原作",
     "tags": "标签",
-
     "all": "全部",
     "searchPlaceholder": "搜索标签…",
-    "selected": "已选择",
-    "included": "已包含",
-    "excluded": "已排除",
+    "selected": "已选",
+    "included": "包含",
+    "excluded": "排除",
     "reset": "重置",
     "empty": "空",
     "sort": {
       "popular": "热门",
       "az": "A–Z"
+    },
+    "tabs": {
+      "all": "全部",
+      "favs": "收藏"
     }
   },
   "translate": "翻译",
-  "translating": "翻译中…"
+  "translating": "翻译中…",
+  "collections": {
+    "newTitle": "新建集合",
+    "editTitle": "编辑集合",
+    "hint": "点击标签切换“包含/排除”。点叉删除。",
+    "namePlaceholder": "集合名称",
+    "createFromSelected": "从“已选”创建",
+    "itemsCount": "{count} 项",
+    "filter": {
+      "all": "全部",
+      "include": "包含",
+      "exclude": "排除"
+    },
+    "defaultName": "新建合集",
+    "counters": {
+      "included": "✓ 包含: {count}",
+      "excluded": "− 排除: {count}"
+    },
+    "empty": "空。",
+    "reset": "重置",
+    "fromSelected": "从“已选”",
+    "save": "保存",
+    "untitled": "未命名",
+    "list": {
+      "empty": "还没有集合。",
+      "apply": "应用",
+      "edit": "编辑",
+      "delete": "删除"
+    }
+  }
 }

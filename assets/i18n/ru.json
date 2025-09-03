@@ -58,13 +58,16 @@
     "copied": "Скопировано"
   },
   "common": {
+    "reset": "Сбросить",
     "back": "Назад",
     "cancel": "Отмена",
     "nextPage": "Далее",
     "ok": "ОК",
     "save": "Сохранить",
     "tapHere": "Нажми сюда",
-    "yes": "Да"
+    "yes": "Да",
+    "chooseOption": "Выбери вариант",
+    "nothingFound": "Ничего не найдено."
   },
   "explore": {
     "sort": {
@@ -226,6 +229,9 @@
     "title": "Хранилище устройства"
   },
   "tags": {
+    "collectionsTab": "Коллекции",
+    "favs": "Избранные",
+    "searchCollectionPlaceholder": "Искать коллекцию…",
     "artists": "Художники",
     "categories": "Категории",
     "characters": "Персонажи",
@@ -233,19 +239,51 @@
     "languages": "Языки",
     "parodies": "Пародии",
     "tags": "Теги",
-
     "all": "Все",
-    "searchPlaceholder": "Поиск тега…",
+    "searchPlaceholder": "Искать тег…",
     "selected": "Выбранные",
-    "included": "Включённые",
-    "excluded": "Исключённые",
+    "included": "Включены",
+    "excluded": "Исключены",
     "reset": "Сбросить",
     "empty": "пусто",
     "sort": {
       "popular": "Популярные",
       "az": "А–Я"
+    },
+    "tabs": {
+      "all": "Все",
+      "favs": "Избранные"
     }
   },
   "translate": "Перевести",
-  "translating": "Перевод…"
+  "translating": "Перевод…",
+  "collections": {
+    "newTitle": "Новая коллекция",
+    "editTitle": "Редактирование коллекции",
+    "hint": "Нажми на тег — переключится Вкл/Искл. Крестик — удалить.",
+    "namePlaceholder": "Название коллекции",
+    "createFromSelected": "Создать из выбранных",
+    "itemsCount": "{count} элементов",
+    "filter": {
+      "all": "Все",
+      "include": "Включены",
+      "exclude": "Исключены"
+    },
+    "defaultName": "Новая коллекция",
+    "counters": {
+      "included": "✓ Включены: {count}",
+      "excluded": "− Исключены: {count}"
+    },
+    "empty": "Пусто.",
+    "reset": "Сбросить",
+    "fromSelected": "Из «Выбранные»",
+    "save": "Сохранить",
+    "untitled": "Без имени",
+    "list": {
+      "empty": "Пока нет коллекций.",
+      "apply": "Применить",
+      "edit": "Редактировать",
+      "delete": "Удалить"
+    }
+  }
 }

@@ -58,13 +58,16 @@
     "copied": "Copied"
   },
   "common": {
+    "reset": "Reset",
     "back": "Back",
     "cancel": "Cancel",
     "nextPage": "Next",
     "ok": "OK",
     "save": "Save",
     "tapHere": "Tap here",
-    "yes": "Yes"
+    "yes": "Yes",
+    "chooseOption": "Choose an option",
+    "nothingFound": "Nothing found."
   },
   "explore": {
     "sort": {
@@ -226,6 +229,9 @@
     "title": "Device storage"
   },
   "tags": {
+    "collectionsTab": "Collections",
+    "favs": "Favorites",
+    "searchCollectionPlaceholder": "Search collection…",
     "artists": "Artists",
     "categories": "Categories",
     "characters": "Characters",
@@ -233,7 +239,6 @@
     "languages": "Languages",
     "parodies": "Parodies",
     "tags": "Tags",
-
     "all": "All",
     "searchPlaceholder": "Search tag…",
     "selected": "Selected",
@@ -244,8 +249,41 @@
     "sort": {
       "popular": "Popular",
       "az": "A–Z"
+    },
+    "tabs": {
+      "all": "All",
+      "favs": "Favorites"
     }
   },
   "translate": "Translate",
-  "translating": "Translating…"
+  "translating": "Translating…",
+  "collections": {
+    "newTitle": "New collection",
+    "editTitle": "Edit collection",
+    "hint": "Tap a tag to toggle Include/Exclude. Cross to delete.",
+    "namePlaceholder": "Collection name",
+    "createFromSelected": "Create from selected",
+    "itemsCount": "{count} items",
+    "filter": {
+      "all": "All",
+      "include": "Included",
+      "exclude": "Excluded"
+    },
+    "defaultName": "New collection",
+    "counters": {
+      "included": "✓ Included: {count}",
+      "excluded": "− Excluded: {count}"
+    },
+    "empty": "Empty.",
+    "reset": "Reset",
+    "fromSelected": "From “Selected”",
+    "save": "Save",
+    "untitled": "Untitled",
+    "list": {
+      "empty": "No collections yet.",
+      "apply": "Apply",
+      "edit": "Edit",
+      "delete": "Delete"
+    }
+  }
 }
